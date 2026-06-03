@@ -26,10 +26,14 @@ import {
   RocketIcon,
   ArrowDown,
   MessageCircle,
+  Zap,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 
 const MESSAGE_TYPE_CONFIG: Record<MessageType, { icon: React.ReactNode; color: string; bgColor: string; label: string }> = {
   chat: { icon: <MessageSquare className="size-3" />, color: 'text-foreground', bgColor: 'bg-card', label: 'Chat' },
@@ -256,17 +260,78 @@ export function IDEChatPanel() {
   const setIsRunning = useAppStore((s) => s.setIsRunning)
   const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
+  const fetchTasks = useAppStore((s) => s.fetchTasks)
+  const updateAgent = useAppStore((s) => s.updateAgent)
 
   const [inputValue, setInputValue] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [showSlashCommands, setShowSlashCommands] = useState(false)
   const [selectedSlashIndex, setSelectedSlashIndex] = useState(0)
   const [isScrolledUp, setIsScrolledUp] = useState(false)
+  const [runTaskDialogOpen, setRunTaskDialogOpen] = useState(false)
+  const [runTaskTitle, setRunTaskTitle] = useState('')
+  const [runTaskAssigneeId, setRunTaskAssigneeId] = useState('')
+  const [runTaskIsCreating, setRunTaskIsCreating] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const onlineCount = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping').length
+
+  // Run task handler
+  const handleRunTask = useCallback(async () => {
+    if (!runTaskTitle.trim()) return
+    setRunTaskIsCreating(true)
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: currentProject?.id || '',
+          title: runTaskTitle.trim(),
+          status: 'in_progress',
+          assigneeId: runTaskAssigneeId || undefined,
+          priority: 'high',
+          type: 'feature',
+        }),
+      })
+      if (res.ok) {
+        const task = await res.json()
+        await fetchTasks()
+        // Set the assigned agent to 'thinking' status
+        if (task.assigneeId) {
+          const agentRes = await fetch(`/api/agents/${task.assigneeId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'thinking', currentTaskId: task.id }),
+          })
+          if (agentRes.ok) {
+            const updatedAgent = await agentRes.json()
+            updateAgent(updatedAgent.id, { status: 'thinking', currentTaskId: task.id })
+          }
+        }
+        addMessage({
+          id: `sys_${Date.now()}`,
+          projectId: currentProject?.id || '',
+          agentId: null,
+          content: `▶️ Task "${runTaskTitle.trim()}" assigned and started${task.assigneeId ? `. Agent is now working on it.` : '.'}`,
+          type: 'system',
+          metadata: {},
+          createdAt: new Date().toISOString(),
+        })
+        toast.success('Task started successfully')
+        setRunTaskTitle('')
+        setRunTaskAssigneeId('')
+        setRunTaskDialogOpen(false)
+      } else {
+        toast.error('Failed to create task')
+      }
+    } catch {
+      toast.error('Failed to create task')
+    } finally {
+      setRunTaskIsCreating(false)
+    }
+  }, [runTaskTitle, runTaskAssigneeId, currentProject, fetchTasks, updateAgent, addMessage])
 
   // Filter slash commands based on input
   const filteredSlashCommands = useMemo(() => {
@@ -519,6 +584,7 @@ export function IDEChatPanel() {
             variant="ghost"
             className="size-6 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"
             title="Run Task"
+            onClick={() => setRunTaskDialogOpen(true)}
           >
             <Play className="size-3" />
           </Button>
@@ -590,7 +656,7 @@ export function IDEChatPanel() {
                   {QUICK_PROMPTS.map((qp) => (
                     <button
                       key={qp.label}
-                      onClick={() => { setInputValue(qp.prompt) }}
+                      onClick={() => { setInputValue(qp.prompt); setTimeout(() => { if (textareaRef.current) textareaRef.current.focus() }, 50) }}
                       className="quick-prompt-card flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-muted/40 hover:bg-muted/70 text-[10px] text-foreground/80 transition-colors text-left border border-transparent hover:border-border/40"
                     >
                       <span>{qp.icon}</span>
@@ -709,6 +775,80 @@ export function IDEChatPanel() {
           <span className="text-[9px] text-muted-foreground/50">{inputValue.length}/500</span>
         </div>
       </div>
+
+      {/* Run Task Dialog */}
+      <Dialog open={runTaskDialogOpen} onOpenChange={setRunTaskDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="size-4 text-emerald-500" />
+              Run Task
+            </DialogTitle>
+            <DialogDescription>Create a task and assign it to an agent for immediate execution.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Task Title</Label>
+              <input
+                type="text"
+                value={runTaskTitle}
+                onChange={(e) => setRunTaskTitle(e.target.value)}
+                placeholder="What should the agent do?"
+                className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-emerald-500/50"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && runTaskTitle.trim()) {
+                    handleRunTask()
+                  }
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Assign to Agent</Label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setRunTaskAssigneeId('')}
+                  className={cn(
+                    'px-2 py-1 rounded-md text-[10px] border transition-colors',
+                    !runTaskAssigneeId ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' : 'hover:bg-muted/50',
+                  )}
+                >
+                  Auto-assign
+                </button>
+                {agents.map((agent) => {
+                  const roleConfig = AGENT_ROLE_CONFIG[agent.role]
+                  return (
+                    <button
+                      key={agent.id}
+                      onClick={() => setRunTaskAssigneeId(agent.id)}
+                      className={cn(
+                        'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border transition-colors',
+                        runTaskAssigneeId === agent.id ? `${roleConfig.bgColor} border-current/30 ${roleConfig.color}` : 'hover:bg-muted/50',
+                      )}
+                    >
+                      <span>{agent.avatar}</span>
+                      <span>{agent.name}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm">Cancel</Button>
+            </DialogClose>
+            <Button
+              size="sm"
+              onClick={handleRunTask}
+              disabled={!runTaskTitle.trim() || runTaskIsCreating}
+              className="gap-1.5"
+            >
+              {runTaskIsCreating ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
+              Run Task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

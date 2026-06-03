@@ -11,12 +11,16 @@ import { CommandPalette } from '@/components/command-palette'
 import { KeyboardShortcutsOverlay } from '@/components/keyboard-shortcuts-overlay'
 import { FileSearchOverlay } from '@/components/file-search-overlay'
 import { SettingsDialog } from '@/components/settings-dialog'
+import { GlobalSearchPanel } from '@/components/global-search-panel'
 import { useAppStore } from '@/lib/store'
 import { useAgentOrchestrator } from '@/hooks/use-agent-orchestrator'
 import { useRealtimeWS } from '@/hooks/use-realtime-ws'
-import { Cpu, Clock, Zap, Heart, Activity, GitBranch, Wifi, WifiOff } from 'lucide-react'
+import { Cpu, Clock, Zap, Heart, Activity, GitBranch, Wifi, WifiOff, MessageSquare } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
-import { motion } from 'framer-motion'
+import { Button } from '@/components/ui/button'
+import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 export default function Home() {
   const fetchAll = useAppStore((s) => s.fetchAll)
@@ -28,22 +32,57 @@ export default function Home() {
   const loading = useAppStore((s) => s.loading)
   const setFileSearchOpen = useAppStore((s) => s.setFileSearchOpen)
   const setSettingsOpen = useAppStore((s) => s.setSettingsOpen)
+  const saveAllFiles = useAppStore((s) => s.saveAllFiles)
+  const setFindReplaceOpen = useAppStore((s) => s.setFindReplaceOpen)
+  const setGoToLineOpen = useAppStore((s) => s.setGoToLineOpen)
+  const setGlobalSearchOpen = useAppStore((s) => s.setGlobalSearchOpen)
+  const currentBranch = useAppStore((s) => s.currentBranch)
 
-  // Keyboard shortcuts: Ctrl+P for file search, Ctrl+, for settings
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+      // Ctrl+P for file search
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'p') {
         e.preventDefault()
         setFileSearchOpen(true)
       }
+      // Ctrl+, for settings
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault()
         setSettingsOpen(true)
       }
+      // Ctrl+Shift+S for save all
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        saveAllFiles().then(({ saved, failed }) => {
+          if (failed > 0) {
+            toast.error(`Failed to save ${failed} file${failed > 1 ? 's' : ''}`)
+          } else if (saved > 0) {
+            toast.success(`All ${saved} file${saved > 1 ? 's' : ''} saved`)
+          } else {
+            toast.info('No unsaved files')
+          }
+        })
+      }
+      // Ctrl+F or Ctrl+H for find & replace
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === 'f' || e.key === 'h')) {
+        e.preventDefault()
+        setFindReplaceOpen(true)
+      }
+      // Ctrl+G for go to line
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'g') {
+        e.preventDefault()
+        setGoToLineOpen(true)
+      }
+      // Ctrl+Shift+F for global search
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'F') {
+        e.preventDefault()
+        setGlobalSearchOpen(true)
+      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [setFileSearchOpen, setSettingsOpen])
+  }, [setFileSearchOpen, setSettingsOpen, saveAllFiles, setFindReplaceOpen, setGoToLineOpen, setGlobalSearchOpen])
 
   // Track uptime
   const startTime = useRef(Date.now())
@@ -102,6 +141,35 @@ export default function Home() {
   // Task completion percentage
   const taskCompletionPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
+  // Responsive state: track screen size for responsive layout decisions
+  const [isMobile, setIsMobile] = useState(false)
+  const [isTablet, setIsTablet] = useState(false)
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
+  const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed)
+  const rightPanelOpen = useAppStore((s) => s.rightPanelOpen)
+  const setRightPanelOpen = useAppStore((s) => s.setRightPanelOpen)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    const checkSize = () => {
+      setIsMobile(window.innerWidth < 768)
+      setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024)
+    }
+    checkSize()
+    window.addEventListener('resize', checkSize)
+    return () => window.removeEventListener('resize', checkSize)
+  }, [])
+
+  // Auto-collapse sidebar on mobile/tablet
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarCollapsed(true)
+      setRightPanelOpen(false)
+    } else if (isTablet) {
+      setSidebarCollapsed(true)
+    }
+  }, [isMobile, isTablet, setSidebarCollapsed, setRightPanelOpen])
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden noise-overlay">
       {/* Top Bar */}
@@ -110,21 +178,90 @@ export default function Home() {
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden animate-page-load animate-page-load-delay-1">
-        {/* Sidebar */}
-        <IDESidebar />
+      <div className="flex flex-1 overflow-hidden animate-page-load animate-page-load-delay-1 relative">
+        {/* Mobile Sidebar Overlay */}
+        <AnimatePresence>
+          {isMobile && mobileSidebarOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 z-30"
+                onClick={() => setMobileSidebarOpen(false)}
+              />
+              <motion.div
+                initial={{ x: -240 }}
+                animate={{ x: 0 }}
+                exit={{ x: -240 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="fixed left-0 top-11 bottom-7 z-40"
+              >
+                <IDESidebar />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Sidebar - hidden on mobile, shown on tablet+ */}
+        {!isMobile && <IDESidebar />}
 
         {/* Editor + Chat */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden relative">
           <IDEEditor />
-          <IDEChatPanel />
+          {/* Chat panel: hidden on mobile (use floating button), toggleable on tablet, visible on desktop */}
+          {(!isMobile && (isTablet ? rightPanelOpen : true)) && <IDEChatPanel />}
         </div>
       </div>
 
+      {/* Global Search Panel */}
+      <GlobalSearchPanel />
+
       {/* Bottom Panel */}
       <div className="animate-page-load animate-page-load-delay-2">
-        <IDEBottomPanel />
+        <IDEBottomPanel isMobile={isMobile} />
       </div>
+
+      {/* Floating Chat Button for Mobile */}
+      <AnimatePresence>
+        {isMobile && !rightPanelOpen && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setRightPanelOpen(true)}
+            className="fixed bottom-14 right-4 z-30 size-12 rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:bg-emerald-600 transition-colors"
+          >
+            <MessageSquare className="size-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Chat Panel Overlay */}
+      <AnimatePresence>
+        {isMobile && rightPanelOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-30"
+              onClick={() => setRightPanelOpen(false)}
+            />
+            <motion.div
+              initial={{ x: 320 }}
+              animate={{ x: 0 }}
+              exit={{ x: 320 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="fixed right-0 top-11 bottom-7 z-40 w-[85vw] max-w-sm"
+            >
+              <IDEChatPanel />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Footer Status Bar */}
       <motion.footer
@@ -271,7 +408,7 @@ export default function Home() {
             <TooltipTrigger asChild>
               <div className="flex items-center gap-1 hover:text-foreground/80 transition-colors cursor-default">
                 <GitBranch className="size-3" />
-                <span className="font-medium">main</span>
+                <span className="font-medium">{currentBranch}</span>
               </div>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">

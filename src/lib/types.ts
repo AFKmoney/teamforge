@@ -10,7 +10,20 @@ export type BuildStatus = 'running' | 'success' | 'failed' | 'warning'
 export type BuildType = 'build' | 'test' | 'lint' | 'deploy'
 export type ProjectStatus = 'active' | 'paused' | 'completed' | 'archived'
 export type IDEPanel = 'agents' | 'chat' | 'tasks' | 'terminal' | 'files'
-export type IDEBottomTab = 'terminal' | 'tasks' | 'build' | 'problems' | 'analytics' | 'activities'
+export type IDEBottomTab = 'terminal' | 'tasks' | 'build' | 'problems' | 'analytics' | 'activities' | 'git'
+export type GitFileStatus = 'modified' | 'untracked' | 'deleted' | 'staged'
+export interface GitCommit {
+  id: string
+  message: string
+  timestamp: string
+  filesChanged: number
+  branch: string
+}
+export interface GitBranch {
+  name: string
+  isCurrent: boolean
+  lastCommitDate: string
+}
 export type NotificationType = 'info' | 'success' | 'warning' | 'error'
 export type NotificationCategory = 'task' | 'build' | 'agent' | 'system' | 'chat'
 

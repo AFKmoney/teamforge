@@ -1,8 +1,9 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG, type ProjectFile, type Agent, type AgentRole, type AgentStatus, type AgentActivity } from '@/lib/types'
+import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG, type ProjectFile, type Agent, type AgentRole, type AgentStatus, type AgentActivity, type GitFileStatus } from '@/lib/types'
 import { FileCreationDialog } from '@/components/file-creation-dialog'
+import { GitPanel } from '@/components/git-panel'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -39,10 +40,20 @@ import {
   MessageSquare,
   Pin,
   FileX2,
+  Copy,
+  Clipboard,
+  Files,
+  Scissors,
+  ArrowDownToLine,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Eye,
+  GitBranch,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 // File tree node type
 interface FileTreeNode {
@@ -144,6 +155,9 @@ function FileTreeNodeView({
   expandedDirs,
   toggleDir,
   onContextMenuAction,
+  highlightPath,
+  gitFileStatuses,
+  unsavedFileIds,
 }: {
   node: FileTreeNode
   depth: number
@@ -152,10 +166,27 @@ function FileTreeNodeView({
   expandedDirs: Set<string>
   toggleDir: (path: string) => void
   onContextMenuAction: (action: string, node: FileTreeNode) => void
+  highlightPath?: string | null
+  gitFileStatuses: Record<string, GitFileStatus>
+  unsavedFileIds: Set<string>
 }) {
   const isExpanded = expandedDirs.has(node.path)
   const isActive = node.file ? node.file.id === activeFileId : false
   const fileSize = node.file && !node.isDir ? new Blob([node.file.content]).size : 0
+  const isHighlighted = highlightPath === node.path
+
+  // Git status badge config
+  const GIT_STATUS_BADGE: Record<GitFileStatus, { label: string; color: string }> = {
+    modified: { label: 'M', color: 'text-amber-500' },
+    untracked: { label: 'U', color: 'text-emerald-500' },
+    deleted: { label: 'D', color: 'text-red-500' },
+    staged: { label: 'S', color: 'text-blue-500' },
+  }
+
+  // Determine git status for this file
+  const gitStatus = node.file && !node.isDir
+    ? (gitFileStatuses[node.path] || (unsavedFileIds.has(node.file.id) ? 'modified' as GitFileStatus : undefined))
+    : undefined
 
   if (node.isDir) {
     return (
@@ -166,6 +197,7 @@ function FileTreeNodeView({
               onClick={() => toggleDir(node.path)}
               className={cn(
                 'flex items-center gap-1.5 w-full px-2 py-1 text-xs hover:bg-muted/60 transition-colors rounded-sm group',
+                isHighlighted && 'bg-amber-500/10 ring-1 ring-amber-500/30',
               )}
               style={{ paddingLeft: `${depth * 12 + 8}px` }}
             >
@@ -199,6 +231,9 @@ function FileTreeNodeView({
                       expandedDirs={expandedDirs}
                       toggleDir={toggleDir}
                       onContextMenuAction={onContextMenuAction}
+                      highlightPath={highlightPath}
+                      gitFileStatuses={gitFileStatuses}
+                      unsavedFileIds={unsavedFileIds}
                     />
                   ))}
                 </motion.div>
@@ -206,7 +241,7 @@ function FileTreeNodeView({
             </AnimatePresence>
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-48">
+        <ContextMenuContent className="w-52">
           <ContextMenuItem onClick={() => onContextMenuAction('newFile', node)} className="gap-2 text-xs">
             <FilePlus className="size-3.5" />
             New File
@@ -216,10 +251,38 @@ function FileTreeNodeView({
             New Folder
           </ContextMenuItem>
           <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => onContextMenuAction('duplicate', node)} className="gap-2 text-xs">
+            <Files className="size-3.5" />
+            Duplicate
+          </ContextMenuItem>
           <ContextMenuItem onClick={() => onContextMenuAction('rename', node)} className="gap-2 text-xs">
             <Pencil className="size-3.5" />
             Rename
           </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => onContextMenuAction('copyPath', node)} className="gap-2 text-xs">
+            <Clipboard className="size-3.5" />
+            Copy Path
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onContextMenuAction('copyRelativePath', node)} className="gap-2 text-xs">
+            <Copy className="size-3.5" />
+            Copy Relative Path
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => onContextMenuAction('revealInExplorer', node)} className="gap-2 text-xs">
+            <Eye className="size-3.5" />
+            Reveal in Explorer
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => onContextMenuAction('collapseAll', node)} className="gap-2 text-xs">
+            <ChevronsDownUp className="size-3.5" />
+            Collapse All
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onContextMenuAction('expandAll', node)} className="gap-2 text-xs">
+            <ChevronsUpDown className="size-3.5" />
+            Expand All
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem onClick={() => onContextMenuAction('delete', node)} className="gap-2 text-xs text-red-500 focus:text-red-500">
             <Trash2 className="size-3.5" />
             Delete
@@ -237,26 +300,50 @@ function FileTreeNodeView({
           className={cn(
             'file-tree-item flex items-center gap-1.5 w-full px-2 py-1 text-xs hover:bg-muted/60 transition-colors rounded-sm group relative',
             isActive && 'bg-primary/10 text-primary active-file-glow',
+            isHighlighted && !isActive && 'bg-amber-500/10 ring-1 ring-amber-500/30',
           )}
           style={{ paddingLeft: `${depth * 12 + 20}px` }}
         >
           <div className={cn('file-color-bar', getFileTypeColor(node.name))} />
           {getFileIcon(node.name)}
           <span className={cn('truncate', isActive ? 'text-primary font-medium' : 'text-foreground/80')}>{node.name}</span>
+          {gitStatus && (
+            <span className={cn('text-[9px] font-mono font-bold shrink-0 ml-0.5', GIT_STATUS_BADGE[gitStatus].color)}>
+              {GIT_STATUS_BADGE[gitStatus].label}
+            </span>
+          )}
           {isActive && (
             <Pin className="size-2.5 text-emerald-500/60 shrink-0 ml-auto" />
           )}
-          {!isActive && fileSize > 0 && (
+          {!isActive && !gitStatus && fileSize > 0 && (
             <span className="text-[9px] text-muted-foreground/40 ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
               {formatFileSize(fileSize)}
             </span>
           )}
         </button>
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-48">
+      <ContextMenuContent className="w-52">
+        <ContextMenuItem onClick={() => onContextMenuAction('duplicate', node)} className="gap-2 text-xs">
+          <Files className="size-3.5" />
+          Duplicate
+        </ContextMenuItem>
         <ContextMenuItem onClick={() => onContextMenuAction('rename', node)} className="gap-2 text-xs">
           <Pencil className="size-3.5" />
           Rename
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={() => onContextMenuAction('copyPath', node)} className="gap-2 text-xs">
+          <Clipboard className="size-3.5" />
+          Copy Path
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onContextMenuAction('copyRelativePath', node)} className="gap-2 text-xs">
+          <Copy className="size-3.5" />
+          Copy Relative Path
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={() => onContextMenuAction('revealInExplorer', node)} className="gap-2 text-xs">
+          <Eye className="size-3.5" />
+          Reveal in Explorer
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onContextMenuAction('delete', node)} className="gap-2 text-xs text-red-500 focus:text-red-500">
@@ -468,6 +555,18 @@ function ActivityItem({ activity }: { activity: AgentActivity }) {
   )
 }
 
+// Helper to get all directory paths in a tree
+function getAllDirPaths(nodes: FileTreeNode[]): string[] {
+  const paths: string[] = []
+  for (const node of nodes) {
+    if (node.isDir) {
+      paths.push(node.path)
+      paths.push(...getAllDirPaths(node.children))
+    }
+  }
+  return paths
+}
+
 export function IDESidebar() {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed)
@@ -478,12 +577,49 @@ export function IDESidebar() {
   const setSelectedAgentId = useAppStore((s) => s.setSelectedAgentId)
   const removeFile = useAppStore((s) => s.removeFile)
   const fetchFiles = useAppStore((s) => s.fetchFiles)
+  const addFile = useAppStore((s) => s.addFile)
+  const currentProject = useAppStore((s) => s.currentProject)
+  const gitFileStatuses = useAppStore((s) => s.gitFileStatuses)
+  const unsavedFileIds = useAppStore((s) => s.unsavedFileIds)
+  const gitCommits = useAppStore((s) => s.gitCommits)
 
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set(['src', 'src/app', 'src/components', 'src/lib']))
   const [searchQuery, setSearchQuery] = useState('')
   const [createFileDialog, setCreateFileDialog] = useState(false)
   const [createFolderDialog, setCreateFolderDialog] = useState(false)
   const [initialPath, setInitialPath] = useState('')
+  const [highlightPath, setHighlightPath] = useState<string | null>(null)
+
+  // Listen for breadcrumb navigation events from the editor
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<{ path: string }>
+      const folderPath = customEvent.detail?.path
+      if (folderPath) {
+        // Expand all parent directories
+        setExpandedDirs((prev) => {
+          const next = new Set(prev)
+          const parts = folderPath.split('/')
+          for (let i = 1; i <= parts.length; i++) {
+            next.add(parts.slice(0, i).join('/'))
+          }
+          return next
+        })
+        // Highlight the folder
+        setHighlightPath(folderPath)
+      }
+    }
+    window.addEventListener('navigate-to-folder', handler)
+    return () => window.removeEventListener('navigate-to-folder', handler)
+  }, [])
+
+  // Clear highlight after a timeout
+  useEffect(() => {
+    if (highlightPath) {
+      const timer = setTimeout(() => setHighlightPath(null), 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [highlightPath])
 
   const toggleDir = (path: string) => {
     setExpandedDirs((prev) => {
@@ -509,11 +645,93 @@ export function IDESidebar() {
         if (activeFileId === fileId) {
           setActiveFileId(null)
         }
+        toast.success('File deleted')
       }
     } catch (e) {
       console.error('Failed to delete file:', e)
+      toast.error('Failed to delete file')
     }
   }
+
+  // Duplicate a file
+  const handleDuplicateFile = useCallback(async (node: FileTreeNode) => {
+    if (!node.file || node.isDir) return
+    const filePath = node.file.path
+    const lastDot = filePath.lastIndexOf('.')
+    let newPath: string
+    if (lastDot > 0) {
+      newPath = filePath.substring(0, lastDot) + ' (copy)' + filePath.substring(lastDot)
+    } else {
+      newPath = filePath + ' (copy)'
+    }
+
+    try {
+      const res = await fetch('/api/vfs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: currentProject?.id || '',
+          path: newPath,
+          content: node.file.content,
+          language: node.file.language,
+          isDirectory: false,
+        }),
+      })
+
+      if (res.ok) {
+        const newFile = await res.json()
+        addFile(newFile)
+        await fetchFiles()
+        setActiveFileId(newFile.id)
+        toast.success(`Duplicated as ${newPath}`)
+      } else {
+        toast.error('Failed to duplicate file')
+      }
+    } catch (e) {
+      console.error('Failed to duplicate file:', e)
+      toast.error('Failed to duplicate file')
+    }
+  }, [currentProject, addFile, fetchFiles, setActiveFileId])
+
+  // Copy path to clipboard
+  const handleCopyPath = useCallback(async (path: string) => {
+    try {
+      await navigator.clipboard.writeText(path)
+      toast.success(`Copied: ${path}`)
+    } catch {
+      toast.error('Failed to copy path')
+    }
+  }, [])
+
+  // Reveal in explorer - scroll to and highlight the file
+  const handleRevealInExplorer = useCallback((node: FileTreeNode) => {
+    // Make sure all parent directories are expanded
+    const pathParts = node.path.split('/')
+    const dirsToExpand: string[] = []
+    for (let i = 1; i < pathParts.length; i++) {
+      dirsToExpand.push(pathParts.slice(0, i).join('/'))
+    }
+
+    setExpandedDirs((prev) => {
+      const next = new Set(prev)
+      dirsToExpand.forEach(d => next.add(d))
+      return next
+    })
+    setHighlightPath(node.path)
+  }, [])
+
+  // Collapse all folders
+  const handleCollapseAll = useCallback(() => {
+    setExpandedDirs(new Set())
+    toast.success('All folders collapsed')
+  }, [])
+
+  // Expand all folders
+  const handleExpandAll = useCallback((tree: FileTreeNode[]) => {
+    const allDirs = getAllDirPaths(tree)
+    setExpandedDirs(new Set(allDirs))
+    toast.success(`Expanded ${allDirs.length} folders`)
+  }, [])
 
   const handleContextMenuAction = (action: string, node: FileTreeNode) => {
     switch (action) {
@@ -534,13 +752,33 @@ export function IDESidebar() {
         setInitialPath(node.path)
         setCreateFileDialog(true)
         break
+      case 'duplicate':
+        handleDuplicateFile(node)
+        break
+      case 'copyPath':
+        handleCopyPath(node.path)
+        break
+      case 'copyRelativePath':
+        handleCopyPath(node.path)
+        break
+      case 'revealInExplorer':
+        handleRevealInExplorer(node)
+        break
+      case 'collapseAll':
+        handleCollapseAll()
+        break
+      case 'expandAll':
+        handleExpandAll(fileTree)
+        break
     }
   }
 
-  const fileTree = useMemo(() => buildFileTree(files.filter((f) => {
-    if (!searchQuery) return true
-    return f.path.toLowerCase().includes(searchQuery.toLowerCase())
-  })), [files, searchQuery])
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const fileTree = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    const filtered = searchQuery ? files.filter((f) => f.path.toLowerCase().includes(q)) : files
+    return buildFileTree(filtered)
+  }, [files, searchQuery])
 
   if (sidebarCollapsed) {
     return (
@@ -582,6 +820,21 @@ export function IDESidebar() {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">Agents</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-8"
+                onClick={() => setSidebarCollapsed(false)}
+              >
+                <GitBranch className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Source Control</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
@@ -630,6 +883,21 @@ export function IDESidebar() {
               <TooltipContent side="bottom">New Folder</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-5"
+                  onClick={() => handleCollapseAll()}
+                >
+                  <ChevronsDownUp className="size-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Collapse All</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Button
             size="icon"
             variant="ghost"
@@ -675,6 +943,9 @@ export function IDESidebar() {
               expandedDirs={expandedDirs}
               toggleDir={toggleDir}
               onContextMenuAction={handleContextMenuAction}
+              highlightPath={highlightPath}
+              gitFileStatuses={gitFileStatuses}
+              unsavedFileIds={unsavedFileIds}
             />
           ))}
           {fileTree.length === 0 && (
@@ -715,6 +986,24 @@ export function IDESidebar() {
 
         {/* Activity Feed Section */}
         <ActivityFeedSection />
+
+        <Separator className="mx-3" />
+
+        {/* Source Control / Git Panel */}
+        <div className="py-2">
+          <div className="px-3 py-0.5 flex items-center gap-1.5">
+            <GitBranch className="size-3 text-muted-foreground/70" />
+            <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+              Source Control
+            </span>
+            {gitCommits.length > 0 && (
+              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 ml-auto bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
+                {gitCommits.length}
+              </Badge>
+            )}
+          </div>
+          <GitPanel />
+        </div>
       </ScrollArea>
 
       {/* File Creation Dialogs */}

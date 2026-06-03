@@ -1,12 +1,15 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { TASK_STATUS_CONFIG, TASK_PRIORITY_CONFIG, TASK_TYPE_CONFIG, AGENT_ROLE_CONFIG, type IDEBottomTab, type Task, type BuildLog, type TaskStatus, type AgentActivity, type AgentRole } from '@/lib/types'
+import { TASK_STATUS_CONFIG, TASK_PRIORITY_CONFIG, TASK_TYPE_CONFIG, AGENT_ROLE_CONFIG, type IDEBottomTab, type Task, type BuildLog, type TaskStatus, type TaskPriority, type TaskType, type AgentActivity, type AgentRole, type GitCommit } from '@/lib/types'
 import { IDETaskCard } from '@/components/ide-task-card'
+import { TaskFilterBar, applyTaskFilters, applyTaskSort, type TaskFilters, type TaskSort } from '@/components/task-filter-bar'
+import { TaskDetailPanel } from '@/components/task-detail-panel'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { toast } from 'sonner'
 import {
   DndContext,
   DragOverlay,
@@ -44,9 +47,12 @@ import {
   Rocket,
   MessageSquare,
   Plus,
+  Sparkles,
+  GitBranch,
+  GitCommit as GitCommitIcon,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useMemo, useCallback, useRef, useState } from 'react'
+import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { AnalyticsDashboard } from '@/components/analytics-dashboard'
 
@@ -55,6 +61,7 @@ const BOTTOM_TABS: { id: IDEBottomTab; label: string; icon: React.ReactNode }[] 
   { id: 'tasks', label: 'Tasks', icon: <LayoutGrid className="size-3.5" /> },
   { id: 'build', label: 'Build', icon: <Hammer className="size-3.5" /> },
   { id: 'problems', label: 'Problems', icon: <AlertTriangle className="size-3.5" /> },
+  { id: 'git', label: 'Git', icon: <GitBranch className="size-3.5" /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="size-3.5" /> },
   { id: 'activities', label: 'Activities', icon: <Activity className="size-3.5" /> },
 ]
@@ -85,50 +92,295 @@ function BuildTypeBadge({ type }: { type: string }) {
   return <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-4', c.color)}>{c.label}</Badge>
 }
 
+interface TerminalLine {
+  id: string
+  type: 'input' | 'output' | 'error' | 'system' | 'build'
+  content: string
+  timestamp: string
+  buildInfo?: { status: string; type: string }
+}
+
+const HELP_TEXT = `Available commands:
+  help          Show this help message
+  clear         Clear terminal output
+  ls            List files in current directory
+  pwd           Print working directory
+  echo <text>   Print text
+  cat <file>    Show file contents
+  whoami        Show current user
+  date          Show current date/time
+  uptime        Show system uptime
+  bun <cmd>     Run bun commands (e.g. bun run lint, bun test)
+  npm <cmd>     Run npm commands
+  npx <cmd>     Run npx commands
+  git <cmd>     Run git commands
+  node -e <js>  Run inline JavaScript
+  Any command   Execute via shell (30s timeout)`
+
 function TerminalView() {
   const buildLogs = useAppStore((s) => s.buildLogs)
+  const [lines, setLines] = useState<TerminalLine[]>([])
+  const [inputValue, setInputValue] = useState('')
+  const [commandHistory, setCommandHistory] = useState<string[]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const [isExecuting, setIsExecuting] = useState(false)
+  const [cwd, setCwd] = useState('~/project')
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const commandHistoryRef = useRef<string[]>([])
 
-  if (buildLogs.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
-        <Terminal className="size-4 mr-2 opacity-40" />
-        <span>No terminal output yet. Click Run Build to start.</span>
-      </div>
-    )
-  }
+  // Keep ref in sync
+  commandHistoryRef.current = commandHistory
+
+  // Auto-scroll to bottom on new lines
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [lines])
+
+  // Load build logs into terminal lines on mount
+  useEffect(() => {
+    if (buildLogs.length > 0 && lines.length === 0) {
+      const initialLines: TerminalLine[] = buildLogs.map((log) => ({
+        id: log.id,
+        type: 'build' as const,
+        content: `$ ${log.type === 'lint' ? 'bun run lint' : log.type === 'build' ? 'next build' : log.type === 'test' ? 'bun test' : 'deploy'}\n${log.output}`,
+        timestamp: log.createdAt,
+        buildInfo: { status: log.status, type: log.type },
+      }))
+      setLines(initialLines)
+    }
+  }, [buildLogs, lines.length])
+
+  const addLine = useCallback((type: TerminalLine['type'], content: string, buildInfo?: { status: string; type: string }) => {
+    setLines((prev) => [...prev, {
+      id: `line_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      type,
+      content,
+      timestamp: new Date().toISOString(),
+      buildInfo,
+    }])
+  }, [])
+
+  const handleCommand = useCallback(async (command: string) => {
+    const trimmed = command.trim()
+    if (!trimmed) return
+
+    // Add to history
+    setCommandHistory((prev) => [...prev, trimmed])
+    setHistoryIndex(-1)
+
+    // Show the command
+    addLine('input', `${cwd} ❯ ${trimmed}`)
+
+    // Handle built-in commands
+    if (trimmed === 'clear') {
+      setLines([])
+      return
+    }
+
+    if (trimmed === 'help') {
+      addLine('system', HELP_TEXT)
+      return
+    }
+
+    // Handle simple local commands without API call
+    if (trimmed === 'pwd') {
+      addLine('output', '/home/z/my-project')
+      return
+    }
+
+    if (trimmed === 'whoami') {
+      addLine('output', 'z')
+      return
+    }
+
+    if (trimmed === 'date') {
+      addLine('output', new Date().toString())
+      return
+    }
+
+    if (trimmed === 'uptime') {
+      addLine('output', `up ${Math.floor(Date.now() / 1000 / 60)} minutes (session)`)
+      return
+    }
+
+    if (trimmed.startsWith('echo ')) {
+      addLine('output', trimmed.slice(5))
+      return
+    }
+
+    if (trimmed === 'ls' || trimmed.startsWith('ls ')) {
+      // Use the execute API for ls
+    }
+
+    // Execute via API
+    setIsExecuting(true)
+    try {
+      const res = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: trimmed, cwd: '/home/z/my-project' }),
+      })
+
+      if (res.ok) {
+        const data = await res.json() as { stdout: string; stderr: string; exitCode: number; timedOut: boolean }
+
+        if (data.stdout) {
+          addLine('output', data.stdout)
+        }
+        if (data.stderr) {
+          addLine('error', data.stderr)
+        }
+        if (data.timedOut) {
+          addLine('error', '⏱️ Command timed out after 30 seconds')
+        }
+        if (!data.stdout && !data.stderr && !data.timedOut) {
+          addLine('output', '(no output)')
+        }
+
+        // Update cwd for cd commands
+        if (trimmed.startsWith('cd ')) {
+          const target = trimmed.slice(3).trim()
+          if (target === '..') {
+            setCwd((prev) => {
+              const parts = prev.split('/')
+              parts.pop()
+              return parts.join('/') || '~'
+            })
+          } else if (target === '~' || target === '/') {
+            setCwd('~')
+          } else {
+            setCwd((prev) => `${prev}/${target}`.replace('//', '/'))
+          }
+        }
+      } else {
+        addLine('error', `Failed to execute command (HTTP ${res.status})`)
+      }
+    } catch (err) {
+      addLine('error', `Execution error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setIsExecuting(false)
+    }
+  }, [addLine, cwd])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const val = inputValue
+      setInputValue('')
+      handleCommand(val)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const history = commandHistoryRef.current
+      if (history.length === 0) return
+      const newIndex = historyIndex === -1 ? history.length - 1 : Math.max(0, historyIndex - 1)
+      setHistoryIndex(newIndex)
+      setInputValue(history[newIndex])
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const history = commandHistoryRef.current
+      if (historyIndex === -1) return
+      const newIndex = historyIndex + 1
+      if (newIndex >= history.length) {
+        setHistoryIndex(-1)
+        setInputValue('')
+      } else {
+        setHistoryIndex(newIndex)
+        setInputValue(history[newIndex])
+      }
+    } else if (e.key === 'l' && e.ctrlKey) {
+      e.preventDefault()
+      setLines([])
+    }
+  }, [inputValue, handleCommand, historyIndex])
+
+  const focusInput = useCallback(() => {
+    inputRef.current?.focus()
+  }, [])
 
   return (
-    <ScrollArea className="h-full">
-      <div className="p-3 font-mono text-xs space-y-3">
-        {buildLogs.map((log) => (
-          <div key={log.id} className="space-y-1.5 rounded-md border border-border/30 bg-muted/10 p-2.5">
-            <div className="flex items-center gap-2 text-muted-foreground text-[10px]">
-              <BuildStatusIcon status={log.status} />
-              <BuildTypeBadge type={log.type} />
-              <span>{new Date(log.createdAt).toLocaleTimeString()}</span>
-            </div>
-            <pre className={cn(
-              'text-xs leading-relaxed whitespace-pre-wrap',
-              log.status === 'success' && 'text-emerald-400',
-              log.status === 'failed' && 'text-red-400',
-              log.status === 'warning' && 'text-amber-400',
-              log.status === 'running' && 'text-blue-400',
-              !['success', 'failed', 'warning', 'running'].includes(log.status) && 'text-zinc-400',
-            )}>
-              <span className="text-muted-foreground/60 select-none">$ </span>{log.output}
-            </pre>
+    <div className="flex flex-col h-full" onClick={focusInput}>
+      {/* Terminal output area */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-3 font-mono text-xs space-y-1"
+        style={{ scrollbarWidth: 'thin' }}
+      >
+        {lines.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
+            <Terminal className="size-4 mr-2 opacity-40" />
+            <span>Terminal ready. Type a command or</span>
+            <button
+              onClick={() => handleCommand('bun run build')}
+              className="ml-1 text-emerald-500 hover:text-emerald-400 underline underline-offset-2 transition-colors"
+            >
+              Run Build
+            </button>
           </div>
-        ))}
-        {/* Terminal prompt */}
-        <div className="flex items-center gap-1 text-zinc-400 terminal-prompt">
-          <span className="prompt-path">~/project</span>
-          <span className="text-muted-foreground/60">on</span>
-          <span className="prompt-branch">main</span>
-          <span className="prompt-arrow">❯</span>
-          <span className="prompt-cursor" />
-        </div>
+        ) : (
+          lines.map((line) => (
+            <div key={line.id}>
+              {line.type === 'input' && (
+                <div className="text-emerald-500/80 whitespace-pre-wrap">{line.content}</div>
+              )}
+              {line.type === 'output' && (
+                <pre className="text-zinc-300 dark:text-zinc-300 whitespace-pre-wrap">{line.content}</pre>
+              )}
+              {line.type === 'error' && (
+                <pre className="text-red-400 whitespace-pre-wrap">{line.content}</pre>
+              )}
+              {line.type === 'system' && (
+                <pre className="text-sky-400 whitespace-pre-wrap">{line.content}</pre>
+              )}
+              {line.type === 'build' && (
+                <div className="space-y-1 rounded-md border border-border/30 bg-muted/10 p-2.5 mb-2">
+                  {line.buildInfo && (
+                    <div className="flex items-center gap-2 text-muted-foreground text-[10px]">
+                      <BuildStatusIcon status={line.buildInfo.status} />
+                      <BuildTypeBadge type={line.buildInfo.type} />
+                      <span>{new Date(line.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                  )}
+                  <pre className={cn(
+                    'text-xs leading-relaxed whitespace-pre-wrap',
+                    line.buildInfo?.status === 'success' && 'text-emerald-400',
+                    line.buildInfo?.status === 'failed' && 'text-red-400',
+                    line.buildInfo?.status === 'warning' && 'text-amber-400',
+                    line.buildInfo?.status === 'running' && 'text-blue-400',
+                    !line.buildInfo || !['success', 'failed', 'warning', 'running'].includes(line.buildInfo?.status || '') && 'text-zinc-400',
+                  )}>
+                    {line.content}
+                  </pre>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
-    </ScrollArea>
+
+      {/* Command input */}
+      <div className="flex items-center gap-2 px-3 py-2 border-t border-border/40 bg-muted/10">
+        <span className="text-emerald-500/80 font-mono text-xs shrink-0 select-none">{cwd} ❯</span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={isExecuting ? 'Running...' : 'Type a command...'}
+          disabled={isExecuting}
+          className="flex-1 bg-transparent font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/50 disabled:opacity-50"
+          autoFocus
+          spellCheck={false}
+          autoComplete="off"
+        />
+        {isExecuting && (
+          <Loader2 className="size-3.5 text-emerald-500 animate-spin shrink-0" />
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -194,14 +446,22 @@ function KanbanColumn({
   color,
   tasks,
   agents,
+  allTasks,
   isDragOver,
+  selectedTaskIds,
+  onTaskSelect,
+  onTaskClick,
 }: {
   status: TaskStatus
   label: string
   color: string
   tasks: Task[]
   agents: import('@/lib/types').Agent[]
+  allTasks: Task[]
   isDragOver: boolean
+  selectedTaskIds: Set<string>
+  onTaskSelect: (taskId: string, selected: boolean) => void
+  onTaskClick: (task: Task) => void
 }) {
   const taskIds = useMemo(() => tasks.map((t) => t.id), [tasks])
   const { setNodeRef: setDroppableRef } = useDroppable({
@@ -228,7 +488,15 @@ function KanbanColumn({
       <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
         <div className="px-1.5 pb-1.5 space-y-1 min-h-[3rem]">
           {tasks.map((task) => (
-            <IDETaskCard key={task.id} task={task} agents={agents} />
+            <IDETaskCard
+              key={task.id}
+              task={task}
+              agents={agents}
+              allTasks={allTasks}
+              selected={selectedTaskIds.has(task.id)}
+              onSelect={onTaskSelect}
+              onClick={onTaskClick}
+            />
           ))}
           {tasks.length === 0 && (
             <div className={cn(
@@ -258,6 +526,42 @@ function TasksView() {
   const [showNewTaskInput, setShowNewTaskInput] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
 
+  // Filter & Sort state
+  const [filters, setFilters] = useState<TaskFilters>({
+    search: '',
+    assigneeId: null,
+    priorities: [],
+    types: [],
+    statuses: [],
+  })
+  const [sort, setSort] = useState<TaskSort>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('teamforge-task-sort')
+        if (stored) return JSON.parse(stored) as TaskSort
+      } catch { /* ignore */ }
+    }
+    return { field: 'priority', direction: 'asc' }
+  })
+
+  // Persist sort to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('teamforge-task-sort', JSON.stringify(sort)) } catch { /* ignore */ }
+  }, [sort])
+
+  // Multi-select state
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set())
+
+  // Task detail panel state
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
+  const detailTask = useMemo(() => tasks.find((t) => t.id === detailTaskId) || null, [tasks, detailTaskId])
+
+  // Apply filters and sorting
+  const filteredTasks = useMemo(() => {
+    const filtered = applyTaskFilters(tasks, filters)
+    return applyTaskSort(filtered, sort)
+  }, [tasks, filters, sort])
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -269,10 +573,15 @@ function TasksView() {
   const tasksByStatus = useMemo(() => {
     const map: Record<string, Task[]> = {}
     for (const col of KANBAN_COLUMNS) {
-      map[col.status] = tasks.filter((t) => t.status === col.status)
+      map[col.status] = filteredTasks.filter((t) => t.status === col.status)
+    }
+    // Also include tasks with 'blocked' status in a visible way
+    const blockedTasks = filteredTasks.filter((t) => t.status === 'blocked')
+    if (blockedTasks.length > 0) {
+      map['backlog'] = [...(map['backlog'] || []), ...blockedTasks]
     }
     return map
-  }, [tasks])
+  }, [filteredTasks])
 
   const findColumnByTaskId = useCallback((taskId: string): string | null => {
     for (const col of KANBAN_COLUMNS) {
@@ -284,10 +593,8 @@ function TasksView() {
   }, [tasksByStatus])
 
   const findColumnByOverId = useCallback((overId: string): string | null => {
-    // Check if overId is a column status directly
     const colStatus = KANBAN_COLUMNS.find((c) => c.status === overId)
     if (colStatus) return colStatus.status
-    // Otherwise, find the column that contains the task with this id
     return findColumnByTaskId(overId)
   }, [findColumnByTaskId])
 
@@ -322,9 +629,8 @@ function TasksView() {
     if (!targetColumn) return
 
     const currentColumn = findColumnByTaskId(taskId)
-    if (currentColumn === targetColumn) return // No change needed
+    if (currentColumn === targetColumn) return
 
-    // Optimistically update the store
     updateTask(taskId, { status: targetColumn as TaskStatus })
 
     try {
@@ -334,11 +640,9 @@ function TasksView() {
         body: JSON.stringify({ status: targetColumn }),
       })
       if (!res.ok) {
-        // Revert on failure
         await fetchTasks()
       }
     } catch {
-      // Revert on error
       await fetchTasks()
     }
   }, [findColumnByOverId, findColumnByTaskId, updateTask, fetchTasks])
@@ -370,68 +674,154 @@ function TasksView() {
     }
   }, [newTaskTitle, currentProject, fetchTasks])
 
+  // Multi-select handlers
+  const handleTaskSelect = useCallback((taskId: string, selected: boolean) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev)
+      if (selected) next.add(taskId)
+      else next.delete(taskId)
+      return next
+    })
+  }, [])
+
+  const handleTaskClick = useCallback((task: Task) => {
+    setDetailTaskId(task.id)
+  }, [])
+
+  // Bulk actions
+  const handleBulkAction = useCallback(async (action: string, value?: string) => {
+    const ids = Array.from(selectedTaskIds)
+    if (ids.length === 0) return
+
+    if (action === 'delete') {
+      for (const id of ids) {
+        try {
+          await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
+        } catch { /* ignore */ }
+      }
+      toast.success(`Deleted ${ids.length} task${ids.length > 1 ? 's' : ''}`)
+      setSelectedTaskIds(new Set())
+      await fetchTasks()
+      return
+    }
+
+    const updates: Record<string, unknown> = {}
+    if (action === 'status') updates.status = value
+    else if (action === 'priority') updates.priority = value
+    else if (action === 'assignee') updates.assigneeId = value || null
+
+    for (const id of ids) {
+      try {
+        await fetch(`/api/tasks/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        })
+      } catch { /* ignore */ }
+    }
+
+    toast.success(`Updated ${ids.length} task${ids.length > 1 ? 's' : ''}`)
+    setSelectedTaskIds(new Set())
+    await fetchTasks()
+  }, [selectedTaskIds, fetchTasks])
+
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
-      <ScrollArea className="h-full">
-        <div className="p-3">
-          {/* Add task row */}
-          <div className="flex items-center gap-2 mb-3">
-            {showNewTaskInput ? (
-              <div className="flex items-center gap-2 flex-1">
-                <input
-                  type="text"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newTaskTitle.trim()) handleCreateTask()
-                    if (e.key === 'Escape') { setShowNewTaskInput(false); setNewTaskTitle('') }
-                  }}
-                  placeholder="Task title..."
-                  className="flex-1 h-7 rounded-md border bg-transparent px-3 text-xs outline-none focus:ring-1 focus:ring-emerald-500/50"
-                  autoFocus
-                />
-                <Button size="sm" className="h-7 text-xs gap-1" onClick={handleCreateTask} disabled={!newTaskTitle.trim()}>
-                  <Plus className="size-3" /> Add
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setShowNewTaskInput(false); setNewTaskTitle('') }}>
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowNewTaskInput(true)}>
-                <Plus className="size-3" /> Add Task
-              </Button>
-            )}
-            <span className="text-[10px] text-muted-foreground ml-auto">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
-          </div>
-          <div className="flex gap-3 min-w-max">
-          {KANBAN_COLUMNS.map((col) => (
-            <KanbanColumn
-              key={col.status}
-              status={col.status}
-              label={col.label}
-              color={col.color}
-              tasks={tasksByStatus[col.status] || []}
+    <div className="flex h-full">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Filter/Sort/Export bar */}
+          <div className="px-3 pt-2 pb-1 border-b border-border/30">
+            <TaskFilterBar
+              filters={filters}
+              onFiltersChange={setFilters}
+              sort={sort}
+              onSortChange={setSort}
               agents={agents}
-              isDragOver={dragOverColumn === col.status}
+              tasks={filteredTasks}
+              selectedTaskIds={selectedTaskIds}
+              onBulkAction={handleBulkAction}
             />
-          ))}
           </div>
+
+          <ScrollArea className="flex-1">
+            <div className="p-3">
+              {/* Add task row */}
+              <div className="flex items-center gap-2 mb-3">
+                {showNewTaskInput ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <input
+                      type="text"
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newTaskTitle.trim()) handleCreateTask()
+                        if (e.key === 'Escape') { setShowNewTaskInput(false); setNewTaskTitle('') }
+                      }}
+                      placeholder="Task title..."
+                      className="flex-1 h-7 rounded-md border bg-transparent px-3 text-xs outline-none focus:ring-1 focus:ring-emerald-500/50"
+                      autoFocus
+                    />
+                    <Button size="sm" className="h-7 text-xs gap-1" onClick={handleCreateTask} disabled={!newTaskTitle.trim()}>
+                      <Plus className="size-3" /> Add
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setShowNewTaskInput(false); setNewTaskTitle('') }}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowNewTaskInput(true)}>
+                    <Plus className="size-3" /> Add Task
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-3 min-w-max">
+              {KANBAN_COLUMNS.map((col) => (
+                <KanbanColumn
+                  key={col.status}
+                  status={col.status}
+                  label={col.label}
+                  color={col.color}
+                  tasks={tasksByStatus[col.status] || []}
+                  agents={agents}
+                  allTasks={tasks}
+                  isDragOver={dragOverColumn === col.status}
+                  selectedTaskIds={selectedTaskIds}
+                  onTaskSelect={handleTaskSelect}
+                  onTaskClick={handleTaskClick}
+                />
+              ))}
+              </div>
+            </div>
+          </ScrollArea>
+          <DragOverlay dropAnimation={null}>
+            {activeTask ? (
+              <TaskDragOverlay task={activeTask} agents={agents} />
+            ) : null}
+          </DragOverlay>
         </div>
-      </ScrollArea>
-      <DragOverlay dropAnimation={null}>
-        {activeTask ? (
-          <TaskDragOverlay task={activeTask} agents={agents} />
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+
+        {/* Task detail side panel */}
+        {detailTask && (
+          <div className="w-80 shrink-0 border-l border-border/40">
+            <TaskDetailPanel
+              task={detailTask}
+              agents={agents}
+              allTasks={tasks}
+              onClose={() => setDetailTaskId(null)}
+              onUpdate={updateTask}
+              onRefresh={fetchTasks}
+            />
+          </div>
+        )}
+      </DndContext>
+    </div>
   )
 }
 
@@ -439,52 +829,86 @@ function BuildView() {
   const buildLogs = useAppStore((s) => s.buildLogs)
   const currentProject = useAppStore((s) => s.currentProject)
   const addBuildLog = useAppStore((s) => s.addBuildLog)
+  const fetchBuildLogs = useAppStore((s) => s.fetchBuildLogs)
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
-  const [isBuilding, setIsBuilding] = useState(false)
+  const [isBuilding, setIsBuilding] = useState<string | null>(null)
 
-  const handleRunBuild = useCallback(async () => {
-    setIsBuilding(true)
+  const handleRunAction = useCallback(async (type: 'build' | 'test' | 'lint' | 'deploy') => {
+    setIsBuilding(type)
     try {
       const res = await fetch('/api/build-logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: currentProject?.id || '',
-          output: `$ bun run build\n⠋ Compiling TypeScript...\n⠋ Bundling modules...\n✓ Type checking passed\n✓ Build completed in 1.8s\n✓ Output: .next/static\n\nDone in 2.5s`,
-          status: 'success',
-          type: 'build',
+          type,
         }),
       })
       if (res.ok) {
         const log = await res.json()
         addBuildLog(log)
+        // Fetch the updated log (the initial one is "running", we need the final result)
+        await fetchBuildLogs()
         setActiveBottomTab('terminal')
       }
     } catch (e) {
-      console.error('Failed to run build:', e)
+      console.error(`Failed to run ${type}:`, e)
     } finally {
-      setIsBuilding(false)
+      setIsBuilding(null)
     }
-  }, [currentProject, addBuildLog, setActiveBottomTab])
+  }, [currentProject, addBuildLog, fetchBuildLogs, setActiveBottomTab])
+
+  const handleRunBuild = useCallback(() => handleRunAction('build'), [handleRunAction])
+  const handleRunLint = useCallback(() => handleRunAction('lint'), [handleRunAction])
+  const handleRunTest = useCallback(() => handleRunAction('test'), [handleRunAction])
+  const handleRunDeploy = useCallback(() => handleRunAction('deploy'), [handleRunAction])
 
   return (
     <ScrollArea className="h-full">
       <div className="p-3 space-y-2">
-        {/* Run Build button */}
-        <div className="flex items-center gap-2 mb-3">
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <Button
+            size="sm"
+            className="gap-1.5 h-7 text-xs"
+            onClick={handleRunLint}
+            disabled={isBuilding !== null}
+          >
+            {isBuilding === 'lint' ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
+            {isBuilding === 'lint' ? 'Linting...' : 'Lint'}
+          </Button>
           <Button
             size="sm"
             className="gap-1.5 h-7 text-xs"
             onClick={handleRunBuild}
-            disabled={isBuilding}
+            disabled={isBuilding !== null}
           >
-            {isBuilding ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
-            {isBuilding ? 'Building...' : 'Run Build'}
+            {isBuilding === 'build' ? <Loader2 className="size-3 animate-spin" /> : <Hammer className="size-3" />}
+            {isBuilding === 'build' ? 'Building...' : 'Build'}
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1.5 h-7 text-xs"
+            onClick={handleRunTest}
+            disabled={isBuilding !== null}
+          >
+            {isBuilding === 'test' ? <Loader2 className="size-3 animate-spin" /> : <TestTube2 className="size-3" />}
+            {isBuilding === 'test' ? 'Testing...' : 'Test'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 h-7 text-xs"
+            onClick={handleRunDeploy}
+            disabled={isBuilding !== null}
+          >
+            {isBuilding === 'deploy' ? <Loader2 className="size-3 animate-spin" /> : <Rocket className="size-3" />}
+            {isBuilding === 'deploy' ? 'Deploying...' : 'Deploy'}
           </Button>
           {isBuilding && (
             <span className="flex items-center gap-1.5 text-[10px] text-amber-500">
-              <span className="size-1.5 rounded-full bg-amber-500 pulse-dot" />
-              Running
+              <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+              Running {isBuilding}...
             </span>
           )}
           {!isBuilding && (
@@ -725,7 +1149,116 @@ function ActivitiesView() {
   )
 }
 
-export function IDEBottomPanel() {
+function GitLogView() {
+  const gitCommits = useAppStore((s) => s.gitCommits)
+  const currentBranch = useAppStore((s) => s.currentBranch)
+  const branches = useAppStore((s) => s.branches)
+  const setCurrentBranch = useAppStore((s) => s.setCurrentBranch)
+  const addBranch = useAppStore((s) => s.addBranch)
+  const deleteBranch = useAppStore((s) => s.deleteBranch)
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(null)
+
+  const filteredCommits = useMemo(() => {
+    const branch = selectedBranch || currentBranch
+    return gitCommits.filter((c) => {
+      if (branch === 'all') return true
+      return c.branch === branch
+    })
+  }, [gitCommits, selectedBranch, currentBranch])
+
+  const allBranches = useMemo(() => {
+    return ['all', ...branches.map((b) => b.name)]
+  }, [branches])
+
+  return (
+    <ScrollArea className="h-full">
+      <div className="p-3 space-y-3">
+        {/* Branch filter */}
+        <div className="flex items-center gap-2">
+          <GitBranch className="size-3.5 text-emerald-500 shrink-0" />
+          <span className="text-xs font-medium text-foreground">Branch:</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            {allBranches.map((branch) => (
+              <button
+                key={branch}
+                onClick={() => setSelectedBranch(branch === (selectedBranch || currentBranch) ? null : branch)}
+                className={cn(
+                  'px-2 py-0.5 rounded text-[10px] transition-colors',
+                  (branch === (selectedBranch || currentBranch))
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                    : 'text-muted-foreground hover:bg-muted/50 border border-transparent',
+                  branch === 'all' && 'text-muted-foreground/70',
+                )}
+              >
+                {branch === 'all' ? 'All' : branch}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Commit count */}
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <GitCommitIcon className="size-3" />
+          <span>{filteredCommits.length} commit{filteredCommits.length !== 1 ? 's' : ''}</span>
+          {selectedBranch && selectedBranch !== 'all' && (
+            <span>on <span className="text-emerald-600 dark:text-emerald-400 font-medium">{selectedBranch}</span></span>
+          )}
+        </div>
+
+        {/* Commit list */}
+        <div className="space-y-1.5">
+          {filteredCommits.length === 0 ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground text-xs">
+              <GitBranch className="size-4 mr-2 opacity-40" />
+              No commits yet
+            </div>
+          ) : (
+            filteredCommits.map((commit) => (
+              <motion.div
+                key={commit.id}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={cn(
+                  'flex items-start gap-3 px-3 py-2.5 rounded-md border-l-2 transition-colors hover:bg-muted/30',
+                  commit.branch === currentBranch ? 'border-l-emerald-500' : 'border-l-muted-foreground/40',
+                )}
+              >
+                <div className="shrink-0 mt-0.5">
+                  <GitCommitIcon className={cn(
+                    'size-4',
+                    commit.branch === currentBranch ? 'text-emerald-500' : 'text-muted-foreground/60',
+                  )} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-foreground/90 truncate">{commit.message}</span>
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-mono shrink-0">
+                      {commit.id}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <GitBranch className="size-2.5" />
+                      {commit.branch}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/60">
+                      {commit.filesChanged} file{commit.filesChanged !== 1 ? 's' : ''}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/60 ml-auto shrink-0">
+                      {formatRelativeTime(commit.timestamp)}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </div>
+      </div>
+    </ScrollArea>
+  )
+}
+
+export function IDEBottomPanel({ isMobile = false }: { isMobile?: boolean }) {
   const activeBottomTab = useAppStore((s) => s.activeBottomTab)
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
   const bottomPanelOpen = useAppStore((s) => s.bottomPanelOpen)
@@ -788,6 +1321,8 @@ export function IDEBottomPanel() {
         return <BuildView />
       case 'problems':
         return <ProblemsView />
+      case 'git':
+        return <GitLogView />
       case 'analytics':
         return <AnalyticsDashboard />
       case 'activities':

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Agent, Task, Message, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification } from '@/lib/types'
+import type { Agent, Task, Message, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus } from '@/lib/types'
 
 /**
  * Fetch with retry logic and graceful error handling.
@@ -127,9 +127,51 @@ interface AppState {
   cursorColumn: number
   setCursorPosition: (line: number, column: number) => void
 
+  // Find & Replace
+  findReplaceOpen: boolean
+  setFindReplaceOpen: (open: boolean) => void
+  findQuery: string
+  setFindQuery: (query: string) => void
+  replaceQuery: string
+  setReplaceQuery: (query: string) => void
+  findCaseSensitive: boolean
+  setFindCaseSensitive: (v: boolean) => void
+  findWholeWord: boolean
+  setFindWholeWord: (v: boolean) => void
+  findRegex: boolean
+  setFindRegex: (v: boolean) => void
+  findMatches: { line: number; startCol: number; endCol: number; text: string }[]
+  setFindMatches: (matches: { line: number; startCol: number; endCol: number; text: string }[]) => void
+  currentMatchIndex: number
+  setCurrentMatchIndex: (index: number) => void
+
+  // Go to Line
+  goToLineOpen: boolean
+  setGoToLineOpen: (open: boolean) => void
+
+  // Global Search
+  globalSearchOpen: boolean
+  setGlobalSearchOpen: (open: boolean) => void
+  globalSearchQuery: string
+  setGlobalSearchQuery: (query: string) => void
+
   // Agent detail dialog
   selectedAgentId: string | null
   setSelectedAgentId: (id: string | null) => void
+
+  // Git state (simulated)
+  currentBranch: string
+  setCurrentBranch: (branch: string) => void
+  branches: GitBranch[]
+  setBranches: (branches: GitBranch[]) => void
+  addBranch: (name: string) => void
+  deleteBranch: (name: string) => void
+  gitFileStatuses: Record<string, GitFileStatus>
+  setGitFileStatus: (filePath: string, status: GitFileStatus) => void
+  removeGitFileStatus: (filePath: string) => void
+  clearGitFileStatuses: () => void
+  gitCommits: GitCommit[]
+  addGitCommit: (commit: GitCommit) => void
 
   // Running state for top bar
   isRunning: boolean
@@ -164,6 +206,9 @@ interface AppState {
   addFile: (file: ProjectFile) => void
   removeFile: (id: string) => void
   updateFileContent: (id: string, content: string) => void
+
+  // Save all unsaved files
+  saveAllFiles: () => Promise<{ saved: number; failed: number }>
 
   // Fetch helpers
   fetchAgents: () => Promise<void>
@@ -234,9 +279,71 @@ export const useAppStore = create<AppState>((set, get) => ({
   cursorColumn: 1,
   setCursorPosition: (line, column) => set({ cursorLine: line, cursorColumn: column }),
 
+  // Find & Replace
+  findReplaceOpen: false,
+  setFindReplaceOpen: (open) => set({ findReplaceOpen: open }),
+  findQuery: '',
+  setFindQuery: (query) => set({ findQuery: query, currentMatchIndex: 0 }),
+  replaceQuery: '',
+  setReplaceQuery: (query) => set({ replaceQuery: query }),
+  findCaseSensitive: false,
+  setFindCaseSensitive: (v) => set({ findCaseSensitive: v, currentMatchIndex: 0 }),
+  findWholeWord: false,
+  setFindWholeWord: (v) => set({ findWholeWord: v, currentMatchIndex: 0 }),
+  findRegex: false,
+  setFindRegex: (v) => set({ findRegex: v, currentMatchIndex: 0 }),
+  findMatches: [],
+  setFindMatches: (matches) => set({ findMatches: matches }),
+  currentMatchIndex: 0,
+  setCurrentMatchIndex: (index) => set({ currentMatchIndex: index }),
+
+  // Go to Line
+  goToLineOpen: false,
+  setGoToLineOpen: (open) => set({ goToLineOpen: open }),
+
+  // Global Search
+  globalSearchOpen: false,
+  setGlobalSearchOpen: (open) => set({ globalSearchOpen: open }),
+  globalSearchQuery: '',
+  setGlobalSearchQuery: (query) => set({ globalSearchQuery: query }),
+
   // Agent detail dialog
   selectedAgentId: null,
   setSelectedAgentId: (id) => set({ selectedAgentId: id }),
+
+  // Git state (simulated)
+  currentBranch: 'main',
+  setCurrentBranch: (branch) => set({ currentBranch: branch, branches: get().branches.map((b) => ({ ...b, isCurrent: b.name === branch })) }),
+  branches: [
+    { name: 'main', isCurrent: true, lastCommitDate: new Date().toISOString() },
+    { name: 'develop', isCurrent: false, lastCommitDate: new Date(Date.now() - 86400000).toISOString() },
+    { name: 'feature/agent-autonomy', isCurrent: false, lastCommitDate: new Date(Date.now() - 172800000).toISOString() },
+  ],
+  setBranches: (branches) => set({ branches }),
+  addBranch: (name) => set((s) => ({
+    branches: [...s.branches, { name, isCurrent: false, lastCommitDate: new Date().toISOString() }],
+  })),
+  deleteBranch: (name) => set((s) => ({
+    branches: s.branches.filter((b) => b.name !== name),
+  })),
+  gitFileStatuses: {},
+  setGitFileStatus: (filePath, status) => set((s) => ({
+    gitFileStatuses: { ...s.gitFileStatuses, [filePath]: status },
+  })),
+  removeGitFileStatus: (filePath) => set((s) => {
+    const next = { ...s.gitFileStatuses }
+    delete next[filePath]
+    return { gitFileStatuses: next }
+  }),
+  clearGitFileStatuses: () => set({ gitFileStatuses: {} }),
+  gitCommits: [
+    { id: 'a1b2c3d', message: 'Initial project setup', timestamp: new Date(Date.now() - 604800000).toISOString(), filesChanged: 12, branch: 'main' },
+    { id: 'e4f5g6h', message: 'Add agent orchestration system', timestamp: new Date(Date.now() - 432000000).toISOString(), filesChanged: 5, branch: 'main' },
+    { id: 'i7j8k9l', message: 'Implement file explorer and editor', timestamp: new Date(Date.now() - 259200000).toISOString(), filesChanged: 8, branch: 'main' },
+    { id: 'm0n1o2p', message: 'Add real-time WebSocket updates', timestamp: new Date(Date.now() - 172800000).toISOString(), filesChanged: 3, branch: 'develop' },
+    { id: 'q3r4s5t', message: 'Agent autonomy improvements', timestamp: new Date(Date.now() - 86400000).toISOString(), filesChanged: 4, branch: 'feature/agent-autonomy' },
+  ],
+  addGitCommit: (commit) => set((s) => ({ gitCommits: [commit, ...s.gitCommits] })),
 
   // Running state
   isRunning: false,
@@ -290,6 +397,36 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateFileContent: (id, content) => set((s) => ({
     files: s.files.map((f) => (f.id === id ? { ...f, content } : f)),
   })),
+
+  // Save all unsaved files
+  saveAllFiles: async () => {
+    const { files, unsavedFileIds, markFileSaved } = get()
+    const unsavedFiles = files.filter((f) => unsavedFileIds.has(f.id) && !f.isDirectory)
+    let saved = 0
+    let failed = 0
+
+    const results = await Promise.allSettled(
+      unsavedFiles.map(async (file) => {
+        const res = await fetch(`/api/files/${file.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: file.content }),
+        })
+        if (res.ok) {
+          markFileSaved(file.id)
+          return true
+        }
+        throw new Error(`Failed to save ${file.path}`)
+      })
+    )
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') saved++
+      else failed++
+    }
+
+    return { saved, failed }
+  },
 
   // Fetch helpers — use retry logic and deduplication
   fetchAgents: async () => {

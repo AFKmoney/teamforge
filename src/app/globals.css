@@ -890,3 +890,72 @@ button, a, [role="button"], input, select, textarea {
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
 }
+
+/* ===== Responsive Design ===== */
+
+/* Mobile-first: hide sidebar labels on small screens */
+@media (max-width: 768px) {
+  /* Hide chat panel on mobile by default - use collapsed state */
+  /* Sidebar collapses to icon-only mode */
+  /* Top bar shows only icons */
+  .topbar-border-gradient .agent-name-text {
+    display: none;
+  }
+}
+
+/* Scrollbar hide utility for mobile */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Find match highlight */
+.find-match-highlight {
+  background: rgba(245, 158, 11, 0.25);
+  border-radius: 2px;
+}
+.find-match-current {
+  background: rgba(245, 158, 11, 0.5);
+  border: 1px solid rgba(245, 158, 11, 0.7);
+  border-radius: 2px;
+}
+
+/* Bracket matching highlight */
+.bracket-match-highlight {
+  background: rgba(245, 158, 11, 0.3);
+  border-radius: 2px;
+  outline: 1px solid rgba(245, 158, 11, 0.5);
+}
+
+/* File tree reveal animation */
+@keyframes reveal-pulse {
+  0% { background-color: rgba(245, 158, 11, 0.2); }
+  100% { background-color: transparent; }
+}
+.reveal-pulse {
+  animation: reveal-pulse 2s ease-out;
+}
+
+/* Tab context menu styling */
+.tab-context-menu {
+  min-width: 180px;
+}
+
+/* Toast positioning for IDE */
+[data-sonner-toaster] {
+  --z-index: 9999;
+}
+
+/* Focus mode: hide non-essential UI */
+.focus-mode .focus-hide {
+  display: none !important;
+}
+
+/* Print-friendly */
+@media print {
+  .noise-overlay::before { display: none; }
+  footer { display: none; }
+}

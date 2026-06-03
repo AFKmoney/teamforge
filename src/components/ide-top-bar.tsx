@@ -9,12 +9,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer, TestTube2, Rocket, Sparkles, Activity, Settings } from 'lucide-react'
+import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer, TestTube2, Rocket, Sparkles, Activity, Settings, FolderOpen, Download, Upload, SaveAll } from 'lucide-react'
 import { NotificationBell } from '@/components/notification-panel'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { toast } from 'sonner'
 
 // Agent pill color mapping by role
 const ROLE_PILL_COLORS: Record<AgentRole, { bg: string; border: string; activeBg: string }> = {
@@ -88,6 +89,16 @@ function AgentPill({ agent, currentTaskTitle }: { agent: { id: string; name: str
   )
 }
 
+// Task template definitions
+const TASK_TEMPLATES: { id: string; label: string; icon: string; title: string; description: string; priority: string; type: string }[] = [
+  { id: 'bug-report', label: 'Bug Report', icon: '🐛', title: 'Bug: ', description: '## Steps to Reproduce\n1. \n2. \n3. \n\n## Expected Behavior\n\n\n## Actual Behavior\n\n\n## Environment\n- Browser/OS:\n- Version:', priority: 'high', type: 'bugfix' },
+  { id: 'feature-request', label: 'Feature Request', icon: '✨', title: 'Feature: ', description: '## Problem Statement\n\n\n## Proposed Solution\n\n\n## Acceptance Criteria\n- [ ] \n- [ ] \n\n## Technical Notes\n', priority: 'medium', type: 'feature' },
+  { id: 'code-review', label: 'Code Review', icon: '🔍', title: 'Review: ', description: '## Files to Review\n- \n\n## Focus Areas\n- Code quality\n- Performance\n- Security\n- Test coverage\n\n## Questions/Concerns\n', priority: 'medium', type: 'refactor' },
+  { id: 'test-case', label: 'Test Case', icon: '🧪', title: 'Test: ', description: '## Test Type\nUnit / Integration / E2E\n\n## What to Test\n\n\n## Test Steps\n1. Arrange: \n2. Act: \n3. Assert: \n\n## Edge Cases\n- \n- ', priority: 'medium', type: 'test' },
+  { id: 'deployment', label: 'Deployment', icon: '🚀', title: 'Deploy: ', description: '## Target Environment\nProduction / Staging / Development\n\n## Deployment Checklist\n- [ ] All tests passing\n- [ ] Database migrations ready\n- [ ] Environment variables configured\n- [ ] Rollback plan documented\n\n## Changes Included\n- \n- ', priority: 'high', type: 'infra' },
+  { id: 'documentation', label: 'Documentation', icon: '📝', title: 'Docs: ', description: '## Document Type\nAPI Reference / Guide / Tutorial / README\n\n## Target Audience\n\n\n## Content Outline\n1. \n2. \n3. \n\n## Related Resources\n- ', priority: 'low', type: 'docs' },
+]
+
 function NewTaskDialog() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -96,9 +107,21 @@ function NewTaskDialog() {
   const [assigneeId, setAssigneeId] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [open, setOpen] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const currentProject = useAppStore((s) => s.currentProject)
   const agents = useAppStore((s) => s.agents)
   const fetchTasks = useAppStore((s) => s.fetchTasks)
+
+  const handleTemplateSelect = useCallback((templateId: string) => {
+    const template = TASK_TEMPLATES.find(t => t.id === templateId)
+    if (template) {
+      setTitle(template.title)
+      setDescription(template.description)
+      setPriority(template.priority)
+      setType(template.type)
+      setSelectedTemplate(templateId)
+    }
+  }, [])
 
   const handleCreate = async () => {
     if (!title.trim()) return
@@ -124,6 +147,7 @@ function NewTaskDialog() {
         setPriority('medium')
         setType('feature')
         setAssigneeId('')
+        setSelectedTemplate(null)
         setOpen(false)
       }
     } catch (e) {
@@ -133,6 +157,18 @@ function NewTaskDialog() {
     }
   }
 
+  // Reset form when dialog opens/closes
+  useEffect(() => {
+    if (!open) {
+      setTitle('')
+      setDescription('')
+      setPriority('medium')
+      setType('feature')
+      setAssigneeId('')
+      setSelectedTemplate(null)
+    }
+  }, [open])
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -141,15 +177,53 @@ function NewTaskDialog() {
           <span className="hidden md:inline">New Task</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="size-4 text-emerald-500" />
             Create New Task
           </DialogTitle>
-          <DialogDescription>Create a new task for the project. Assign it to an agent or let the system auto-assign.</DialogDescription>
+          <DialogDescription>Create a new task for the project. Use a template or start from scratch.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
+          {/* Template selector */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">From Template</Label>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => {
+                  setSelectedTemplate(null)
+                  setTitle('')
+                  setDescription('')
+                  setPriority('medium')
+                  setType('feature')
+                }}
+                className={cn(
+                  'px-2 py-1 rounded-md text-[11px] border transition-colors',
+                  !selectedTemplate
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/50',
+                )}
+              >
+                ✏️ Blank
+              </button>
+              {TASK_TEMPLATES.map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => handleTemplateSelect(template.id)}
+                  className={cn(
+                    'px-2 py-1 rounded-md text-[11px] border transition-colors',
+                    selectedTemplate === template.id
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/50',
+                  )}
+                >
+                  {template.icon} {template.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label className="text-xs">Title</Label>
             <Input
@@ -248,6 +322,7 @@ function NewTaskDialog() {
 function RunAllDropdown() {
   const currentProject = useAppStore((s) => s.currentProject)
   const addBuildLog = useAppStore((s) => s.addBuildLog)
+  const fetchBuildLogs = useAppStore((s) => s.fetchBuildLogs)
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
   const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
   const setIsRunning = useAppStore((s) => s.setIsRunning)
@@ -258,48 +333,26 @@ function RunAllDropdown() {
     setBottomPanelOpen(true)
     setActiveBottomTab('terminal')
 
-    const outputs: Record<string, { cmd: string; result: string }> = {
-      build: {
-        cmd: 'bun run build',
-        result: '$ bun run build\n⠋ Compiling...\n✓ Compiled successfully in 1.2s\n✓ Build completed\n✓ All checks passed\n\nDone in 2.3s',
-      },
-      test: {
-        cmd: 'bun run test',
-        result: '$ bun run test\n⠋ Running test suite...\n✓ 42 tests passed\n✗ 0 tests failed\n✓ Coverage: 87.3%\n\nDone in 4.1s',
-      },
-      lint: {
-        cmd: 'bun run lint',
-        result: '$ bun run lint\n⠋ Linting files...\n✓ No errors found\n⚠ 2 warnings\n✓ All files checked\n\nDone in 1.5s',
-      },
-      deploy: {
-        cmd: 'bun run deploy',
-        result: '$ bun run deploy\n⠋ Deploying to production...\n✓ Build artifacts uploaded\n✓ CDN cache purged\n✓ Deployment successful\n\nDone in 12.8s',
-      },
-    }
-
-    const { cmd, result } = outputs[type]
-
     try {
       const res = await fetch('/api/build-logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: currentProject?.id || '',
-          output: result,
-          status: type === 'lint' ? 'warning' : 'success',
           type,
         }),
       })
       if (res.ok) {
         const log = await res.json()
         addBuildLog(log)
+        await fetchBuildLogs()
       }
     } catch (e) {
       console.error(`Failed to run ${type}:`, e)
     } finally {
       setIsRunning(false)
     }
-  }, [currentProject, addBuildLog, setActiveBottomTab, setBottomPanelOpen, setIsRunning])
+  }, [currentProject, addBuildLog, fetchBuildLogs, setActiveBottomTab, setBottomPanelOpen, setIsRunning])
 
   return (
     <DropdownMenu>
@@ -347,7 +400,108 @@ export function IDETopBar() {
   const currentProject = useAppStore((s) => s.currentProject)
   const isRunning = useAppStore((s) => s.isRunning)
   const setSettingsOpen = useAppStore((s) => s.setSettingsOpen)
+  const updateAgent = useAppStore((s) => s.updateAgent)
+  const fetchAgents = useAppStore((s) => s.fetchAgents)
+  const addBuildLog = useAppStore((s) => s.addBuildLog)
+  const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
+  const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
+  const setIsRunning = useAppStore((s) => s.setIsRunning)
+  const saveAllFiles = useAppStore((s) => s.saveAllFiles)
+  const fetchFiles = useAppStore((s) => s.fetchFiles)
+  const fetchTasks = useAppStore((s) => s.fetchTasks)
+  const fetchBuildLogs = useAppStore((s) => s.fetchBuildLogs)
+  const unsavedFileIds = useAppStore((s) => s.unsavedFileIds)
+  const currentProjectId = currentProject?.id || ''
   const { theme, setTheme } = useTheme()
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [isSavingProject, setIsSavingProject] = useState(false)
+
+  // Export project as ZIP
+  const handleExport = useCallback(async () => {
+    if (!currentProject) {
+      toast.error('No project selected')
+      return
+    }
+    setIsExporting(true)
+    try {
+      const res = await fetch(`/api/projects/${currentProject.id}/export`)
+      if (!res.ok) {
+        throw new Error('Export failed')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      const contentDisposition = res.headers.get('Content-Disposition')
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+        : `${currentProject.name}.zip`
+      link.download = filename || `${currentProject.name}.zip`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      toast.success(`Exported "${currentProject.name}" as ZIP`)
+    } catch {
+      toast.error('Failed to export project')
+    } finally {
+      setIsExporting(false)
+    }
+  }, [currentProject])
+
+  // Import project from ZIP/JSON
+  const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !currentProject) return
+    setIsImporting(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('projectId', currentProject.id)
+
+      const res = await fetch('/api/projects/import', {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Import failed')
+      }
+      const data = await res.json()
+      await fetchFiles()
+      toast.success(`Imported ${data.created} file${data.created !== 1 ? 's' : ''}${data.skipped > 0 ? ` (${data.skipped} skipped)` : ''}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to import project')
+    } finally {
+      setIsImporting(false)
+      if (importInputRef.current) importInputRef.current.value = ''
+    }
+  }, [currentProject, fetchFiles])
+
+  // Save Project: save all unsaved files
+  const handleSaveProject = useCallback(async () => {
+    if (!currentProject) {
+      toast.error('No project selected')
+      return
+    }
+    setIsSavingProject(true)
+    try {
+      const { saved, failed } = await saveAllFiles()
+      if (failed > 0) {
+        toast.error(`Saved ${saved} file${saved !== 1 ? 's' : ''}, failed ${failed}`)
+      } else if (saved > 0) {
+        toast.success(`Project saved (${saved} file${saved !== 1 ? 's' : ''})`)
+      } else {
+        toast.info('Project is already up to date')
+      }
+    } catch {
+      toast.error('Failed to save project')
+    } finally {
+      setIsSavingProject(false)
+    }
+  }, [currentProject, saveAllFiles])
 
   const activeAgents = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping')
 
@@ -364,6 +518,166 @@ export function IDETopBar() {
   }, [agents, tasks])
 
   const hasActiveAgents = activeAgents.length > 0
+
+  // Play all idle agents - trigger scheduler to auto-assign and start
+  const handlePlayAll = useCallback(async () => {
+    const idleOrSleepingAgents = agents.filter((a) => a.status === 'idle' || a.status === 'sleeping')
+    if (idleOrSleepingAgents.length === 0) {
+      toast.info('All agents are already active')
+      return
+    }
+    toast.loading(`Starting ${idleOrSleepingAgents.length} agent${idleOrSleepingAgents.length > 1 ? 's' : ''}...`, { id: 'play-all' })
+    try {
+      const res = await fetch('/api/agent-scheduler', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'play', projectId: currentProject?.id }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        await fetchAgents()
+        toast.dismiss('play-all')
+        toast.success(`${data.started || idleOrSleepingAgents.length} agent${(data.started || idleOrSleepingAgents.length) > 1 ? 's' : ''} started${data.assigned ? `, ${data.assigned} tasks assigned` : ''}`)
+      } else {
+        toast.dismiss('play-all')
+        toast.error('Failed to start agents')
+      }
+    } catch {
+      toast.dismiss('play-all')
+      toast.error('Failed to start agents')
+    }
+  }, [agents, fetchAgents, currentProject])
+
+  // Stop all active agents - revert tasks to todo, set agents to idle
+  const handleStopAll = useCallback(async () => {
+    const activeAgentsList = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping')
+    if (activeAgentsList.length === 0) {
+      toast.info('No active agents to stop')
+      return
+    }
+    toast.loading(`Stopping ${activeAgentsList.length} agent${activeAgentsList.length > 1 ? 's' : ''}...`, { id: 'stop-all' })
+    try {
+      const res = await fetch('/api/agent-scheduler', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop', projectId: currentProject?.id }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        await fetchAgents()
+        await fetchTasks()
+        toast.dismiss('stop-all')
+        toast.success(`${data.stopped || activeAgentsList.length} agent${(data.stopped || activeAgentsList.length) > 1 ? 's' : ''} stopped${data.revertedTasks ? `, ${data.revertedTasks} tasks reverted` : ''}`)
+      } else {
+        toast.dismiss('stop-all')
+        toast.error('Failed to stop agents')
+      }
+    } catch {
+      toast.dismiss('stop-all')
+      toast.error('Failed to stop agents')
+    }
+  }, [agents, fetchAgents, fetchTasks, currentProject])
+
+  // Pause all active agents - set to 'sleeping'
+  const handlePauseAll = useCallback(async () => {
+    const activeAgentsList = agents.filter((a) => a.status !== 'sleeping')
+    if (activeAgentsList.length === 0) {
+      toast.info('All agents are already sleeping')
+      return
+    }
+    toast.loading(`Pausing ${activeAgentsList.length} agent${activeAgentsList.length > 1 ? 's' : ''}...`, { id: 'pause-all' })
+    try {
+      const res = await fetch('/api/agent-scheduler', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pause', projectId: currentProject?.id }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        await fetchAgents()
+        toast.dismiss('pause-all')
+        toast.success(`${data.paused || activeAgentsList.length} agent${(data.paused || activeAgentsList.length) > 1 ? 's' : ''} paused`)
+      } else {
+        toast.dismiss('pause-all')
+        toast.error('Failed to pause agents')
+      }
+    } catch {
+      toast.dismiss('pause-all')
+      toast.error('Failed to pause agents')
+    }
+  }, [agents, fetchAgents, currentProject])
+
+  // Run action (shared with RunAllDropdown)
+  const runAction = useCallback(async (type: 'build' | 'test' | 'lint' | 'deploy') => {
+    setIsRunning(true)
+    setBottomPanelOpen(true)
+    setActiveBottomTab('terminal')
+
+    toast.loading(`Running ${type}...`, { id: `run-${type}` })
+
+    try {
+      const res = await fetch('/api/build-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: currentProjectId,
+          type,
+        }),
+      })
+      if (res.ok) {
+        const log = await res.json()
+        addBuildLog(log)
+        await fetchBuildLogs()
+        toast.dismiss(`run-${type}`)
+        if (log.status === 'success') {
+          toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} completed successfully`)
+        } else if (log.status === 'failed') {
+          toast.error(`${type.charAt(0).toUpperCase() + type.slice(1)} failed`)
+        } else if (log.status === 'warning') {
+          toast.warning(`${type.charAt(0).toUpperCase() + type.slice(1)} completed with warnings`)
+        }
+      } else {
+        toast.dismiss(`run-${type}`)
+        toast.error(`${type.charAt(0).toUpperCase() + type.slice(1)} failed`)
+      }
+    } catch {
+      toast.dismiss(`run-${type}`)
+      toast.error(`Failed to run ${type}`)
+    } finally {
+      setIsRunning(false)
+    }
+  }, [currentProjectId, addBuildLog, fetchBuildLogs, setActiveBottomTab, setBottomPanelOpen, setIsRunning])
+
+  // Global keyboard shortcuts for build/test/lint/deploy
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey) {
+        switch (e.key.toLowerCase()) {
+          case 'b':
+            e.preventDefault()
+            runAction('build')
+            break
+          case 't':
+            e.preventDefault()
+            runAction('test')
+            break
+          case 'l':
+            e.preventDefault()
+            runAction('lint')
+            break
+          case 'd':
+            e.preventDefault()
+            runAction('deploy')
+            break
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [runAction])
+
+  // Project selector state
+  const [projectSelectorOpen, setProjectSelectorOpen] = useState(false)
 
   return (
     <div className="flex items-center h-11 px-3 border-b bg-gradient-to-r from-card/95 via-card/90 to-card/95 backdrop-blur-md gap-2 shrink-0 z-20 shadow-sm shadow-black/5 topbar-border-gradient">
@@ -388,7 +702,9 @@ export function IDETopBar() {
           </span>
           <span className="text-[9px] text-muted-foreground/60 leading-tight hidden lg:block">Autonomous AI Development</span>
         </div>
-        <ChevronDown className="size-3 text-muted-foreground/60 shrink-0" />
+        <button onClick={() => setProjectSelectorOpen(true)} className="cursor-pointer hover:text-foreground transition-colors">
+          <ChevronDown className="size-3 text-muted-foreground/60 shrink-0" />
+        </button>
       </div>
 
       <div className="h-4 w-px bg-border shrink-0" />
@@ -420,36 +736,116 @@ export function IDETopBar() {
       {/* Controls */}
       <div className="flex items-center gap-1 shrink-0">
         <RunAllDropdown />
+
+        {/* Export button */}
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-7 text-xs px-2.5"
+                onClick={handleExport}
+                disabled={isExporting || !currentProject}
+              >
+                {isExporting ? (
+                  <Loader2 className="size-3 animate-spin text-emerald-500" />
+                ) : (
+                  <Download className="size-3 text-emerald-500" />
+                )}
+                <span className="hidden lg:inline">Export</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">Export project as ZIP</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Import button */}
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-7 text-xs px-2.5"
+                onClick={() => importInputRef.current?.click()}
+                disabled={isImporting || !currentProject}
+              >
+                {isImporting ? (
+                  <Loader2 className="size-3 animate-spin text-violet-500" />
+                ) : (
+                  <Upload className="size-3 text-violet-500" />
+                )}
+                <span className="hidden lg:inline">Import</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">Import project from ZIP/JSON</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".zip,.json"
+          className="hidden"
+          onChange={handleImport}
+        />
+
+        {/* Save All button */}
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  'gap-1.5 h-7 text-xs px-2.5',
+                  unsavedFileIds.size > 0 && 'border-amber-500/40 text-amber-600 dark:text-amber-400',
+                )}
+                onClick={handleSaveProject}
+                disabled={isSavingProject}
+              >
+                {isSavingProject ? (
+                  <Loader2 className="size-3 animate-spin text-amber-500" />
+                ) : (
+                  <SaveAll className="size-3" />
+                )}
+                <span className="hidden md:inline">Save All</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">Save All Files (Ctrl+Shift+S)</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
         <NewTaskDialog />
         <div className="flex items-center gap-0.5 ml-1">
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="size-7 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10">
+                <Button size="icon" variant="ghost" className="size-7 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10" onClick={handlePlayAll}>
                   <Play className="size-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">Run Project</TooltipContent>
+              <TooltipContent side="bottom" className="text-xs">Start All Agents</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="size-7 text-red-500 hover:text-red-400 hover:bg-red-500/10">
+                <Button size="icon" variant="ghost" className="size-7 text-red-500 hover:text-red-400 hover:bg-red-500/10" onClick={handleStopAll}>
                   <Square className="size-3" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">Stop</TooltipContent>
+              <TooltipContent side="bottom" className="text-xs">Stop All Agents</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="size-7 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10">
+                <Button size="icon" variant="ghost" className="size-7 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10" onClick={handlePauseAll}>
                   <Pause className="size-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">Pause</TooltipContent>
+              <TooltipContent side="bottom" className="text-xs">Pause All Agents</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -479,6 +875,42 @@ export function IDETopBar() {
           {theme === 'dark' ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
         </Button>
       </div>
+
+      {/* Project Selector Dialog */}
+      <Dialog open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderOpen className="size-4 text-emerald-500" />
+              Project Settings
+            </DialogTitle>
+            <DialogDescription>Current project information and settings.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Project Name</Label>
+              <div className="text-sm font-medium text-foreground">{currentProject?.name || 'No project'}</div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Description</Label>
+              <div className="text-sm text-muted-foreground">{currentProject?.description || 'No description'}</div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Status</Label>
+              <Badge variant="outline" className="text-xs">{currentProject?.status || 'N/A'}</Badge>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground pt-2 border-t">
+              <span>{agents.length} agents</span>
+              <span>{tasks.length} tasks</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

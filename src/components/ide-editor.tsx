@@ -4,10 +4,15 @@ import { useAppStore } from '@/lib/store'
 import { type ProjectFile } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
-import { X, Code2, Keyboard, Zap, Command, Save, Play, ChevronRight, FileCode2, Clock, Terminal, Search } from 'lucide-react'
+import { X, Code2, Keyboard, Zap, Command, Save, Play, ChevronRight, FileCode2, Clock, Terminal, Search, WrapText } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { FindReplaceBar } from '@/components/find-replace-bar'
+import { GoToLineDialog } from '@/components/go-to-line-dialog'
+import { FileCreationDialog } from '@/components/file-creation-dialog'
+import { Separator } from '@/components/ui/separator'
 
 // Auto-detect language from file extension
 function detectLanguage(path: string): string {
@@ -90,8 +95,94 @@ const CSS_PROPERTIES = [
   'place-items', 'place-content', 'place-self', 'inset',
 ]
 
+// Bracket pairs for matching and auto-close
+const BRACKET_PAIRS: Record<string, string> = {
+  '(': ')',
+  '{': '}',
+  '[': ']',
+}
+const CLOSING_BRACKETS = new Set([')', '}', ']'])
+const OPENING_BRACKETS = new Set(['(', '{', '['])
+const QUOTE_CHARS = new Set(['"', "'", '`'])
+
+// Find matching bracket position
+function findMatchingBracket(
+  content: string,
+  pos: number,
+): { matchPos: number; matchChar: string } | null {
+  const char = content[pos]
+  if (!char) return null
+
+  if (OPENING_BRACKETS.has(char)) {
+    // Search forward for matching closing bracket
+    const target = BRACKET_PAIRS[char]
+    let depth = 1
+    let i = pos + 1
+    while (i < content.length && depth > 0) {
+      const c = content[i]
+      if (c === char) depth++
+      else if (c === target) depth--
+      // Skip strings
+      if ((c === '"' || c === "'" || c === '`') && i > 0 && content[i - 1] !== '\\') {
+        const quote = c
+        i++
+        while (i < content.length) {
+          if (content[i] === quote && content[i - 1] !== '\\') break
+          i++
+        }
+      }
+      i++
+    }
+    if (depth === 0) {
+      return { matchPos: i - 1, matchChar: target }
+    }
+  } else if (CLOSING_BRACKETS.has(char)) {
+    // Search backward for matching opening bracket
+    const openToClose = Object.fromEntries(Object.entries(BRACKET_PAIRS).map(([k, v]) => [v, k]))
+    const target = openToClose[char]
+    if (!target) return null
+    let depth = 1
+    let i = pos - 1
+    while (i >= 0 && depth > 0) {
+      const c = content[i]
+      if (c === char) depth++
+      else if (c === target) depth--
+      i--
+    }
+    if (depth === 0) {
+      return { matchPos: i + 1, matchChar: target }
+    }
+  }
+
+  return null
+}
+
+// Check if position is adjacent to a bracket (for highlight)
+function getBracketHighlightPositions(
+  content: string,
+  cursorPos: number,
+): { openPos: number; closePos: number } | null {
+  // Check character before cursor and at cursor
+  const positionsToCheck = [cursorPos - 1, cursorPos]
+  for (const pos of positionsToCheck) {
+    if (pos < 0 || pos >= content.length) continue
+    const char = content[pos]
+    if (!OPENING_BRACKETS.has(char) && !CLOSING_BRACKETS.has(char)) continue
+
+    const result = findMatchingBracket(content, pos)
+    if (result) {
+      if (OPENING_BRACKETS.has(char)) {
+        return { openPos: pos, closePos: result.matchPos }
+      } else {
+        return { openPos: result.matchPos, closePos: pos }
+      }
+    }
+  }
+  return null
+}
+
 // Enhanced syntax highlighting
-function highlightCode(code: string, language: string): string {
+function highlightCode(code: string, language: string, bracketHighlights?: { openPos: number; closePos: number } | null, lineOffset?: number): string {
   let html = code
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -160,12 +251,17 @@ function highlightCode(code: string, language: string): string {
   return html
 }
 
-function FileTab({ file, isActive, isUnsaved, onClose, onClick }: {
+function FileTab({ file, isActive, isUnsaved, onClose, onClick, onContextMenu, onDragStart, onDragOver, onDrop, onRename }: {
   file: ProjectFile
   isActive: boolean
   isUnsaved: boolean
   onClose: (e: React.MouseEvent) => void
   onClick: () => void
+  onContextMenu?: (e: React.MouseEvent, file: ProjectFile) => void
+  onDragStart?: () => void
+  onDragOver?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
+  onRename?: (file: ProjectFile) => void
 }) {
   const getIcon = (name: string) => {
     const ext = name.split('.').pop()?.toLowerCase()
@@ -180,9 +276,24 @@ function FileTab({ file, isActive, isUnsaved, onClose, onClick }: {
     }
   }
 
+  const handleAuxClick = useCallback((e: React.MouseEvent) => {
+    // Middle click to close
+    if (e.button === 1) {
+      e.preventDefault()
+      onClose(e)
+    }
+  }, [onClose])
+
   return (
     <button
       onClick={onClick}
+      onAuxClick={handleAuxClick}
+      onContextMenu={onContextMenu ? (e) => onContextMenu(e, file) : undefined}
+      onDoubleClick={() => onRename?.(file)}
+      draggable={!!onDragStart}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
       className={cn(
         'flex items-center gap-1.5 px-3 h-9 text-xs border-r shrink-0 transition-colors group',
         isActive
@@ -256,13 +367,25 @@ function WelcomeScreen() {
   const setActiveFileId = useAppStore((s) => s.setActiveFileId)
   const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
+  const setFileSearchOpen = useAppStore((s) => s.setFileSearchOpen)
+  const [showNewFileDialog, setShowNewFileDialog] = useState(false)
+  const [recentFileIds, setRecentFileIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('teamforge-recent-files')
+        if (stored) return JSON.parse(stored) as string[]
+      } catch { /* ignore */ }
+    }
+    return []
+  })
 
-  // Get recent files (last 5 by last modified or just the first 5)
+  // Get recent files by ID
   const recentFiles = useMemo(() => {
-    return files
-      .filter((f) => !f.isDirectory)
-      .slice(0, 5)
-  }, [files])
+    return recentFileIds
+      .map((id) => files.find((f) => f.id === id))
+      .filter((f): f is ProjectFile => !!f && !f.isDirectory)
+      .slice(0, 10)
+  }, [recentFileIds, files])
 
   const shortcuts = [
     { icon: <Command className="size-4 text-emerald-500" />, title: 'Command Palette', shortcut: 'Ctrl+K', keys: ['Ctrl', 'K'] },
@@ -272,9 +395,9 @@ function WelcomeScreen() {
   ]
 
   const quickActions = [
-    { icon: <Search className="size-3.5" />, label: 'Search Files', action: () => {} },
+    { icon: <Search className="size-3.5" />, label: 'Search Files', action: () => { setFileSearchOpen(true) } },
     { icon: <Terminal className="size-3.5" />, label: 'Open Terminal', action: () => { setBottomPanelOpen(true); setActiveBottomTab('terminal') } },
-    { icon: <Code2 className="size-3.5" />, label: 'New File', action: () => {} },
+    { icon: <Code2 className="size-3.5" />, label: 'New File', action: () => { setShowNewFileDialog(true) } },
   ]
 
   return (
@@ -311,7 +434,7 @@ function WelcomeScreen() {
           transition={{ delay: 0.25 }}
           className="text-muted-foreground/50 text-[10px] mb-3 font-mono"
         >
-          v0.8.0
+          v0.9.0
         </motion.p>
         <motion.p
           initial={{ opacity: 0 }}
@@ -410,6 +533,14 @@ function WelcomeScreen() {
           Select a file from the explorer to start editing
         </motion.p>
       </motion.div>
+
+      {/* New File Dialog for Welcome Screen */}
+      <FileCreationDialog
+        open={showNewFileDialog}
+        onOpenChange={setShowNewFileDialog}
+        initialPath=""
+        isFolder={false}
+      />
     </div>
   )
 }
@@ -430,6 +561,12 @@ export function IDEEditor() {
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
   const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
   const updateFileContent = useAppStore((s) => s.updateFileContent)
+  const findMatches = useAppStore((s) => s.findMatches)
+  const currentMatchIndex = useAppStore((s) => s.currentMatchIndex)
+  const findReplaceOpen = useAppStore((s) => s.findReplaceOpen)
+  const goToLineOpen = useAppStore((s) => s.goToLineOpen)
+  const settings = useAppStore((s) => s.settings)
+  const updateSettings = useAppStore((s) => s.updateSettings)
 
   const [manuallyOpenIds, setManuallyOpenIds] = useState<string[]>([])
   const [isSaving, setIsSaving] = useState(false)
@@ -437,6 +574,32 @@ export function IDEEditor() {
   const codeAreaRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [scrollState, setScrollState] = useState({ scrollTop: 0, scrollHeight: 0, clientHeight: 0 })
+  const [bracketHighlights, setBracketHighlights] = useState<{ openPos: number; closePos: number } | null>(null)
+
+  // Tab management state
+  const [tabContextMenu, setTabContextMenu] = useState<{ fileId: string; x: number; y: number } | null>(null)
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null)
+  const [renameTabId, setRenameTabId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+
+  // Recently opened files (persisted to localStorage)
+  const [recentlyOpenedFiles, setRecentlyOpenedFiles] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('teamforge-recent-files')
+        if (stored) return JSON.parse(stored) as string[]
+      } catch { /* ignore */ }
+    }
+    return []
+  })
+
+  // Close tab context menu when clicking outside
+  useEffect(() => {
+    if (!tabContextMenu) return
+    const handler = () => setTabContextMenu(null)
+    window.addEventListener('click', handler)
+    return () => window.removeEventListener('click', handler)
+  }, [tabContextMenu])
 
   const activeFile = useMemo(
     () => files.find((f) => f.id === activeFileId) || null,
@@ -466,6 +629,12 @@ export function IDEEditor() {
     if (!manuallyOpenIds.includes(fileId)) {
       setManuallyOpenIds((prev) => [...prev, fileId])
     }
+    // Track recently opened files
+    setRecentlyOpenedFiles((prev) => {
+      const next = [fileId, ...prev.filter((id) => id !== fileId)].slice(0, 10)
+      try { localStorage.setItem('teamforge-recent-files', JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
   }, [manuallyOpenIds, setActiveFileId])
 
   const handleCloseFile = useCallback((fileId: string, e: React.MouseEvent) => {
@@ -491,9 +660,12 @@ export function IDEEditor() {
         markFileSaved(activeFile.id)
         setSaveFlash(true)
         setTimeout(() => setSaveFlash(false), 600)
+        toast.success(`Saved ${activeFile.path.split('/').pop()}`)
+      } else {
+        toast.error('Failed to save file')
       }
-    } catch (e) {
-      console.error('Failed to save file:', e)
+    } catch {
+      toast.error('Failed to save file')
     } finally {
       setIsSaving(false)
     }
@@ -504,6 +676,7 @@ export function IDEEditor() {
     setIsRunning(true)
     setBottomPanelOpen(true)
     setActiveBottomTab('terminal')
+    toast.loading('Running build...', { id: 'editor-run' })
 
     try {
       const res = await fetch('/api/build-logs', {
@@ -519,9 +692,15 @@ export function IDEEditor() {
       if (res.ok) {
         const log = await res.json()
         addBuildLog(log)
+        toast.dismiss('editor-run')
+        toast.success('Build completed successfully')
+      } else {
+        toast.dismiss('editor-run')
+        toast.error('Build failed')
       }
-    } catch (e) {
-      console.error('Failed to run build:', e)
+    } catch {
+      toast.dismiss('editor-run')
+      toast.error('Failed to run build')
     } finally {
       setIsRunning(false)
     }
@@ -535,75 +714,454 @@ export function IDEEditor() {
     markFileUnsaved(activeFile.id)
   }, [activeFile, updateFileContent, markFileUnsaved])
 
-  // Handle special keys: Tab for indentation, Enter for auto-indent
+  // Helper: apply content change and set cursor position
+  const applyContentChange = useCallback((newContent: string, cursorStart: number, cursorEnd?: number) => {
+    if (!activeFile) return
+    updateFileContent(activeFile.id, newContent)
+    markFileUnsaved(activeFile.id)
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = cursorStart
+        textareaRef.current.selectionEnd = cursorEnd ?? cursorStart
+      }
+    })
+  }, [activeFile, updateFileContent, markFileUnsaved])
+
+  // Handle special keys
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!activeFile) return
+    const textarea = e.currentTarget
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const value = textarea.value
 
     // Let Ctrl/Cmd shortcuts pass through to the window handler
-    if ((e.ctrlKey || e.metaKey) && ['s', 'c', 'v', 'x', 'a', 'z', 'y'].includes(e.key.toLowerCase())) return
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && ['s', 'c', 'v', 'x', 'a', 'z', 'y'].includes(e.key.toLowerCase())) return
     if (e.key === 'F5') return
 
-    if (e.key === 'Tab') {
+    // Ctrl+/ : Toggle line comment
+    if ((e.ctrlKey || e.metaKey) && e.key === '/') {
       e.preventDefault()
-      const textarea = e.currentTarget
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      const value = textarea.value
+      const hasSelection = start !== end
+      const content = value
 
-      if (e.shiftKey) {
-        // Shift+Tab: remove indentation from the current line
-        const lineStart = value.lastIndexOf('\n', start - 1) + 1
-        const lineContent = value.substring(lineStart, lineStart + 2)
-        if (lineContent === '  ') {
-          const newValue = value.substring(0, lineStart) + value.substring(lineStart + 2)
-          updateFileContent(activeFile.id, newValue)
-          markFileUnsaved(activeFile.id)
-          const newCursorPos = Math.max(lineStart, start - 2)
-          requestAnimationFrame(() => {
-            textarea.selectionStart = textarea.selectionEnd = newCursorPos
-          })
+      // Get the lines affected by the selection or cursor
+      let lineStartIdx = content.lastIndexOf('\n', start - 1) + 1
+      let lineEndIdx = content.indexOf('\n', end)
+      if (lineEndIdx === -1) lineEndIdx = content.length
+
+      const selectedLines = content.substring(lineStartIdx, lineEndIdx)
+      const linesArray = selectedLines.split('\n')
+
+      // Check if all lines are commented
+      const allCommented = linesArray.every(line => line.trimStart().startsWith('//'))
+      
+      let newContent: string
+      let newCursorStart: number
+      let newCursorEnd: number
+
+      if (allCommented) {
+        // Remove comments
+        const newLines = linesArray.map(line => {
+          const trimmed = line.trimStart()
+          if (trimmed.startsWith('// ')) {
+            return line.replace('// ', '')
+          } else if (trimmed.startsWith('//')) {
+            return line.replace('//', '')
+          }
+          return line
+        })
+        newContent = content.substring(0, lineStartIdx) + newLines.join('\n') + content.substring(lineEndIdx)
+        const removedChars = selectedLines.length - newLines.join('\n').length
+        newCursorStart = start
+        newCursorEnd = hasSelection ? end - removedChars : start - (start - lineStartIdx > 2 ? 3 : 2)
+        // Adjust cursor position based on first line
+        if (!hasSelection) {
+          const firstLineOld = linesArray[0]
+          const firstLineNew = newLines[0]
+          const diff = firstLineOld.length - firstLineNew.length
+          newCursorStart = Math.max(lineStartIdx, start - diff)
+          newCursorEnd = newCursorStart
+        } else {
+          const diff = selectedLines.length - newLines.join('\n').length
+          newCursorStart = start
+          newCursorEnd = end - diff
         }
       } else {
-        // Tab: insert 2 spaces
-        const newValue = value.substring(0, start) + '  ' + value.substring(end)
-        updateFileContent(activeFile.id, newValue)
+        // Add comments
+        const newLines = linesArray.map(line => {
+          if (line.trim() === '') return line
+          return '//' + (line.trimStart().length > 0 && line[line.indexOf(line.trimStart()) - 1] !== ' ' ? ' ' : ' ') + line
+        })
+        newContent = content.substring(0, lineStartIdx) + newLines.join('\n') + content.substring(lineEndIdx)
+        const addedChars = newLines.join('\n').length - selectedLines.length
+        if (!hasSelection) {
+          newCursorStart = start + 3
+          newCursorEnd = start + 3
+        } else {
+          newCursorStart = start + 3
+          newCursorEnd = end + addedChars
+        }
+      }
+
+      updateFileContent(activeFile.id, newContent)
+      markFileUnsaved(activeFile.id)
+      requestAnimationFrame(() => {
+        textarea.selectionStart = newCursorStart
+        textarea.selectionEnd = newCursorEnd
+      })
+      return
+    }
+
+    // Ctrl+Shift+K : Delete line
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
+      e.preventDefault()
+      const content = value
+      const lineStartIdx = content.lastIndexOf('\n', start - 1) + 1
+      let lineEndIdx = content.indexOf('\n', start)
+      if (lineEndIdx === -1) {
+        // Last line
+        const newContent = content.substring(0, lineStartIdx > 0 ? lineStartIdx - 1 : 0)
+        updateFileContent(activeFile.id, newContent)
         markFileUnsaved(activeFile.id)
         requestAnimationFrame(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + 2
+          textarea.selectionStart = textarea.selectionEnd = Math.min(lineStartIdx > 0 ? lineStartIdx - 1 : 0, newContent.length)
+        })
+      } else {
+        const newContent = content.substring(0, lineStartIdx) + content.substring(lineEndIdx + 1)
+        updateFileContent(activeFile.id, newContent)
+        markFileUnsaved(activeFile.id)
+        requestAnimationFrame(() => {
+          textarea.selectionStart = textarea.selectionEnd = lineStartIdx
         })
       }
-    } else if (e.key === 'Enter') {
+      return
+    }
+
+    // Ctrl+L : Select current line
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'l') {
       e.preventDefault()
-      const textarea = e.currentTarget
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      const value = textarea.value
+      const content = value
+      const lineStartIdx = content.lastIndexOf('\n', start - 1) + 1
+      let lineEndIdx = content.indexOf('\n', start)
+      if (lineEndIdx === -1) lineEndIdx = content.length
+      else lineEndIdx = lineEndIdx // Don't include the newline in selection, but for "select line" we should include it
+      requestAnimationFrame(() => {
+        textarea.selectionStart = lineStartIdx
+        textarea.selectionEnd = lineEndIdx
+      })
+      return
+    }
+
+    // Ctrl+= / Ctrl+- : Font size +/- 
+    if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+      e.preventDefault()
+      const newSize = Math.min(settings.fontSize + 1, 32)
+      updateSettings({ fontSize: newSize })
+      toast.success(`Font size: ${newSize}px`, { duration: 1000 })
+      return
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+      e.preventDefault()
+      const newSize = Math.max(settings.fontSize - 1, 8)
+      updateSettings({ fontSize: newSize })
+      toast.success(`Font size: ${newSize}px`, { duration: 1000 })
+      return
+    }
+
+    // Alt+Up : Move line up
+    if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key === 'ArrowUp') {
+      e.preventDefault()
+      const content = value
+      const lineStartIdx = content.lastIndexOf('\n', start - 1) + 1
+      let lineEndIdx = content.indexOf('\n', start)
+      if (lineEndIdx === -1) lineEndIdx = content.length
+
+      // Get current line
+      const currentLine = content.substring(lineStartIdx, lineEndIdx)
+      // Find previous line
+      const prevLineEnd = lineStartIdx - 1
+      if (prevLineEnd < 0) return // Already at top
+      const prevLineStart = content.lastIndexOf('\n', prevLineEnd - 1) + 1
+      const prevLine = content.substring(prevLineStart, prevLineEnd)
+
+      // Swap
+      const newContent = content.substring(0, prevLineStart) + currentLine + '\n' + prevLine + content.substring(lineEndIdx)
+      const cursorOffset = start - lineStartIdx
+      const newCursorPos = prevLineStart + Math.min(cursorOffset, currentLine.length)
+      updateFileContent(activeFile.id, newContent)
+      markFileUnsaved(activeFile.id)
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = newCursorPos
+      })
+      return
+    }
+
+    // Alt+Down : Move line down
+    if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key === 'ArrowDown') {
+      e.preventDefault()
+      const content = value
+      const lineStartIdx = content.lastIndexOf('\n', start - 1) + 1
+      let lineEndIdx = content.indexOf('\n', start)
+      if (lineEndIdx === -1) return // Already at bottom
+      const nextLineStart = lineEndIdx + 1
+      const nextLineEnd = content.indexOf('\n', nextLineStart)
+      const nextLineEndIdx = nextLineEnd === -1 ? content.length : nextLineEnd
+
+      const currentLine = content.substring(lineStartIdx, lineEndIdx)
+      const nextLine = content.substring(nextLineStart, nextLineEndIdx)
+
+      // Swap
+      const newContent = content.substring(0, lineStartIdx) + nextLine + '\n' + currentLine + content.substring(nextLineEndIdx)
+      const cursorOffset = start - lineStartIdx
+      const newCursorPos = lineStartIdx + nextLine.length + 1 + Math.min(cursorOffset, currentLine.length)
+      updateFileContent(activeFile.id, newContent)
+      markFileUnsaved(activeFile.id)
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = newCursorPos
+      })
+      return
+    }
+
+    // Shift+Alt+Down : Duplicate line down
+    if (e.shiftKey && e.altKey && e.key === 'ArrowDown') {
+      e.preventDefault()
+      const content = value
+      const lineStartIdx = content.lastIndexOf('\n', start - 1) + 1
+      let lineEndIdx = content.indexOf('\n', start)
+      if (lineEndIdx === -1) lineEndIdx = content.length
+
+      const currentLine = content.substring(lineStartIdx, lineEndIdx)
+      const newContent = content.substring(0, lineEndIdx) + '\n' + currentLine + content.substring(lineEndIdx)
+      const cursorOffset = start - lineStartIdx
+      const newCursorPos = lineEndIdx + 1 + Math.min(cursorOffset, currentLine.length)
+      updateFileContent(activeFile.id, newContent)
+      markFileUnsaved(activeFile.id)
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = newCursorPos
+      })
+      return
+    }
+
+    // Tab : Indent (multi-line support)
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      const tabStr = ' '.repeat(settings.tabSize || 2)
+      const content = value
+
+      if (e.shiftKey) {
+        // Shift+Tab: Outdent selected lines
+        const lineStartIdx = content.lastIndexOf('\n', start - 1) + 1
+        let lineEndIdx = start !== end ? content.indexOf('\n', end - 1) : start
+        if (lineEndIdx === -1) lineEndIdx = content.length
+        // Extend to include the full last line
+        const selEnd = start !== end ? end : start
+        const lastLineStart = content.lastIndexOf('\n', selEnd - 1) + 1
+        const lastLineEnd = content.indexOf('\n', selEnd)
+        const effectiveEnd = lastLineEnd === -1 ? content.length : lastLineEnd
+
+        // Get all lines in selection
+        const selectedText = content.substring(lineStartIdx, effectiveEnd)
+        const linesArr = selectedText.split('\n')
+        let removedTotal = 0
+        const newLines = linesArr.map(line => {
+          const tabSize = settings.tabSize || 2
+          if (line.startsWith('  ')) {
+            removedTotal += tabSize
+            return line.substring(tabSize)
+          } else if (line.startsWith('\t')) {
+            removedTotal += 1
+            return line.substring(1)
+          } else if (line.startsWith(' ')) {
+            const spaces = line.match(/^( +)/)?.[1].length || 0
+            const toRemove = Math.min(spaces, tabSize)
+            removedTotal += toRemove
+            return line.substring(toRemove)
+          }
+          return line
+        })
+        const newContent = content.substring(0, lineStartIdx) + newLines.join('\n') + content.substring(effectiveEnd)
+        updateFileContent(activeFile.id, newContent)
+        markFileUnsaved(activeFile.id)
+        requestAnimationFrame(() => {
+          textarea.selectionStart = Math.max(lineStartIdx, start - (start > lineStartIdx ? Math.min(settings.tabSize || 2, start - lineStartIdx) : 0))
+          textarea.selectionEnd = end - removedTotal
+        })
+      } else {
+        // Tab: Indent selected lines (or insert tab if no multi-line selection)
+        if (start !== end) {
+          // Multi-line selection: indent all lines
+          const lineStartIdx = content.lastIndexOf('\n', start - 1) + 1
+          const selEnd = end
+          const lastLineEnd = content.indexOf('\n', selEnd - 1)
+          const effectiveEnd = lastLineEnd === -1 ? content.length : lastLineEnd
+
+          const selectedText = content.substring(lineStartIdx, effectiveEnd)
+          const linesArr = selectedText.split('\n')
+          const indentStr = tabStr
+          const newLines = linesArr.map(line => indentStr + line)
+          const addedTotal = newLines.join('\n').length - selectedText.length
+          const newContent = content.substring(0, lineStartIdx) + newLines.join('\n') + content.substring(effectiveEnd)
+          updateFileContent(activeFile.id, newContent)
+          markFileUnsaved(activeFile.id)
+          requestAnimationFrame(() => {
+            textarea.selectionStart = start + indentStr.length
+            textarea.selectionEnd = end + addedTotal
+          })
+        } else {
+          // Single line: insert tab
+          const newValue = content.substring(0, start) + tabStr + content.substring(end)
+          updateFileContent(activeFile.id, newValue)
+          markFileUnsaved(activeFile.id)
+          requestAnimationFrame(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + tabStr.length
+          })
+        }
+      }
+      return
+    }
+
+    // Auto-close brackets and quotes
+    if (e.key === '(' || e.key === '{' || e.key === '[') {
+      e.preventDefault()
+      const openChar = e.key
+      const closeChar = BRACKET_PAIRS[openChar]
+      const selectedText = value.substring(start, end)
+      const newValue = value.substring(0, start) + openChar + selectedText + closeChar + value.substring(end)
+      updateFileContent(activeFile.id, newValue)
+      markFileUnsaved(activeFile.id)
+      // Place cursor between the brackets
+      requestAnimationFrame(() => {
+        textarea.selectionStart = start + 1
+        textarea.selectionEnd = start + 1 + selectedText.length
+      })
+      return
+    }
+
+    if (e.key === ')' || e.key === '}' || e.key === ']') {
+      // If the next char is the matching close bracket, just move cursor past it
+      const nextChar = value[end]
+      if (nextChar === e.key) {
+        e.preventDefault()
+        requestAnimationFrame(() => {
+          textarea.selectionStart = textarea.selectionEnd = end + 1
+        })
+        return
+      }
+      // Otherwise, let the default behavior insert the character
+      return
+    }
+
+    if (e.key === '"' || e.key === "'" || e.key === '`') {
+      const quote = e.key
+      const nextChar = value[end]
+      const prevChar = start > 0 ? value[start - 1] : ''
+      
+      // If next char is the same quote, just skip over it
+      if (nextChar === quote) {
+        e.preventDefault()
+        requestAnimationFrame(() => {
+          textarea.selectionStart = textarea.selectionEnd = end + 1
+        })
+        return
+      }
+
+      // Check if we're in a context where we should auto-close (not inside a string/word)
+      const isAlphanumeric = (c: string) => /[a-zA-Z0-9_]/.test(c)
+      if (isAlphanumeric(prevChar) || isAlphanumeric(nextChar)) {
+        // Don't auto-close, just insert the quote character normally
+        return
+      }
+
+      // Auto-close the quote
+      e.preventDefault()
+      const selectedText = value.substring(start, end)
+      const newValue = value.substring(0, start) + quote + selectedText + quote + value.substring(end)
+      updateFileContent(activeFile.id, newValue)
+      markFileUnsaved(activeFile.id)
+      requestAnimationFrame(() => {
+        textarea.selectionStart = start + 1
+        textarea.selectionEnd = start + 1 + selectedText.length
+      })
+      return
+    }
+
+    // Backspace: if deleting a bracket and the next char is the matching close, delete both
+    if (e.key === 'Backspace') {
+      if (start === end && start > 0) {
+        const prevChar = value[start - 1]
+        const nextChar = value[start]
+        if (
+          (prevChar === '(' && nextChar === ')') ||
+          (prevChar === '{' && nextChar === '}') ||
+          (prevChar === '[' && nextChar === ']') ||
+          (prevChar === nextChar && QUOTE_CHARS.has(prevChar))
+        ) {
+          e.preventDefault()
+          const newValue = value.substring(0, start - 1) + value.substring(start + 1)
+          updateFileContent(activeFile.id, newValue)
+          markFileUnsaved(activeFile.id)
+          requestAnimationFrame(() => {
+            textarea.selectionStart = textarea.selectionEnd = start - 1
+          })
+          return
+        }
+      }
+      return
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const content = value
 
       // Find the start of the current line
-      const lineStart = value.lastIndexOf('\n', start - 1) + 1
-      const currentLine = value.substring(lineStart, start)
+      const lineStartIdx = content.lastIndexOf('\n', start - 1) + 1
+      const currentLine = content.substring(lineStartIdx, start)
 
       // Match the current line's indentation
       const indentMatch = currentLine.match(/^(\s*)/)
       const indent = indentMatch ? indentMatch[1] : ''
 
-      // Add extra indent after opening braces, parens, brackets, or colons
+      // Add extra indent after opening braces, parens, brackets
       const trimmedLine = currentLine.trimEnd()
       const lastChar = trimmedLine.slice(-1)
-      const extraIndent = ['{', '(', '[', ':'].includes(lastChar) ? '  ' : ''
+      let extraIndent = ''
+      let insertAfter = ''
+      
+      if (['{', '(', '['].includes(lastChar)) {
+        const closeChar = BRACKET_PAIRS[lastChar as keyof typeof BRACKET_PAIRS]
+        // Check if the character after cursor is the matching close bracket
+        const nextChar = content[start]
+        if (nextChar === closeChar) {
+          // Insert newline with indent, and another newline with current indent before close
+          extraIndent = '  '
+          insertAfter = '\n' + indent
+        } else {
+          extraIndent = '  '
+        }
+      }
 
       const newIndent = indent + extraIndent
-      const newValue = value.substring(0, start) + '\n' + newIndent + value.substring(end)
+      let newValue: string
+      let newCursorPos: number
+
+      if (insertAfter) {
+        // Enter inside {} or () or [] with closing bracket after cursor
+        newValue = content.substring(0, start) + '\n' + newIndent + insertAfter + content.substring(start)
+        newCursorPos = start + 1 + newIndent.length
+      } else {
+        newValue = content.substring(0, start) + '\n' + newIndent + content.substring(end)
+        newCursorPos = start + 1 + newIndent.length
+      }
 
       updateFileContent(activeFile.id, newValue)
       markFileUnsaved(activeFile.id)
 
-      const newCursorPos = start + 1 + newIndent.length
       requestAnimationFrame(() => {
         textarea.selectionStart = textarea.selectionEnd = newCursorPos
       })
     }
-  }, [activeFile, updateFileContent, markFileUnsaved])
+  }, [activeFile, updateFileContent, markFileUnsaved, settings])
 
   // Keyboard shortcut: Ctrl+S to save, F5 to run
   useEffect(() => {
@@ -635,7 +1193,7 @@ export function IDEEditor() {
     }
   }, [])
 
-  // Track cursor position from textarea selection
+  // Track cursor position from textarea selection + bracket matching
   useEffect(() => {
     const handleSelectionChange = () => {
       const textarea = textareaRef.current
@@ -647,6 +1205,10 @@ export function IDEEditor() {
       const line = linesBeforeCursor.length
       const column = linesBeforeCursor[linesBeforeCursor.length - 1].length + 1
       setCursorPosition(line, column)
+
+      // Update bracket matching highlights
+      const highlights = getBracketHighlightPositions(content, pos)
+      setBracketHighlights(highlights)
     }
 
     document.addEventListener('selectionchange', handleSelectionChange)
@@ -655,12 +1217,12 @@ export function IDEEditor() {
 
   // Scroll to keep cursor visible when cursor line changes
   useEffect(() => {
-    if (!codeAreaRef.current || !textareaRef.current) return
-    if (document.activeElement !== textareaRef.current) return
+    if (!codeAreaRef.current) return
 
     const container = codeAreaRef.current
-    const lineHeight = 13 * 1.6 // 13px font-size * 1.6 line-height = 20.8px
-    const paddingTop = 12 // pt-3 = 0.75rem ≈ 12px
+    const fontSize = settings.fontSize || 13
+    const lineHeight = fontSize * 1.6
+    const paddingTop = 12
     const cursorY = paddingTop + (cursorLine - 1) * lineHeight
 
     if (cursorY < container.scrollTop + paddingTop) {
@@ -668,12 +1230,26 @@ export function IDEEditor() {
     } else if (cursorY > container.scrollTop + container.clientHeight - lineHeight - paddingTop) {
       container.scrollTop = cursorY - container.clientHeight + lineHeight + paddingTop
     }
-  }, [cursorLine, cursorColumn])
+
+    // Set textarea cursor position when navigating from find/replace or go-to-line
+    if (textareaRef.current && document.activeElement !== textareaRef.current) {
+      const content = textareaRef.current.value
+      const contentLines = content.split('\n')
+      let pos = 0
+      for (let i = 0; i < Math.min(cursorLine - 1, contentLines.length); i++) {
+        pos += contentLines[i].length + 1
+      }
+      pos += Math.min(cursorColumn - 1, contentLines[cursorLine - 1]?.length || 0)
+      textareaRef.current.selectionStart = textareaRef.current.selectionEnd = pos
+      textareaRef.current.focus()
+    }
+  }, [cursorLine, cursorColumn, settings.fontSize])
 
   // When active file changes, reset cursor position
   useEffect(() => {
     if (activeFile) {
       setCursorPosition(1, 1)
+      setBracketHighlights(null)
     }
   }, [activeFileId, setCursorPosition])
 
@@ -685,6 +1261,43 @@ export function IDEEditor() {
       })
     }
   }, [activeFileId])
+
+  // Build a set of lines that have matches for highlighting
+  const matchedLines = useMemo(() => {
+    const lineSet = new Map<number, { isCurrent: boolean; matchCount: number }>()
+    findMatches.forEach((match, idx) => {
+      const existing = lineSet.get(match.line)
+      if (existing) {
+        existing.matchCount++
+        if (idx === currentMatchIndex) existing.isCurrent = true
+      } else {
+        lineSet.set(match.line, { isCurrent: idx === currentMatchIndex, matchCount: 1 })
+      }
+    })
+    return lineSet
+  }, [findMatches, currentMatchIndex])
+
+  // Compute bracket highlight positions for the rendered lines
+  // Convert absolute positions to line + column
+  const bracketHighlightLines = useMemo(() => {
+    if (!bracketHighlights || !activeFile?.content) return null
+    const content = activeFile.content
+    
+    // Get line and column for open bracket
+    const textBeforeOpen = content.substring(0, bracketHighlights.openPos)
+    const openLine = textBeforeOpen.split('\n').length
+    const openCol = textBeforeOpen.split('\n').pop()?.length ?? 0
+    
+    // Get line and column for close bracket
+    const textBeforeClose = content.substring(0, bracketHighlights.closePos)
+    const closeLine = textBeforeClose.split('\n').length
+    const closeCol = textBeforeClose.split('\n').pop()?.length ?? 0
+
+    return { openLine, openCol, closeLine, closeCol }
+  }, [bracketHighlights, activeFile?.content])
+
+  const fontSize = settings.fontSize || 13
+  const wordWrap = settings.wordWrap ?? false
 
   return (
     <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -730,34 +1343,69 @@ export function IDEEditor() {
             </Tooltip>
           </TooltipProvider>
 
+          <div className="h-4 w-px bg-border/50" />
+
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className={cn(
+                    'size-6 transition-colors',
+                    wordWrap ? 'text-amber-400 bg-amber-500/10' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => updateSettings({ wordWrap: !wordWrap })}
+                >
+                  <WrapText className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">{wordWrap ? 'Word Wrap: On' : 'Word Wrap: Off'}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <div className="flex-1" />
 
           <span className="text-[10px] text-muted-foreground">
             {detectedLanguage.charAt(0).toUpperCase() + detectedLanguage.slice(1)}
           </span>
+          <span className="text-[10px] text-muted-foreground/50 mx-1">·</span>
+          <span className="text-[10px] text-muted-foreground/60 tabular-nums">{fontSize}px</span>
         </div>
       )}
 
-      {/* Breadcrumb showing full file path */}
+      {/* Breadcrumb showing full file path - clickable folders */}
       {activeFile && (
         <div className="flex items-center h-6 px-3 bg-muted/10 border-b text-[10px] text-muted-foreground/60 shrink-0 gap-0.5 overflow-hidden">
           {activeFile.path.split('/').map((segment, i, arr) => (
             <span key={i} className="flex items-center gap-0.5 shrink-0">
               {i > 0 && <ChevronRight className="size-2.5 breadcrumb-separator" />}
-              <span className={cn(
-                i === arr.length - 1 ? 'text-foreground/70 font-medium' : 'hover:text-foreground/50 cursor-default',
-              )}>
+              <button
+                className={cn(
+                  'transition-colors rounded px-0.5',
+                  i === arr.length - 1
+                    ? 'text-foreground/70 font-medium cursor-default'
+                    : 'hover:text-foreground/70 hover:bg-muted/50 cursor-pointer',
+                )}
+                onClick={() => {
+                  // Navigate to folder in sidebar
+                  const folderPath = activeFile.path.split('/').slice(0, i + 1).join('/')
+                  // Use a custom event to communicate with sidebar
+                  window.dispatchEvent(new CustomEvent('navigate-to-folder', { detail: { path: folderPath } }))
+                }}
+                title={i < arr.length - 1 ? `Navigate to ${segment}` : undefined}
+              >
                 {segment}
-              </span>
+              </button>
             </span>
           ))}
         </div>
       )}
 
-      {/* File tabs */}
+      {/* File tabs with drag & drop and context menu */}
       {openFiles.length > 0 && (
         <div className="flex items-center h-9 bg-muted/20 border-b overflow-x-auto scrollbar-none shrink-0">
-          {openFiles.map((file) => (
+          {openFiles.map((file, index) => (
             <FileTab
               key={file.id}
               file={file}
@@ -765,22 +1413,149 @@ export function IDEEditor() {
               isUnsaved={unsavedFileIds.has(file.id)}
               onClose={(e) => handleCloseFile(file.id, e)}
               onClick={() => handleFileClick(file.id)}
+              onContextMenu={(e, f) => {
+                e.preventDefault()
+                setTabContextMenu({ fileId: f.id, x: e.clientX, y: e.clientY })
+              }}
+              onDragStart={() => setDraggedTabId(file.id)}
+              onDragOver={(e) => {
+                e.preventDefault()
+                if (draggedTabId && draggedTabId !== file.id) {
+                  setManuallyOpenIds((prev) => {
+                    const arr = [...prev]
+                    const fromIdx = arr.indexOf(draggedTabId)
+                    const toIdx = arr.indexOf(file.id)
+                    if (fromIdx >= 0 && toIdx >= 0) {
+                      arr.splice(fromIdx, 1)
+                      arr.splice(toIdx, 0, draggedTabId)
+                    }
+                    return arr
+                  })
+                }
+              }}
+              onDrop={() => setDraggedTabId(null)}
+              onRename={(f) => {
+                setRenameTabId(f.id)
+                setRenameValue(f.path.split('/').pop() || '')
+              }}
             />
           ))}
         </div>
       )}
 
+      {/* Tab context menu */}
+      {tabContextMenu && (
+        <div
+          className="fixed z-50 bg-popover border rounded-md shadow-lg py-1 text-xs min-w-[160px]"
+          style={{ left: tabContextMenu.x, top: tabContextMenu.y }}
+          onClick={() => setTabContextMenu(null)}
+        >
+          <button
+            className="w-full px-3 py-1.5 text-left hover:bg-muted/50 transition-colors"
+            onClick={() => {
+              handleCloseFile(tabContextMenu.fileId, { stopPropagation: () => {} } as React.MouseEvent)
+              setTabContextMenu(null)
+            }}
+          >
+            Close
+          </button>
+          <button
+            className="w-full px-3 py-1.5 text-left hover:bg-muted/50 transition-colors"
+            onClick={() => {
+              const others = manuallyOpenIds.filter((id) => id !== tabContextMenu.fileId)
+              setManuallyOpenIds(others)
+              if (activeFileId === tabContextMenu.fileId) {
+                setActiveFileId(others.length > 0 ? others[others.length - 1] : null)
+              }
+              setTabContextMenu(null)
+            }}
+          >
+            Close Others
+          </button>
+          <button
+            className="w-full px-3 py-1.5 text-left hover:bg-muted/50 transition-colors"
+            onClick={() => {
+              setManuallyOpenIds([])
+              setActiveFileId(null)
+              setTabContextMenu(null)
+            }}
+          >
+            Close All
+          </button>
+          <Separator />
+          <button
+            className="w-full px-3 py-1.5 text-left hover:bg-muted/50 transition-colors"
+            onClick={async () => {
+              const file = files.find((f) => f.id === tabContextMenu.fileId)
+              if (file) {
+                await navigator.clipboard.writeText(file.path)
+                toast.success('Path copied')
+              }
+              setTabContextMenu(null)
+            }}
+          >
+            Copy Path
+          </button>
+        </div>
+      )}
+
+      {/* Rename tab dialog */}
+      {renameTabId && (
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 z-50">
+          <input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={async (e) => {
+              if (e.key === 'Enter' && renameValue.trim()) {
+                const file = files.find((f) => f.id === renameTabId)
+                if (file) {
+                  const newPath = file.path.split('/').slice(0, -1).concat(renameValue.trim()).join('/')
+                  try {
+                    const res = await fetch(`/api/vfs`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        projectId: file.projectId,
+                        path: newPath,
+                        content: file.content,
+                        language: file.language,
+                        isDirectory: false,
+                      }),
+                    })
+                    if (res.ok) {
+                      await fetch(`/api/files/${file.id}`, { method: 'DELETE' })
+                      toast.success('File renamed')
+                    }
+                  } catch {
+                    toast.error('Failed to rename')
+                  }
+                }
+                setRenameTabId(null)
+              } else if (e.key === 'Escape') {
+                setRenameTabId(null)
+              }
+            }}
+            autoFocus
+            className="h-7 rounded border px-2 text-xs bg-card shadow-lg outline-none focus:ring-1 focus:ring-emerald-500/50"
+          />
+        </div>
+      )}
+
+      {/* Find & Replace Bar */}
+      <FindReplaceBar />
+
       {/* Code editor area */}
       {activeFile ? (
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden relative">
+          <GoToLineDialog />
           <div
             ref={codeAreaRef}
             className="flex-1 overflow-auto bg-zinc-900 dark:bg-zinc-950 custom-scrollbar code-area-gradient"
             onScroll={handleScroll}
           >
-            <div className="flex min-w-fit">
+            <div className={cn(wordWrap ? '' : 'flex min-w-fit')}>
               {/* Line numbers */}
-              <div className="select-none text-right pr-4 pl-4 pt-3 text-[13px] leading-[1.6] font-mono text-zinc-600 shrink-0 sticky left-0 bg-zinc-900 dark:bg-zinc-950 z-10">
+              <div className="select-none text-right pr-4 pl-4 pt-3 text-zinc-600 shrink-0 sticky left-0 bg-zinc-900 dark:bg-zinc-950 z-10" style={{ fontSize: `${fontSize}px`, lineHeight: '1.6', fontFamily: 'monospace' }}>
                 {lines.map((_, i) => (
                   <div key={i} className={cn(i + 1 === cursorLine && 'text-emerald-500/70')}>{i + 1}</div>
                 ))}
@@ -788,22 +1563,72 @@ export function IDEEditor() {
               {/* Code content with textarea overlay for editing */}
               <div className="relative min-w-0 flex-1">
                 {/* Syntax highlighted display layer - pointer-events-none so clicks go to textarea */}
-                <pre className="text-[13px] leading-[1.6] font-mono pt-3 pr-4 pl-4 whitespace-pre text-zinc-300 pointer-events-none">
-                  {lines.map((line, i) => (
-                    <div key={i} className={cn(
-                      'px-2 -mx-2',
-                      i + 1 === cursorLine && 'current-line-gradient',
-                    )}>
-                      <code dangerouslySetInnerHTML={{ __html: highlightCode(line, detectedLanguage) }} />
-                    </div>
-                  ))}
+                <pre
+                  className={cn(
+                    'pt-3 pr-4 pl-4 text-zinc-300 pointer-events-none',
+                    wordWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre',
+                  )}
+                  style={{ fontSize: `${fontSize}px`, lineHeight: '1.6', fontFamily: 'monospace' }}
+                >
+                  {lines.map((line, i) => {
+                    const lineNum = i + 1
+                    const matchInfo = matchedLines.get(lineNum)
+                    const hasMatch = !!matchInfo
+                    const isCurrentMatch = matchInfo?.isCurrent === true
+                    
+                    // Check if this line has a bracket highlight
+                    const hasOpenBracket = bracketHighlightLines?.openLine === lineNum
+                    const hasCloseBracket = bracketHighlightLines?.closeLine === lineNum
+
+                    return (
+                      <div key={i} className={cn(
+                        'px-2 -mx-2 relative',
+                        i + 1 === cursorLine && 'current-line-gradient',
+                        isCurrentMatch && 'bg-amber-500/25',
+                        hasMatch && !isCurrentMatch && 'bg-amber-500/10',
+                      )}>
+                        <code dangerouslySetInnerHTML={{ __html: highlightCode(line, detectedLanguage) }} />
+                        {/* Bracket highlight overlays */}
+                        {hasOpenBracket && (
+                          <span
+                            className="absolute top-0 bg-amber-500/30 rounded-sm pointer-events-none"
+                            style={{
+                              left: `calc(1rem + ${(bracketHighlightLines?.openCol ?? 0) * (fontSize * 0.6)}px)`,
+                              width: `${fontSize * 0.6}px`,
+                              height: `${fontSize * 1.6}px`,
+                            }}
+                          />
+                        )}
+                        {hasCloseBracket && (
+                          <span
+                            className="absolute top-0 bg-amber-500/30 rounded-sm pointer-events-none"
+                            style={{
+                              left: `calc(1rem + ${(bracketHighlightLines?.closeCol ?? 0) * (fontSize * 0.6)}px)`,
+                              width: `${fontSize * 0.6}px`,
+                              height: `${fontSize * 1.6}px`,
+                            }}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
                 </pre>
                 {/* Editable textarea overlay - transparent text, visible caret */}
                 <textarea
                   key={activeFileId}
                   ref={textareaRef}
-                  className="absolute inset-0 w-full h-full text-[13px] leading-[1.6] font-mono pt-3 pr-4 pl-4 whitespace-pre bg-transparent text-transparent resize-none border-0 outline-0 overflow-hidden"
-                  style={{ caretColor: '#d4d4d8', tabSize: 2 }}
+                  className={cn(
+                    'absolute inset-0 w-full h-full bg-transparent text-transparent resize-none border-0 outline-0 overflow-hidden',
+                    wordWrap ? '' : 'overflow-x-auto',
+                  )}
+                  style={{
+                    caretColor: '#d4d4d8',
+                    tabSize: settings.tabSize || 2,
+                    fontSize: `${fontSize}px`,
+                    lineHeight: '1.6',
+                    fontFamily: 'monospace',
+                    ...(wordWrap ? { whiteSpace: 'pre-wrap', wordBreak: 'break-all' } : { whiteSpace: 'pre' }),
+                  }}
                   value={activeFile.content}
                   onChange={handleChange}
                   onKeyDown={handleKeyDown}
@@ -811,7 +1636,7 @@ export function IDEEditor() {
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"
-                  wrap="off"
+                  wrap={wordWrap ? 'soft' : 'off'}
                 />
               </div>
             </div>
@@ -839,6 +1664,8 @@ export function IDEEditor() {
           <span>UTF-8</span>
           <span className="mx-2 text-border">|</span>
           <span>{lines.length} lines</span>
+          <span className="mx-2 text-border">|</span>
+          <span className="tabular-nums">{fontSize}px</span>
           <div className="flex-1" />
           <span className="tabular-nums">Ln {cursorLine}, Col {cursorColumn}</span>
           {unsavedFileIds.has(activeFile.id) && (
