@@ -120,3 +120,54 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom keyframe animations for dashboard enhancements */
+@keyframes gauge-pulse {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(1.08); }
+}
+
+@keyframes particle-flow {
+  0% { transform: translateX(0); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateX(12px); opacity: 0; }
+}
+
+@keyframes gradient-border-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-gauge-pulse {
+  animation: gauge-pulse 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.animate-particle-flow {
+  animation: particle-flow 2s ease-in-out infinite;
+}
+
+.animate-gradient-border {
+  background-size: 200% 200%;
+  animation: gradient-border-shift 3s ease infinite;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}

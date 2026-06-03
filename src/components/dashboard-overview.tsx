@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import {
   Users,
   Database,
@@ -35,6 +35,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -49,7 +50,6 @@ import {
 import { Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useAppStore } from '@/lib/store'
 import type { EvolutionEvent, SystemMetric, ActivityLog } from '@/lib/types'
-import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -68,7 +68,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: 'spring', stiffness: 300, damping: 24 },
+    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
   },
 }
 
@@ -204,7 +204,39 @@ function MiniSparkline({ data, color = 'emerald', width = 60, height = 24 }: {
 }
 
 // ---------------------------------------------------------------------------
-// Circular Gauge Component
+// Animated Count-Up Component
+// ---------------------------------------------------------------------------
+
+function CountUp({ target, duration = 1.2, className }: {
+  target: number
+  duration?: number
+  className?: string
+}) {
+  const count = useMotionValue(0)
+  const rounded = useTransform(count, (v) => Math.round(v))
+  const [display, setDisplay] = useState(0)
+  const isFirstRender = useRef(true)
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      const controls = animate(count, target, { duration, ease: 'easeOut' })
+      isFirstRender.current = false
+      return controls.stop
+    }
+    const controls = animate(count, target, { duration: 0.6, ease: 'easeOut' })
+    return controls.stop
+  }, [target, duration, count])
+
+  useEffect(() => {
+    const unsubscribe = rounded.on('change', (v) => setDisplay(v))
+    return unsubscribe
+  }, [rounded])
+
+  return <span className={className}>{display}</span>
+}
+
+// ---------------------------------------------------------------------------
+// Circular Gauge Component (with pulsing ring)
 // ---------------------------------------------------------------------------
 
 function CircularGauge({ value, label, icon: Icon }: {
@@ -221,6 +253,21 @@ function CircularGauge({ value, label, icon: Icon }: {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="relative">
+        {/* Pulsing ring */}
+        <svg
+          width={radius * 2 + 12}
+          height={radius * 2 + 12}
+          className="absolute -top-[6px] -left-[6px] animate-gauge-pulse"
+        >
+          <circle
+            cx={radius + 6}
+            cy={radius + 6}
+            r={normalizedRadius + 4}
+            fill="none"
+            strokeWidth={2}
+            className={cn(gaugeStroke(value), 'opacity-30')}
+          />
+        </svg>
         <svg
           width={radius * 2}
           height={radius * 2}
@@ -251,7 +298,8 @@ function CircularGauge({ value, label, icon: Icon }: {
         {/* Center text */}
         <div className="absolute inset-0 flex items-center justify-center">
           <span className={cn('text-sm font-bold', gaugeColor(value))}>
-            {value}%
+            <CountUp target={value} duration={1} />
+            <span className="text-[10px]">%</span>
           </span>
         </div>
       </div>
@@ -565,7 +613,7 @@ export function DashboardOverview() {
       </motion.div>
 
       {/* Top Row: Key Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
           <>
             <MetricCardSkeleton />
@@ -577,7 +625,7 @@ export function DashboardOverview() {
           <>
             {/* Active Agents */}
             <motion.div variants={itemVariants}>
-              <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">
+              <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 bg-card/80 backdrop-blur-sm border-border/50 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:scale-[1.02]">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
                 <CardHeader className="pb-0 pt-4 px-4 relative">
                   <CardDescription className="flex items-center gap-2">
@@ -592,9 +640,9 @@ export function DashboardOverview() {
                   <div className="flex items-end justify-between">
                     <div>
                       <div className="text-2xl font-bold text-foreground">
-                        {data?.activeAgentCount ?? 0}
+                        <CountUp target={data?.activeAgentCount ?? 0} duration={1} />
                         <span className="text-sm font-normal text-muted-foreground">
-                          /{data?.agentCount ?? 0}
+                          /<CountUp target={data?.agentCount ?? 0} duration={1} />
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -611,7 +659,7 @@ export function DashboardOverview() {
 
             {/* Total Memories */}
             <motion.div variants={itemVariants}>
-              <Card className="relative overflow-hidden border-l-4 border-l-violet-500 shadow-sm hover:shadow-md transition-shadow">
+              <Card className="relative overflow-hidden border-l-4 border-l-violet-500 bg-card/80 backdrop-blur-sm border-border/50 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:scale-[1.02]">
                 <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-transparent pointer-events-none" />
                 <CardHeader className="pb-0 pt-4 px-4 relative">
                   <CardDescription className="flex items-center gap-2">
@@ -626,7 +674,7 @@ export function DashboardOverview() {
                   <div className="flex items-end justify-between">
                     <div>
                       <div className="text-2xl font-bold text-foreground">
-                        {formatNumber(data?.memoryCount ?? 0)}
+                        <CountUp target={data?.memoryCount ?? 0} duration={1.4} />
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Working, episodic, semantic & more
@@ -640,7 +688,7 @@ export function DashboardOverview() {
 
             {/* Evolution Events */}
             <motion.div variants={itemVariants}>
-              <Card className="relative overflow-hidden border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-shadow">
+              <Card className="relative overflow-hidden border-l-4 border-l-amber-500 bg-card/80 backdrop-blur-sm border-border/50 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:scale-[1.02]">
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-transparent pointer-events-none" />
                 <CardHeader className="pb-0 pt-4 px-4 relative">
                   <CardDescription className="flex items-center gap-2">
@@ -655,7 +703,7 @@ export function DashboardOverview() {
                   <div className="flex items-end justify-between">
                     <div>
                       <div className="text-2xl font-bold text-foreground">
-                        {formatNumber(data?.evolutionEventCount ?? 0)}
+                        <CountUp target={data?.evolutionEventCount ?? 0} duration={1.2} />
                       </div>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {Object.entries(statusBreakdown).map(([status, count]) => (
@@ -679,7 +727,7 @@ export function DashboardOverview() {
 
             {/* Safety Score */}
             <motion.div variants={itemVariants}>
-              <Card className="relative overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-border/50 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:scale-[1.02]"
                 style={{ borderLeftWidth: '4px', borderLeftColor: safetyScore > 90 ? '#10b981' : safetyScore > 70 ? '#f59e0b' : '#ef4444' }}
               >
                 <div
@@ -708,7 +756,8 @@ export function DashboardOverview() {
                   <div className="flex items-end justify-between">
                     <div>
                       <div className={cn('text-2xl font-bold', safetyScoreColor(safetyScore))}>
-                        {safetyScore}%
+                        <CountUp target={safetyScore} duration={1.5} />
+                        <span className="text-sm">%</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {data?.unresolvedSafetyCount
@@ -725,9 +774,12 @@ export function DashboardOverview() {
         )}
       </div>
 
+      {/* Gradient Section Divider */}
+      <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
       {/* System Health Gauges */}
       <motion.div variants={itemVariants}>
-        <Card className="shadow-sm">
+        <Card className="shadow-sm bg-gradient-to-br from-card to-muted/30 border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Activity className="size-4 text-muted-foreground" />
@@ -754,11 +806,14 @@ export function DashboardOverview() {
         </Card>
       </motion.div>
 
+      {/* Gradient Section Divider */}
+      <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* System Performance Chart */}
         <motion.div variants={itemVariants}>
-          <Card className="shadow-sm">
+          <Card className="shadow-sm bg-card/80 backdrop-blur-sm border-border/50">
             <CardHeader>
               <CardTitle className="text-base">System Performance</CardTitle>
               <CardDescription>
@@ -818,7 +873,7 @@ export function DashboardOverview() {
 
         {/* Evolution Pipeline */}
         <motion.div variants={itemVariants}>
-          <Card className="shadow-sm">
+          <Card className="shadow-sm bg-card/80 backdrop-blur-sm border-border/50">
             <CardHeader>
               <CardTitle className="text-base">Evolution Pipeline</CardTitle>
               <CardDescription>
@@ -832,35 +887,54 @@ export function DashboardOverview() {
                 <div className="flex flex-col items-center justify-center gap-4 h-[250px]">
                   <div className="flex items-center gap-2 flex-wrap justify-center">
                     {(['proposed', 'testing', 'validated', 'deployed'] as const).map(
-                      (stage, i) => (
-                        <div key={stage} className="flex items-center gap-2">
-                          <div
-                            className={cn(
-                              'flex flex-col items-center gap-1 rounded-lg border px-4 py-3 min-w-[90px] transition-all',
-                              (statusBreakdown[stage] ?? 0) > 0
-                                ? 'border-emerald-500/30 bg-emerald-500/5'
-                                : 'border-border bg-muted/30'
-                            )}
-                          >
-                            <span className="text-xs text-muted-foreground capitalize">
-                              {stage}
-                            </span>
-                            <span
+                      (stage, i) => {
+                        const stageCount = statusBreakdown[stage] ?? 0
+                        const totalEvents = Object.values(statusBreakdown).reduce((a, b) => a + (b as number), 0) as number
+                        const pct = totalEvents > 0 ? Math.round((stageCount / totalEvents) * 100) : 0
+                        const isActive = stageCount > 0
+                        return (
+                          <div key={stage} className="flex items-center gap-2">
+                            <div
                               className={cn(
-                                'text-xl font-bold',
-                                (statusBreakdown[stage] ?? 0) > 0
-                                  ? 'text-foreground'
-                                  : 'text-muted-foreground'
+                                'flex flex-col items-center gap-1 rounded-lg border px-4 py-3 min-w-[90px] transition-all relative overflow-hidden',
+                                isActive
+                                  ? 'border-emerald-500/30 bg-emerald-500/5'
+                                  : 'border-border bg-muted/30'
                               )}
                             >
-                              {statusBreakdown[stage] ?? 0}
-                            </span>
+                              {/* Animated gradient border effect on active stage */}
+                              {isActive && (
+                                <div className="absolute inset-0 rounded-lg animate-gradient-border bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 pointer-events-none" />
+                              )}
+                              <span className="text-xs text-muted-foreground capitalize relative z-10">
+                                {stage}
+                              </span>
+                              <span
+                                className={cn(
+                                  'text-xl font-bold relative z-10',
+                                  isActive ? 'text-foreground' : 'text-muted-foreground'
+                                )}
+                              >
+                                {stageCount}
+                              </span>
+                              {isActive && (
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium relative z-10">
+                                  {pct}%
+                                </span>
+                              )}
+                            </div>
+                            {i < 3 && (
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <ArrowRight className="size-3 text-muted-foreground/50" />
+                                {/* Particle dots */}
+                                <span className="size-1 rounded-full bg-emerald-500/40 animate-particle-flow" style={{ animationDelay: '0s' }} />
+                                <span className="size-1 rounded-full bg-emerald-500/40 animate-particle-flow" style={{ animationDelay: '0.4s' }} />
+                                <span className="size-1 rounded-full bg-emerald-500/40 animate-particle-flow" style={{ animationDelay: '0.8s' }} />
+                              </div>
+                            )}
                           </div>
-                          {i < 3 && (
-                            <ArrowRight className="size-4 text-muted-foreground shrink-0" />
-                          )}
-                        </div>
-                      )
+                        )
+                      }
                     )}
                   </div>
 
@@ -894,11 +968,14 @@ export function DashboardOverview() {
         </motion.div>
       </div>
 
+      {/* Gradient Section Divider */}
+      <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
       {/* Third Row: Activity Feed + Recent Evolution + Quick Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Activity Feed */}
         <motion.div variants={itemVariants}>
-          <Card className="shadow-sm h-full">
+          <Card className="shadow-sm h-full bg-card/80 backdrop-blur-sm border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <Zap className="size-4 text-muted-foreground" />
@@ -924,7 +1001,10 @@ export function DashboardOverview() {
                           initial={{ opacity: 0, x: -12 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.06, type: 'spring', stiffness: 300, damping: 24 }}
-                          className="flex items-start gap-3 rounded-lg p-2.5 hover:bg-accent/30 transition-colors group"
+                          className={cn(
+                            'flex items-start gap-3 rounded-lg p-2.5 hover:bg-accent/30 transition-colors group',
+                            index % 2 === 0 ? 'bg-muted/20' : 'bg-transparent'
+                          )}
                         >
                           <div className="mt-0.5 shrink-0">
                             <SeverityIcon className={cn('size-4', severityColorMap[item.severity ?? 'info'])} />
@@ -952,13 +1032,24 @@ export function DashboardOverview() {
                   </div>
                 </ScrollArea>
               )}
+              {!loading && (
+                <div className="mt-2 pt-2 border-t border-border/50">
+                  <button
+                    onClick={() => useAppStore.getState().setCurrentPage('safety')}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto"
+                  >
+                    View All Activity
+                    <ChevronRight className="size-3" />
+                  </button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
 
         {/* Recent Evolution Events */}
         <motion.div variants={itemVariants}>
-          <Card className="shadow-sm h-full">
+          <Card className="shadow-sm h-full bg-card/80 backdrop-blur-sm border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Recent Evolution Events</CardTitle>
               <CardDescription>Latest changes in the evolution pipeline</CardDescription>
@@ -1031,7 +1122,7 @@ export function DashboardOverview() {
 
         {/* Quick Stats */}
         <motion.div variants={itemVariants}>
-          <Card className="shadow-sm h-full">
+          <Card className="shadow-sm h-full bg-card/80 backdrop-blur-sm border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Quick Stats</CardTitle>
               <CardDescription>System performance snapshot</CardDescription>
@@ -1052,9 +1143,15 @@ export function DashboardOverview() {
                         <Zap className="size-3.5" />
                         Avg Benchmark
                       </span>
-                      <span className="font-medium text-foreground">
-                        {(data?.avgBenchmarkScore ?? 0).toFixed(1)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <MiniSparkline data={[72, 75, 74, 78, 76, 80, 79, data?.avgBenchmarkScore ?? 0]} color="emerald" width={40} height={16} />
+                        <span className="font-medium text-foreground">
+                          {(data?.avgBenchmarkScore ?? 0).toFixed(1)}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+                          ↑ 3.2%
+                        </span>
+                      </div>
                     </div>
                     <Progress
                       value={Math.min(data?.avgBenchmarkScore ?? 0, 100)}
@@ -1070,9 +1167,12 @@ export function DashboardOverview() {
                       <Database className="size-3.5" />
                       Tokens Used
                     </span>
-                    <span className="font-medium text-foreground">
-                      {formatNumber(data?.totalTokensUsed ?? 0)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <MiniSparkline data={[12, 15, 14, 18, 16, 20, 22, data?.totalTokensUsed ?? 0]} color="violet" width={40} height={16} />
+                      <span className="font-medium text-foreground">
+                        {formatNumber(data?.totalTokensUsed ?? 0)}
+                      </span>
+                    </div>
                   </div>
 
                   <Separator />
@@ -1083,9 +1183,12 @@ export function DashboardOverview() {
                       <Clock className="size-3.5" />
                       Tasks Completed
                     </span>
-                    <span className="font-medium text-foreground">
-                      {formatNumber(data?.totalTasksCompleted ?? 0)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <MiniSparkline data={[5, 8, 6, 10, 9, 12, 11, data?.totalTasksCompleted ?? 0]} color="amber" width={40} height={16} />
+                      <span className="font-medium text-foreground">
+                        {formatNumber(data?.totalTasksCompleted ?? 0)}
+                      </span>
+                    </div>
                   </div>
 
                   <Separator />
@@ -1128,16 +1231,16 @@ export function DashboardOverview() {
 
                   <Separator />
 
-                  {/* Trend indicators */}
+                  {/* Trend indicators with delta badges */}
                   <div className="grid grid-cols-2 gap-3 pt-1">
-                    <div className="rounded-lg border p-2.5 text-center">
+                    <div className="rounded-lg border border-border/50 p-2.5 text-center hover:bg-muted/20 transition-colors">
                       <div className="flex items-center justify-center gap-1 text-emerald-600 dark:text-emerald-400">
                         <TrendingUp className="size-3.5" />
                         <span className="text-sm font-medium">+3.2%</span>
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">Benchmark</p>
                     </div>
-                    <div className="rounded-lg border p-2.5 text-center">
+                    <div className="rounded-lg border border-border/50 p-2.5 text-center hover:bg-muted/20 transition-colors">
                       <div className="flex items-center justify-center gap-1 text-amber-600 dark:text-amber-400">
                         <TrendingDown className="size-3.5" />
                         <span className="text-sm font-medium">-1.1%</span>

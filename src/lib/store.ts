@@ -33,6 +33,7 @@ export type Page =
   | 'benchmarks'
   | 'safety'
   | 'chat'
+  | 'activity'
   | 'settings'
   | 'topology'
 
@@ -61,6 +62,9 @@ interface AppState {
   settings: SystemSettings
   notifications: Notification[]
   unreadNotificationCount: number
+
+  // Command Palette
+  commandPaletteOpen: boolean
 
   // Realtime
   realtimeConnected: boolean
@@ -94,6 +98,10 @@ interface AppState {
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
   clearNotifications: () => void
+
+  // Actions — Command Palette
+  setCommandPaletteOpen: (open: boolean) => void
+  toggleCommandPalette: () => void
 
   // Actions — Realtime
   setRealtimeConnected: (connected: boolean) => void
@@ -136,6 +144,9 @@ export const useAppStore = create<AppState>((set) => ({
   },
   notifications: [],
   unreadNotificationCount: 0,
+
+  // Command Palette default
+  commandPaletteOpen: false,
 
   // Realtime default
   realtimeConnected: false,
@@ -184,6 +195,10 @@ export const useAppStore = create<AppState>((set) => ({
       unreadNotificationCount: 0,
     })),
   clearNotifications: () => set({ notifications: [], unreadNotificationCount: 0 }),
+
+  // Command Palette actions
+  setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+  toggleCommandPalette: () => set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
 
   // Realtime action
   setRealtimeConnected: (connected) => set({ realtimeConnected: connected }),

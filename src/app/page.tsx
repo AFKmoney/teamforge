@@ -13,12 +13,22 @@ import { SafetyPanel } from '@/components/safety-panel'
 import { ChatPanel } from '@/components/chat-panel'
 import { SettingsPanel } from '@/components/settings-panel'
 import { TopologyPanel } from '@/components/topology-panel'
-import { useAppStore } from '@/lib/store'
+import { ActivityPanel } from '@/components/activity-panel'
+import { useAppStore, type Page } from '@/lib/store'
 import { useRealtimeService } from '@/hooks/use-realtime'
+import { CommandPalette, CommandPaletteBadge } from '@/components/command-palette'
 import { Cpu, Heart } from 'lucide-react'
+
+// Navigation shortcut mapping (Alt+1 through Alt+9)
+const SHORTCUT_PAGES: Page[] = [
+  'dashboard', 'agents', 'evolution', 'memory', 'knowledge',
+  'topology', 'research', 'benchmarks', 'safety',
+]
 
 export default function Home() {
   const currentPage = useAppStore((s) => s.currentPage)
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage)
+  const toggleCommandPalette = useAppStore((s) => s.toggleCommandPalette)
 
   // Real-time service
   const { isConnected, addListener } = useRealtimeService()
@@ -46,6 +56,33 @@ export default function Home() {
     return unsub
   }, [addListener, addNotification])
 
+  // Keyboard shortcuts: Cmd+K for command palette, Alt+1-9 for page navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept when typing in inputs
+      const target = e.target as HTMLElement
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+
+      // Cmd+K / Ctrl+K for command palette
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        toggleCommandPalette()
+        return
+      }
+
+      // Alt+1-9 for page navigation (not in inputs)
+      if (!isInput && e.altKey && e.key >= '1' && e.key <= '9') {
+        e.preventDefault()
+        const idx = parseInt(e.key) - 1
+        if (idx < SHORTCUT_PAGES.length) {
+          setCurrentPage(SHORTCUT_PAGES[idx])
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [toggleCommandPalette, setCurrentPage])
+
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
@@ -66,6 +103,8 @@ export default function Home() {
         return <SafetyPanel />
       case 'chat':
         return <ChatPanel />
+      case 'activity':
+        return <ActivityPanel />
       case 'settings':
         return <SettingsPanel />
       case 'topology':
@@ -80,6 +119,14 @@ export default function Home() {
       <div className="flex flex-1">
         <DashboardSidebar />
         <div className="flex flex-col flex-1 min-w-0">
+          {/* Header with ⌘K badge */}
+          <header className="flex items-center justify-between border-b bg-background/50 backdrop-blur-sm px-4 md:px-6 py-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Cpu className="size-4 text-emerald-500" />
+              <span className="font-medium text-foreground">EvoAI</span>
+            </div>
+            <CommandPaletteBadge />
+          </header>
           <main className="flex-1 overflow-auto">
             <div className="p-4 md:p-6 lg:p-8">
               {renderPage()}
@@ -111,6 +158,7 @@ export default function Home() {
           </footer>
         </div>
       </div>
+      <CommandPalette />
     </div>
   )
 }
