@@ -1,8 +1,21 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { useSyncExternalStore } from "react"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+const emptySubscribe = () => () => {}
+
+/**
+ * Returns `true` only after the component has hydrated on the client.
+ * Returns `false` during server rendering and the initial client hydration pass.
+ * Uses `useSyncExternalStore` to avoid the `setState`-in-effect lint rule
+ * and prevent hydration mismatches.
+ */
+export function useHydrated(): boolean {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false)
 }
 
 /**

@@ -13,7 +13,7 @@ import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer
 import { NotificationBell } from '@/components/notification-panel'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
-import { cn } from '@/lib/utils'
+import { cn, useHydrated } from '@/lib/utils'
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 
@@ -422,6 +422,7 @@ export function IDETopBar() {
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [isSavingProject, setIsSavingProject] = useState(false)
+  const mounted = useHydrated()
 
   // Export project as ZIP
   const handleExport = useCallback(async () => {
@@ -892,7 +893,7 @@ export function IDETopBar() {
           className="size-7"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         >
-          {theme === 'dark' ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+          {mounted ? (theme === 'dark' ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />) : <Moon className="size-3.5" />}
         </Button>
       </div>
 

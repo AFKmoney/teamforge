@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useCallback, useRef, useState } from 'react'
+import { useEffect, useCallback, useRef, useState, useMemo } from 'react'
 import { IDETopBar } from '@/components/ide-top-bar'
 import { IDESidebar } from '@/components/ide-sidebar'
 import { IDEEditor } from '@/components/ide-editor'
@@ -15,12 +15,12 @@ import { GlobalSearchPanel } from '@/components/global-search-panel'
 import { useAppStore } from '@/lib/store'
 import { useAgentOrchestrator } from '@/hooks/use-agent-orchestrator'
 import { useRealtimeWS } from '@/hooks/use-realtime-ws'
-import { Cpu, Clock, Zap, Heart, Activity, GitBranch, Wifi, WifiOff, MessageSquare } from 'lucide-react'
+import { Cpu, Clock, Zap, Heart, Activity, GitBranch, Wifi, WifiOff, MessageSquare, Bot } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn, useHydrated } from '@/lib/utils'
 
 export default function Home() {
   const fetchAll = useAppStore((s) => s.fetchAll)
@@ -37,6 +37,20 @@ export default function Home() {
   const setGoToLineOpen = useAppStore((s) => s.setGoToLineOpen)
   const setGlobalSearchOpen = useAppStore((s) => s.setGlobalSearchOpen)
   const currentBranch = useAppStore((s) => s.currentBranch)
+
+  const aiSettings = useAppStore((s) => s.aiSettings)
+  const mounted = useHydrated()
+
+  // AI Model display label
+  const aiModelLabel = useMemo(() => {
+    if (!mounted) return 'DeepSeek'
+    if (aiSettings.provider === 'zai') return 'DeepSeek'
+    if (aiSettings.provider === 'nvidia') {
+      const modelName = aiSettings.model.split('/').pop() || aiSettings.model
+      return `NVIDIA ${modelName}`
+    }
+    return aiSettings.openaiCompatibleModelId || 'Custom'
+  }, [mounted, aiSettings])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -97,9 +111,11 @@ export default function Home() {
 
   // Hydrate AI settings from localStorage (must run after mount to avoid hydration mismatch)
   const hydrateAISettings = useAppStore((s) => s.hydrateAISettings)
+  const hydrateSettings = useAppStore((s) => s.hydrateSettings)
   useEffect(() => {
     hydrateAISettings()
-  }, [hydrateAISettings])
+    hydrateSettings()
+  }, [hydrateAISettings, hydrateSettings])
 
   // Initial data load - dynamically fetch the first project
   useEffect(() => {
@@ -402,6 +418,23 @@ export default function Home() {
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
               Session uptime
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <div className="h-3 w-px bg-border/60" />
+
+        {/* AI Model Indicator */}
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 hover:text-foreground/80 transition-colors cursor-default">
+                <Bot className="size-3 text-violet-500" />
+                <span className="font-medium truncate max-w-[120px]">{aiModelLabel}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              AI Provider: {mounted ? (aiSettings.provider === 'zai' ? 'Z-AI' : aiSettings.provider === 'nvidia' ? 'NVIDIA NIM' : 'OpenAI-Compatible') : 'Z-AI'} — Model: {aiModelLabel}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

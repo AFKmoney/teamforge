@@ -12,26 +12,8 @@ const BUILD_COMMANDS: Record<string, string> = {
   test: 'bun test',
 }
 
-// Simulated deploy output (don't actually deploy)
-const DEPLOY_SIMULATION = `$ bun run deploy
-⠋ Initializing deployment pipeline...
-⠋ Building production artifacts...
-✓ Build artifacts compiled
-⠋ Running pre-deploy checks...
-✓ All pre-deploy checks passed
-⠋ Uploading to CDN...
-✓ CDN upload complete
-⠋ Purging cache...
-✓ Cache purged
-⠋ Health check: https://teamforge.app...
-✓ Health check passed (200 OK)
-
-🚀 Deployment successful!
-   URL: https://teamforge.app
-   Region: us-east-1
-   Duration: 8.3s
-
-Done in 8.3s`
+// Deploy: run lint + build as pre-deploy checks, then report
+const DEPLOY_COMMANDS = ['bun run lint', 'bun run build']
 
 function executeCommand(command: string, cwd: string): Promise<{ stdout: string; stderr: string; exitCode: number; timedOut: boolean }> {
   return new Promise((resolve) => {
@@ -94,18 +76,51 @@ export async function POST(req: NextRequest) {
 
     const buildType = type || 'build'
 
-    // For deploy type, use simulation
+    // For deploy type, run lint + build as pre-deploy checks
     if (buildType === 'deploy') {
-      const buildLog = await db.buildLog.create({
+      // Create a "running" deploy log
+      const runningLog = await db.buildLog.create({
         data: {
           projectId,
-          output: DEPLOY_SIMULATION,
-          status: 'success',
+          output: `$ deploy\n⠋ Running pre-deploy checks...`,
+          status: 'running',
           type: 'deploy',
         },
       })
-      broadcastEvent('build:new', buildLog)
-      return NextResponse.json(buildLog, { status: 201 })
+      broadcastEvent('build:new', runningLog)
+
+      let fullOutput = '$ deploy\n'
+      let allPassed = true
+
+      for (const cmd of DEPLOY_COMMANDS) {
+        fullOutput += `$ ${cmd}\n`
+        const result = await executeCommand(cmd, process.cwd())
+        fullOutput += result.stdout + (result.stderr ? '\n' + result.stderr : '')
+        if (result.exitCode !== 0) {
+          allPassed = false
+          fullOutput += `\n✗ ${cmd} failed with exit code ${result.exitCode}\n`
+          break
+        } else {
+          fullOutput += `✓ ${cmd} passed\n\n`
+        }
+      }
+
+      if (allPassed) {
+        fullOutput += `🚀 Pre-deploy checks passed. Build is ready for deployment.\n   Note: Actual deployment requires a configured deployment target.`
+      } else {
+        fullOutput += `\n❌ Pre-deploy checks failed. Fix the errors above before deploying.`
+      }
+
+      const deployLog = await db.buildLog.update({
+        where: { id: runningLog.id },
+        data: {
+          output: fullOutput.trim(),
+          status: allPassed ? 'success' : 'failed',
+        },
+      })
+
+      broadcastEvent('build:update', deployLog)
+      return NextResponse.json(deployLog, { status: 201 })
     }
 
     // For lint, build, test - run actual commands

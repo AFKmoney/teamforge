@@ -43,10 +43,12 @@ import {
   Clock,
   Copy,
   Check,
+  Pencil,
+  FolderOpen,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, useHydrated } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -321,6 +323,7 @@ function ModelSelector() {
   const aiSettings = useAppStore((s) => s.aiSettings)
   const updateAISettings = useAppStore((s) => s.updateAISettings)
   const [isOpen, setIsOpen] = useState(false)
+  const mounted = useHydrated()
 
   const currentProvider = AI_PROVIDERS.find((p) => p.type === aiSettings.provider)
   const currentModels = getModelsForProvider(aiSettings.provider)
@@ -359,15 +362,17 @@ function ModelSelector() {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] transition-colors border',
-          hasRequiredKey
+          (mounted && hasRequiredKey)
             ? 'border-border/50 hover:bg-muted/50 text-foreground/70'
-            : 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+            : mounted && !hasRequiredKey
+              ? 'border-amber-500/30 bg-amber-500/10 text-amber-600'
+              : 'border-border/50 hover:bg-muted/50 text-foreground/70',
         )}
       >
-        {providerIcon}
-        <span className="max-w-[60px] truncate">{displayLabel}</span>
+        {mounted ? providerIcon : <Bot className="size-3 text-emerald-500" />}
+        <span className="max-w-[60px] truncate">{mounted ? displayLabel : 'DeepSeek'}</span>
         <ChevronDown className={cn('size-2.5 transition-transform', isOpen && 'rotate-180')} />
-        {!hasRequiredKey && (
+        {mounted && !hasRequiredKey && (
           <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
         )}
       </button>
@@ -498,6 +503,11 @@ function ChatHistoryDropdown({
   const fetchMessages = useAppStore((s) => s.fetchMessages)
   const fetchChatSessions = useAppStore((s) => s.fetchChatSessions)
   const setMessages = useAppStore((s) => s.setMessages)
+  const updateChatSession = useAppStore((s) => s.updateChatSession)
+
+  // Rename state
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   const handleSwitchSession = useCallback(async (sessionId: string) => {
     setCurrentChatSessionId(sessionId)
@@ -505,6 +515,32 @@ function ChatHistoryDropdown({
     await fetchMessages()
     onClose()
   }, [setCurrentChatSessionId, fetchMessages, onClose])
+
+  const handleStartRename = useCallback((sessionId: string, currentTitle: string) => {
+    setRenamingSessionId(sessionId)
+    setRenameValue(currentTitle || 'New Chat')
+  }, [])
+
+  const handleFinishRename = useCallback(async (sessionId: string) => {
+    const newTitle = renameValue.trim() || 'New Chat'
+    try {
+      const res = await fetch(`/api/chat-sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      })
+      if (res.ok) {
+        updateChatSession(sessionId, { title: newTitle })
+        toast.success('Chat renamed')
+      } else {
+        toast.error('Failed to rename chat')
+      }
+    } catch {
+      toast.error('Failed to rename chat')
+    }
+    setRenamingSessionId(null)
+    setRenameValue('')
+  }, [renameValue, updateChatSession])
 
   return (
     <AnimatePresence>
@@ -519,7 +555,7 @@ function ChatHistoryDropdown({
             initial={{ opacity: 0, y: -4, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.95 }}
-            transition={{ duration: 0.12 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
             className="absolute top-full left-0 mt-1 w-72 bg-card border border-border/60 rounded-lg shadow-xl z-50 overflow-hidden"
           >
             <div className="p-1.5 border-b border-border/40">
@@ -535,9 +571,8 @@ function ChatHistoryDropdown({
                 </div>
               ) : (
                 chatSessions.map((session) => (
-                  <button
+                  <div
                     key={session.id}
-                    onClick={() => handleSwitchSession(session.id)}
                     className={cn(
                       'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition-colors group/item',
                       session.id === currentChatSessionId
@@ -546,52 +581,83 @@ function ChatHistoryDropdown({
                     )}
                   >
                     <MessageSquare className="size-3 text-muted-foreground/60 shrink-0" />
-                    <div className="flex-1 min-w-0 text-left">
-                      <div className="font-medium truncate text-[11px]">{session.title || 'New Chat'}</div>
-                      <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
-                        <span>{formatTime(session.updatedAt)}</span>
-                        {session.messageCount !== undefined && (
-                          <span>{session.messageCount} msgs</span>
-                        )}
-                      </div>
+                    <div className="flex-1 min-w-0 text-left" onClick={() => handleSwitchSession(session.id)} style={{ cursor: 'pointer' }}>
+                      {renamingSessionId === session.id ? (
+                        <input
+                          type="text"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleFinishRename(session.id)
+                            if (e.key === 'Escape') { setRenamingSessionId(null); setRenameValue('') }
+                          }}
+                          onBlur={() => handleFinishRename(session.id)}
+                          autoFocus
+                          className="w-full bg-transparent border-b border-emerald-500/50 text-[11px] font-medium outline-none py-0"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <>
+                          <div className="font-medium truncate text-[11px]">{session.title || 'New Chat'}</div>
+                          <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
+                            <span>{formatTime(session.updatedAt)}</span>
+                            {session.messageCount !== undefined && (
+                              <span>{session.messageCount} msgs</span>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {session.id === currentChatSessionId && (
+                    {session.id === currentChatSessionId && renamingSessionId !== session.id && (
                       <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
                     )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Inline delete handler to avoid the closure issue
-                        const doDelete = async () => {
-                          try {
-                            const res = await fetch(`/api/chat-sessions/${session.id}`, { method: 'DELETE' })
-                            if (res.ok) {
-                              removeChatSession(session.id)
-                              if (session.id === currentChatSessionId) {
-                                const remaining = chatSessions.filter((s) => s.id !== session.id)
-                                if (remaining.length > 0) {
-                                  setCurrentChatSessionId(remaining[0].id)
-                                  await fetchMessages()
-                                } else {
-                                  setCurrentChatSessionId(null)
-                                  setMessages([])
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleStartRename(session.id, session.title)
+                        }}
+                        className="size-5 flex items-center justify-center rounded hover:bg-emerald-500/10 text-muted-foreground/40 hover:text-emerald-500 transition-colors"
+                        title="Rename"
+                      >
+                        <Pencil className="size-2.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const doDelete = async () => {
+                            try {
+                              const res = await fetch(`/api/chat-sessions/${session.id}`, { method: 'DELETE' })
+                              if (res.ok) {
+                                removeChatSession(session.id)
+                                if (session.id === currentChatSessionId) {
+                                  const remaining = chatSessions.filter((s) => s.id !== session.id)
+                                  if (remaining.length > 0) {
+                                    setCurrentChatSessionId(remaining[0].id)
+                                    await fetchMessages()
+                                  } else {
+                                    setCurrentChatSessionId(null)
+                                    setMessages([])
+                                  }
                                 }
+                                toast.success('Chat session deleted')
+                              } else {
+                                toast.error('Failed to delete session')
                               }
-                              toast.success('Chat session deleted')
-                            } else {
+                            } catch {
                               toast.error('Failed to delete session')
                             }
-                          } catch {
-                            toast.error('Failed to delete session')
                           }
-                        }
-                        doDelete()
-                      }}
-                      className="size-5 flex items-center justify-center rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors opacity-0 group-hover/item:opacity-100 shrink-0"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
-                  </button>
+                          doDelete()
+                        }}
+                        className="size-5 flex items-center justify-center rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </div>
+                  </div>
                 ))
               )}
             </div>
@@ -637,6 +703,8 @@ export function IDEChatPanel() {
   const [runTaskAssigneeId, setRunTaskAssigneeId] = useState('')
   const [runTaskIsCreating, setRunTaskIsCreating] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editTitleValue, setEditTitleValue] = useState('')
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
@@ -656,6 +724,39 @@ export function IDEChatPanel() {
     const session = chatSessions.find((s) => s.id === currentChatSessionId)
     return session?.title || 'Team Chat'
   }, [currentChatSessionId, chatSessions])
+
+  // Handle double-click to edit session title
+  const handleDoubleClickTitle = useCallback(() => {
+    if (!currentChatSessionId) return
+    setIsEditingTitle(true)
+    setEditTitleValue(currentSessionTitle)
+  }, [currentChatSessionId, currentSessionTitle])
+
+  const handleFinishEditTitle = useCallback(async () => {
+    const newTitle = editTitleValue.trim() || 'New Chat'
+    setIsEditingTitle(false)
+    if (newTitle === currentSessionTitle) return
+    if (!currentChatSessionId) return
+    try {
+      const res = await fetch(`/api/chat-sessions/${currentChatSessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      })
+      if (res.ok) {
+        updateChatSession(currentChatSessionId, { title: newTitle })
+        toast.success('Chat title updated')
+      } else {
+        toast.error('Failed to update title')
+      }
+    } catch {
+      toast.error('Failed to update title')
+    }
+    setEditTitleValue('')
+  }, [editTitleValue, currentSessionTitle, currentChatSessionId, updateChatSession])
+
+  // Session switch animation key
+  const sessionKey = currentChatSessionId || 'no-session'
 
   // Handle new chat
   const handleNewChat = useCallback(async () => {
@@ -781,6 +882,19 @@ export function IDEChatPanel() {
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`
     }
   }, [inputValue])
+
+  // Listen for chat prefill events (from agent detail dialog)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (typeof detail === 'string') {
+        setInputValue(detail)
+        setTimeout(() => { if (textareaRef.current) textareaRef.current.focus() }, 50)
+      }
+    }
+    window.addEventListener('teamforge-chat-prefill', handler)
+    return () => window.removeEventListener('teamforge-chat-prefill', handler)
+  }, [])
 
   // Handle slash command execution
   const executeSlashCommand = useCallback(async (cmd: SlashCommand) => {
@@ -1098,12 +1212,36 @@ export function IDEChatPanel() {
       <div className="flex items-center justify-between px-3 h-9 border-b bg-card/50 shrink-0">
         <div className="flex items-center gap-1.5 min-w-0">
           <MessageSquare className="size-3.5 text-emerald-500/70 shrink-0" />
-          <span className="text-xs font-semibold text-foreground truncate max-w-[100px]" title={currentSessionTitle}>
-            {currentSessionTitle}
-          </span>
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={editTitleValue}
+              onChange={(e) => setEditTitleValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleFinishEditTitle()
+                if (e.key === 'Escape') { setIsEditingTitle(false); setEditTitleValue('') }
+              }}
+              onBlur={handleFinishEditTitle}
+              autoFocus
+              className="text-xs font-semibold text-foreground bg-transparent border-b border-emerald-500/50 outline-none max-w-[100px] truncate"
+            />
+          ) : (
+            <span
+              className="text-xs font-semibold text-foreground truncate max-w-[100px] cursor-pointer hover:text-emerald-500 transition-colors"
+              title={`${currentSessionTitle} — double-click to rename`}
+              onDoubleClick={handleDoubleClickTitle}
+            >
+              {currentSessionTitle}
+            </span>
+          )}
           <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 shrink-0">
             <Users className="size-2.5" />
             {onlineCount}
+          </Badge>
+          {/* Message count badge */}
+          <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 text-muted-foreground shrink-0">
+            <MessageSquare className="size-2" />
+            {messages.length}
           </Badge>
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
@@ -1155,9 +1293,21 @@ export function IDEChatPanel() {
 
       {/* Messages */}
       <div className="flex-1 relative overflow-hidden">
+        {!currentProject ? (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6">
+            <div className="size-14 rounded-2xl bg-gradient-to-br from-muted/40 to-muted/20 flex items-center justify-center border border-border/30 mb-3">
+              <FolderOpen className="size-6 text-muted-foreground/50" />
+            </div>
+            <p className="text-xs font-medium text-foreground mb-1">No Project Selected</p>
+            <p className="text-[10px] text-center text-muted-foreground/70 max-w-[200px]">
+              Select or create a project to start chatting with your AI dev team.
+            </p>
+          </div>
+        ) : (
         <ScrollArea className="h-full" ref={scrollRef}>
           <div className="py-2" onScroll={handleScroll}>
-            <AnimatePresence initial={false}>
+            <AnimatePresence initial={false} mode="wait">
+              <motion.div key={sessionKey} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.15 }}>
               {(() => {
                 // Group messages by timestamp
                 const groups: { label: string; messages: Message[] }[] = []
@@ -1180,6 +1330,7 @@ export function IDEChatPanel() {
                   </div>
                 ))
               })()}
+              </motion.div>
             </AnimatePresence>
             {isSending && (
               <motion.div
@@ -1228,6 +1379,7 @@ export function IDEChatPanel() {
             )}
           </div>
         </ScrollArea>
+        )}
 
         {/* Scroll to bottom floating button */}
         <AnimatePresence>

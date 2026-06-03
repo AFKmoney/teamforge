@@ -215,6 +215,7 @@ interface AppState {
   aiSettings: AISettings
   updateAISettings: (updates: Partial<AISettings>) => void
   hydrateAISettings: () => void
+  hydrateSettings: () => void
 
   // Loading
   loading: boolean
@@ -261,8 +262,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentProject: null,
   setCurrentProject: (project) => set({ currentProject: project }),
 
-  // Settings
-  settings: loadSettings(),
+  // Settings — always start with defaults to avoid hydration mismatch
+  // (loadSettings() reads localStorage which differs between server and client)
+  settings: DEFAULT_SETTINGS,
   updateSettings: (updates) => {
     const next = { ...get().settings, ...updates }
     saveSettings(next)
@@ -425,6 +427,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (stored) {
         const persisted = { ...DEFAULT_AI_SETTINGS, ...JSON.parse(stored) }
         set({ aiSettings: persisted })
+      }
+    } catch {
+      // ignore parse errors
+    }
+  },
+  // Hydrate settings from localStorage after client mount
+  hydrateSettings: () => {
+    if (typeof window === 'undefined') return
+    try {
+      const stored = localStorage.getItem('teamforge-ide-settings')
+      if (stored) {
+        const persisted = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) }
+        set({ settings: persisted })
       }
     } catch {
       // ignore parse errors

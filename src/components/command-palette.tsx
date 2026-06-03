@@ -28,6 +28,10 @@ import {
   FilePlus,
   Bot,
   Folder,
+  MessageSquarePlus,
+  Palette,
+  Trash2,
+  Zap,
 } from 'lucide-react'
 import { AGENT_ROLE_CONFIG } from '@/lib/types'
 import type { AgentRole } from '@/lib/types'
@@ -48,6 +52,12 @@ export function CommandPalette() {
   const setIsRunning = useAppStore((s) => s.setIsRunning)
   const addFile = useAppStore((s) => s.addFile)
   const currentProject = useAppStore((s) => s.currentProject)
+  const setRightPanelOpen = useAppStore((s) => s.setRightPanelOpen)
+  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen)
+  const setMessages = useAppStore((s) => s.setMessages)
+  const messages = useAppStore((s) => s.messages)
+  const setCurrentChatSessionId = useAppStore((s) => s.setCurrentChatSessionId)
+  const addChatSession = useAppStore((s) => s.addChatSession)
 
   const { theme, setTheme } = useTheme()
 
@@ -151,11 +161,54 @@ export function CommandPalette() {
       },
     },
     {
+      id: 'new-chat',
+      label: 'New Chat',
+      icon: <MessageSquarePlus className="size-4 text-emerald-400" />,
+      action: async () => {
+        try {
+          const res = await fetch('/api/chat-sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectId: currentProject?.id || '',
+              title: 'New Chat',
+            }),
+          })
+          if (res.ok) {
+            const session = await res.json()
+            addChatSession(session)
+            setCurrentChatSessionId(session.id)
+            setMessages([])
+            setRightPanelOpen(true)
+          }
+        } catch { /* ignore */ }
+        handleClose()
+      },
+    },
+    {
+      id: 'switch-ai-model',
+      label: 'Switch AI Model',
+      icon: <Zap className="size-4 text-green-400" />,
+      action: () => {
+        setSettingsOpen(true)
+        handleClose()
+      },
+    },
+    {
       id: 'toggle-theme',
       label: 'Toggle Theme',
       icon: theme === 'dark' ? <Sun className="size-4 text-yellow-400" /> : <Moon className="size-4 text-violet-400" />,
       action: () => {
         setTheme(theme === 'dark' ? 'light' : 'dark')
+        handleClose()
+      },
+    },
+    {
+      id: 'clear-chat',
+      label: 'Clear Chat',
+      icon: <Trash2 className="size-4 text-red-400" />,
+      action: () => {
+        setMessages([])
         handleClose()
       },
     },

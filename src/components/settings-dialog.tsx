@@ -28,11 +28,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Settings, FileCode2, Palette, Cpu, Type, WrapText, Map, Hash, Save, Timer, FolderKanban, Link, ChevronDown, Eye, EyeOff, CheckCircle2, XCircle, Loader2, Zap, Globe, Key, Bot } from 'lucide-react'
+import { Settings, FileCode2, Palette, Cpu, Type, WrapText, Map, Hash, Save, Timer, FolderKanban, Link, ChevronDown, Eye, EyeOff, CheckCircle2, XCircle, Loader2, Zap, Globe, Key, Bot, Search, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
-import { AI_PROVIDERS, getModelsForProvider, validateNvidiaApiKey, validateBaseUrl, type AIProviderType } from '@/lib/ai-providers'
+import { AI_PROVIDERS, getModelsForProvider, validateNvidiaApiKey, validateBaseUrl, validateOpenAIApiKey, DEFAULT_AI_SETTINGS, type AIProviderType } from '@/lib/ai-providers'
 
 function SettingRow({
   icon,
@@ -555,6 +555,8 @@ function AIProviderTab() {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [nvidiaTestResult, setNvidiaTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [openAITestResult, setOpenAITestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [nvidiaModelSearch, setNvidiaModelSearch] = useState('')
 
   const currentProvider = AI_PROVIDERS.find((p) => p.type === aiSettings.provider)
   const models = getModelsForProvider(aiSettings.provider)
@@ -603,12 +605,18 @@ function AIProviderTab() {
         if (aiSettings.provider === 'nvidia') {
           setNvidiaTestResult(result)
         }
+        if (aiSettings.provider === 'openai-compatible') {
+          setOpenAITestResult(result)
+        }
         toast.success('AI Provider connection test passed')
       } else {
         const result = { success: false, message: data.error || 'Connection failed' }
         setTestResult(result)
         if (aiSettings.provider === 'nvidia') {
           setNvidiaTestResult(result)
+        }
+        if (aiSettings.provider === 'openai-compatible') {
+          setOpenAITestResult(result)
         }
         toast.error('Connection test failed')
       }
@@ -619,14 +627,43 @@ function AIProviderTab() {
       if (aiSettings.provider === 'nvidia') {
         setNvidiaTestResult(result)
       }
+      if (aiSettings.provider === 'openai-compatible') {
+        setOpenAITestResult(result)
+      }
       toast.error('Connection test failed')
     } finally {
       setTesting(false)
     }
   }, [aiSettings])
 
+  const handleResetToDefault = useCallback(() => {
+    updateAISettings({
+      provider: DEFAULT_AI_SETTINGS.provider,
+      model: DEFAULT_AI_SETTINGS.model,
+      nvidiaApiKey: DEFAULT_AI_SETTINGS.nvidiaApiKey,
+      openaiCompatibleBaseUrl: DEFAULT_AI_SETTINGS.openaiCompatibleBaseUrl,
+      openaiCompatibleApiKey: DEFAULT_AI_SETTINGS.openaiCompatibleApiKey,
+      openaiCompatibleModelId: DEFAULT_AI_SETTINGS.openaiCompatibleModelId,
+    })
+    setTestResult(null)
+    setNvidiaTestResult(null)
+    setOpenAITestResult(null)
+    setNvidiaModelSearch('')
+    toast.success('AI settings reset to defaults')
+  }, [updateAISettings])
+
   const nvidiaValidation = aiSettings.nvidiaApiKey ? validateNvidiaApiKey(aiSettings.nvidiaApiKey) : null
   const baseUrlValidation = aiSettings.openaiCompatibleBaseUrl ? validateBaseUrl(aiSettings.openaiCompatibleBaseUrl) : null
+  const openAIKeyValidation = aiSettings.openaiCompatibleApiKey ? validateOpenAIApiKey(aiSettings.openaiCompatibleApiKey) : null
+
+  // Filtered NVIDIA models based on search
+  const filteredNvidiaModels = useMemo(() => {
+    if (!nvidiaModelSearch.trim()) return models
+    const q = nvidiaModelSearch.toLowerCase()
+    return models.filter((m) =>
+      m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q) || (m.description && m.description.toLowerCase().includes(q))
+    )
+  }, [models, nvidiaModelSearch])
 
   return (
     <div className="space-y-1">
@@ -690,18 +727,37 @@ function AIProviderTab() {
             placeholder="e.g. llama3, gpt-4"
           />
         ) : (
-          <Select value={aiSettings.model} onValueChange={handleModelChange}>
-            <SelectTrigger className="h-7 text-xs w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1 w-44">
+            {aiSettings.provider === 'nvidia' && models.length > 10 && (
+              <div className="relative">
+                <Search className="size-3 text-muted-foreground/50 absolute left-2 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={nvidiaModelSearch}
+                  onChange={(e) => setNvidiaModelSearch(e.target.value)}
+                  placeholder="Search models..."
+                  className="w-full h-7 rounded-md border bg-transparent pl-7 pr-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500/50"
+                />
+              </div>
+            )}
+            <Select value={aiSettings.model} onValueChange={handleModelChange}>
+              <SelectTrigger className="h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {filteredNvidiaModels.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate">{m.name}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+                {filteredNvidiaModels.length === 0 && (
+                  <div className="px-2 py-3 text-[10px] text-muted-foreground text-center">No models match your search</div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         )}
       </SettingRow>
 
@@ -821,8 +877,62 @@ function AIProviderTab() {
                   {showOpenAIKey ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
                 </button>
               </div>
+              {openAIKeyValidation && aiSettings.openaiCompatibleApiKey && (
+                <span className={cn('shrink-0', openAIKeyValidation.valid ? 'text-emerald-500' : 'text-red-500')}>
+                  {openAIKeyValidation.valid ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
+                </span>
+              )}
             </div>
           </SettingRow>
+          {openAIKeyValidation && !openAIKeyValidation.valid && aiSettings.openaiCompatibleApiKey && (
+            <p className="text-[10px] text-red-500 px-1 ml-7">{openAIKeyValidation.message}</p>
+          )}
+          <div className="h-px bg-border/50" />
+
+          {/* Test Connection for OpenAI-Compatible */}
+          <div className="py-3 px-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 mt-0.5 text-muted-foreground/70">
+                  <Zap className="size-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground/90">Test OpenAI Connection</p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                    Verify your base URL and model are working
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1.5"
+                onClick={handleTestConnection}
+                disabled={testing || !aiSettings.openaiCompatibleBaseUrl}
+              >
+                {testing ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Zap className="size-3" />
+                )}
+                {testing ? 'Testing...' : 'Test'}
+              </Button>
+            </div>
+            {openAITestResult && (
+              <div className={cn(
+                'mt-2 ml-7 p-2 rounded-md text-[11px] border',
+                openAITestResult.success
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400',
+              )}>
+                <div className="flex items-center gap-1.5">
+                  {openAITestResult.success ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
+                  {openAITestResult.message}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="h-px bg-border/50" />
         </>
       )}
@@ -891,6 +1001,34 @@ function AIProviderTab() {
               </span></p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="h-px bg-border/50" />
+
+      {/* Reset to Default */}
+      <div className="py-3 px-1">
+        <div className="flex items-center justify-between">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 mt-0.5 text-muted-foreground/70">
+              <RotateCcw className="size-4" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground/90">Reset to Default</p>
+              <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                Reset all AI provider settings to their default values
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs gap-1.5 text-amber-600 hover:text-amber-500 hover:bg-amber-500/10 border-amber-500/30"
+            onClick={handleResetToDefault}
+          >
+            <RotateCcw className="size-3" />
+            Reset
+          </Button>
         </div>
       </div>
     </div>

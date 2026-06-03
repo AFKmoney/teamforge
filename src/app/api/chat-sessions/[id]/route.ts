@@ -62,7 +62,14 @@ export async function PATCH(
       data,
     })
 
-    return NextResponse.json(session)
+    return NextResponse.json({
+      id: session.id,
+      projectId: session.projectId,
+      title: session.title,
+      summary: session.summary,
+      createdAt: session.createdAt.toISOString(),
+      updatedAt: session.updatedAt.toISOString(),
+    })
   } catch (error) {
     console.error('Failed to update chat session:', error)
     return NextResponse.json(

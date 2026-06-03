@@ -23,7 +23,18 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    return NextResponse.json(sessions)
+    // Transform _count.messages to messageCount for the client
+    const transformed = sessions.map((s) => ({
+      id: s.id,
+      projectId: s.projectId,
+      title: s.title,
+      summary: s.summary,
+      createdAt: s.createdAt.toISOString(),
+      updatedAt: s.updatedAt.toISOString(),
+      messageCount: s._count.messages,
+    }))
+
+    return NextResponse.json(transformed)
   } catch (error) {
     console.error('Failed to fetch chat sessions:', error)
     return NextResponse.json(
@@ -61,7 +72,15 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json(session, { status: 201 })
+    return NextResponse.json({
+      id: session.id,
+      projectId: session.projectId,
+      title: session.title,
+      summary: session.summary,
+      createdAt: session.createdAt.toISOString(),
+      updatedAt: session.updatedAt.toISOString(),
+      messageCount: 0,
+    }, { status: 201 })
   } catch (error) {
     console.error('Failed to create chat session:', error)
     return NextResponse.json(

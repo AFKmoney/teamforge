@@ -274,6 +274,21 @@ export function validateBaseUrl(url: string): { valid: boolean; message: string 
   }
 }
 
+/** Validate an OpenAI-compatible API key format */
+export function validateOpenAIApiKey(key: string): { valid: boolean; message: string } {
+  if (!key.trim()) {
+    return { valid: false, message: 'API key is empty' }
+  }
+  if (key.length < 8) {
+    return { valid: false, message: 'API key appears too short' }
+  }
+  if (key.startsWith('sk-')) {
+    return { valid: true, message: 'Looks like an OpenAI key format' }
+  }
+  // Accept any reasonably long key
+  return { valid: true, message: 'API key format looks valid' }
+}
+
 /** Build the request for NVIDIA NIM API */
 export function buildNvidiaRequest(
   model: string,

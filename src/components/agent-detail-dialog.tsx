@@ -34,6 +34,7 @@ import {
   X,
   ChevronDown,
   Check,
+  MessageSquare,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo, useState, useCallback } from 'react'
@@ -93,15 +94,42 @@ export function AgentDetailDialog() {
     [agent, activities],
   )
 
-  // Recently modified files
+  // Recently modified files — only show files related to agent's assigned tasks
   const recentFiles = useMemo(
-    () => agent
-      ? files
-          .filter((f) => !f.isDirectory)
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, 5)
-      : [],
-    [agent, files],
+    () => {
+      if (!agent) return []
+      // Get task IDs assigned to this agent
+      const agentTaskIds = new Set(
+        tasks
+          .filter((t) => t.assigneeId === agent.id)
+          .map((t) => t.id)
+      )
+      // Get activities for this agent that involve file changes
+      const agentFileRelatedActivities = activities.filter(
+        (a) => a.agentId === agent.id && (a.action === 'file_created' || a.action === 'file_updated' || a.action === 'code_change')
+      )
+      // Get file paths mentioned in agent activities or task descriptions
+      const relatedPaths = new Set<string>()
+      agentFileRelatedActivities.forEach((a) => {
+        const meta = typeof a.metadata === 'string' ? JSON.parse(a.metadata) : a.metadata
+        if (meta?.path) relatedPaths.add(meta.path)
+        if (meta?.filePath) relatedPaths.add(meta.filePath)
+        if (meta?.files && Array.isArray(meta.files)) {
+          meta.files.forEach((f: string) => relatedPaths.add(f))
+        }
+      })
+      // Filter files: show only files related to agent's tasks or activities
+      const filtered = files
+        .filter((f) => !f.isDirectory && (
+          relatedPaths.size === 0 // If no specific paths, show nothing (no relationship)
+            ? false
+            : relatedPaths.has(f.path)
+        ))
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, 5)
+      return filtered
+    },
+    [agent, files, activities, tasks],
   )
 
   // Assigned tasks
@@ -447,6 +475,23 @@ export function AgentDetailDialog() {
 
         {/* Footer actions */}
         <div className="px-6 py-3 flex items-center gap-2 shrink-0 bg-muted/10">
+          {/* Chat with Agent button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 h-8 text-xs border-emerald-500/30 text-emerald-600 hover:text-emerald-500 hover:bg-emerald-500/10"
+            onClick={() => {
+              setSelectedAgentId(null)
+              // Open chat panel and pre-fill a message
+              useAppStore.getState().setRightPanelOpen(true)
+              // Set the chat input via a custom event so chat panel can pick it up
+              window.dispatchEvent(new CustomEvent('teamforge-chat-prefill', { detail: `@${agent?.name || 'Agent'} ` }))
+            }}
+          >
+            <MessageSquare className="size-3" />
+            Chat with Agent
+          </Button>
+
           {/* Set Status dropdown - uses DropdownMenu with portal so it won't be clipped */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
