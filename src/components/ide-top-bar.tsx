@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer, TestTube2, Rocket, Sparkles, Activity } from 'lucide-react'
+import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer, TestTube2, Rocket, Sparkles, Activity, Settings } from 'lucide-react'
 import { NotificationBell } from '@/components/notification-panel'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -64,7 +64,7 @@ function AgentPill({ agent, currentTaskTitle }: { agent: { id: string; name: str
           >
             <span className="text-sm">{agent.avatar}</span>
             <span className={cn('font-medium hidden sm:inline', roleConfig.color)}>{agent.name}</span>
-            <span className={cn('size-2 rounded-full shrink-0', statusConfig.dotColor, isActive && 'animate-pulse')} />
+            <span className={cn('size-2 rounded-full shrink-0', statusConfig.dotColor, isActive && 'animate-breathing')} />
           </motion.div>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="text-xs max-w-[220px]">
@@ -346,6 +346,7 @@ export function IDETopBar() {
   const tasks = useAppStore((s) => s.tasks)
   const currentProject = useAppStore((s) => s.currentProject)
   const isRunning = useAppStore((s) => s.isRunning)
+  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen)
   const { theme, setTheme } = useTheme()
 
   const activeAgents = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping')
@@ -362,15 +363,27 @@ export function IDETopBar() {
     return map
   }, [agents, tasks])
 
+  const hasActiveAgents = activeAgents.length > 0
+
   return (
-    <div className="flex items-center h-11 px-3 border-b bg-gradient-to-r from-card/95 via-card/90 to-card/95 backdrop-blur-md gap-2 shrink-0 z-20 shadow-sm shadow-black/5">
+    <div className="flex items-center h-11 px-3 border-b bg-gradient-to-r from-card/95 via-card/90 to-card/95 backdrop-blur-md gap-2 shrink-0 z-20 shadow-sm shadow-black/5 topbar-border-gradient">
       {/* Project name */}
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="flex items-center justify-center size-7 rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 ring-1 ring-emerald-500/20 shadow-sm shadow-emerald-500/10">
-          <Zap className="size-3.5 text-emerald-500" />
-        </div>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center justify-center size-7 rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 ring-1 ring-emerald-500/20 shadow-sm shadow-emerald-500/10 cursor-default">
+                <Zap className="size-3.5 text-emerald-500" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">TeamForge IDE v0.8.0</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <div className="flex flex-col min-w-0">
-          <span className="font-semibold text-sm text-foreground truncate leading-tight">
+          <span className={cn(
+            'font-semibold text-sm text-foreground truncate leading-tight',
+            hasActiveAgents && 'text-shimmer-active',
+          )}>
             {currentProject?.name || 'TeamForge IDE'}
           </span>
           <span className="text-[9px] text-muted-foreground/60 leading-tight hidden lg:block">Autonomous AI Development</span>
@@ -385,9 +398,12 @@ export function IDETopBar() {
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-600 dark:text-emerald-400"
+          className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-600 dark:text-emerald-400 shadow-sm shadow-emerald-500/10"
         >
-          <Activity className="size-3 animate-pulse" />
+          <span className="relative flex size-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
+          </span>
           <span className="font-medium">Running</span>
         </motion.div>
       )}
@@ -439,6 +455,21 @@ export function IDETopBar() {
         </div>
         <div className="h-4 w-px bg-border mx-0.5" />
         <NotificationBell />
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">Settings (Ctrl+,)</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <Button
           size="icon"
           variant="ghost"

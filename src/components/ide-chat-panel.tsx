@@ -24,6 +24,8 @@ import {
   FilePlus,
   TestTube,
   RocketIcon,
+  ArrowDown,
+  MessageCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
@@ -66,6 +68,19 @@ function formatTime(dateStr: string) {
   const diffH = Math.floor(diffMin / 60)
   if (diffH < 24) return `${diffH}h ago`
   return `${Math.floor(diffH / 24)}d ago`
+}
+
+// Get timestamp group label (Today, Yesterday, Older)
+function getTimestampGroup(dateStr: string): string {
+  const d = new Date(dateStr)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today.getTime() - 86400000)
+  const messageDate = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+  if (messageDate.getTime() === today.getTime()) return 'Today'
+  if (messageDate.getTime() === yesterday.getTime()) return 'Yesterday'
+  return 'Older'
 }
 
 // Quick prompt suggestions
@@ -114,7 +129,7 @@ function ChatMessage({ message }: { message: Message }) {
         'px-3 py-2.5 rounded-xl mx-2 mb-1.5 transition-colors group relative',
         typeConfig.bgColor,
         !isSystem && 'hover:bg-muted/20',
-        isSystem && 'border border-border/40 bg-gradient-to-r from-muted/30 to-muted/10',
+        isSystem && 'border border-border/40 bg-gradient-to-r from-muted/30 to-muted/10 system-message-accent',
       )}
       onMouseEnter={() => setShowReactions(true)}
       onMouseLeave={() => setShowReactions(false)}
@@ -246,8 +261,10 @@ export function IDEChatPanel() {
   const [isSending, setIsSending] = useState(false)
   const [showSlashCommands, setShowSlashCommands] = useState(false)
   const [selectedSlashIndex, setSelectedSlashIndex] = useState(0)
+  const [isScrolledUp, setIsScrolledUp] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const onlineCount = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping').length
 
@@ -268,10 +285,25 @@ export function IDEChatPanel() {
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && !isScrolledUp) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages])
+  }, [messages, isScrolledUp])
+
+  // Track scroll position for "scroll to bottom" button
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 60
+    setIsScrolledUp(!isAtBottom)
+  }, [])
+
+  const scrollToBottom = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      setIsScrolledUp(false)
+    }
+  }, [])
 
   // Auto-resize textarea
   useEffect(() => {
@@ -502,52 +534,92 @@ export function IDEChatPanel() {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1" ref={scrollRef}>
-        <div className="py-2">
-          <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} />
-            ))}
-          </AnimatePresence>
-          {isSending && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-2 px-5 py-2 text-xs text-muted-foreground"
+      <div className="flex-1 relative overflow-hidden">
+        <ScrollArea className="h-full" ref={scrollRef}>
+          <div className="py-2" onScroll={handleScroll}>
+            <AnimatePresence initial={false}>
+              {(() => {
+                // Group messages by timestamp
+                const groups: { label: string; messages: Message[] }[] = []
+                let currentGroup = ''
+                for (const msg of messages) {
+                  const group = getTimestampGroup(msg.createdAt)
+                  if (group !== currentGroup) {
+                    groups.push({ label: group, messages: [msg] })
+                    currentGroup = group
+                  } else {
+                    groups[groups.length - 1].messages.push(msg)
+                  }
+                }
+                return groups.map((group) => (
+                  <div key={group.label}>
+                    <div className="timestamp-group-header my-2">{group.label}</div>
+                    {group.messages.map((msg) => (
+                      <ChatMessage key={msg.id} message={msg} />
+                    ))}
+                  </div>
+                ))
+              })()}
+            </AnimatePresence>
+            {isSending && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center gap-2 px-5 py-2.5 text-xs text-muted-foreground"
+              >
+                <span className="flex items-center gap-1">
+                  <span className="typing-wave-dot" />
+                  <span className="typing-wave-dot" />
+                  <span className="typing-wave-dot" />
+                </span>
+                <span>Agent is thinking...</span>
+              </motion.div>
+            )}
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground px-4">
+                <div className="empty-state-illustration mb-1">
+                  <div className="size-14 rounded-2xl bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 flex items-center justify-center border border-emerald-500/10">
+                    <MessageCircle className="size-6 text-emerald-500/60" />
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-foreground mb-1">Team Chat</p>
+                <p className="text-[10px] text-center text-muted-foreground/70 mb-4 max-w-[200px]">
+                  Talk to your AI dev team. Ask for updates, assign tasks, or request code reviews.
+                </p>
+                <div className="grid grid-cols-2 gap-1.5 w-full">
+                  {QUICK_PROMPTS.map((qp) => (
+                    <button
+                      key={qp.label}
+                      onClick={() => { setInputValue(qp.prompt) }}
+                      className="quick-prompt-card flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-muted/40 hover:bg-muted/70 text-[10px] text-foreground/80 transition-colors text-left border border-transparent hover:border-border/40"
+                    >
+                      <span>{qp.icon}</span>
+                      <span className="truncate">{qp.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* Scroll to bottom floating button */}
+        <AnimatePresence>
+          {isScrolledUp && messages.length > 0 && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.15 }}
+              onClick={scrollToBottom}
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full bg-card/90 border border-border/60 shadow-lg text-[10px] text-muted-foreground hover:text-foreground hover:bg-card transition-colors scroll-to-bottom-btn"
             >
-              <span className="flex items-center gap-1">
-                <span className="typing-bounce-dot" />
-                <span className="typing-bounce-dot" />
-                <span className="typing-bounce-dot" />
-              </span>
-              <span>Agent is thinking...</span>
-            </motion.div>
+              <ArrowDown className="size-3" />
+              <span>Latest</span>
+            </motion.button>
           )}
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground px-4">
-              <div className="size-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-3">
-                <Sparkles className="size-5 text-emerald-500" />
-              </div>
-              <p className="text-xs font-medium text-foreground mb-1">Team Chat</p>
-              <p className="text-[10px] text-center text-muted-foreground/70 mb-4">
-                Talk to your AI dev team. Ask for updates, assign tasks, or request code reviews.
-              </p>
-              <div className="grid grid-cols-2 gap-1.5 w-full">
-                {QUICK_PROMPTS.map((qp) => (
-                  <button
-                    key={qp.label}
-                    onClick={() => { setInputValue(qp.prompt) }}
-                    className="quick-prompt-card flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-muted/40 hover:bg-muted/70 text-[10px] text-foreground/80 transition-colors text-left border border-transparent hover:border-border/40"
-                  >
-                    <span>{qp.icon}</span>
-                    <span className="truncate">{qp.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+        </AnimatePresence>
+      </div>
 
       {/* Slash commands popup */}
       <AnimatePresence>

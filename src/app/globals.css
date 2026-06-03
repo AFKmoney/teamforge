@@ -576,3 +576,317 @@
 .status-pulse {
   animation: status-pulse 2s ease-in-out infinite;
 }
+
+/* ===== Task 8: Enhanced Styling & Micro-interactions ===== */
+
+/* Smooth focus-visible ring transitions */
+*:focus-visible {
+  transition: outline-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Custom selection colors (emerald-tinted) */
+::selection {
+  background: rgba(16, 185, 129, 0.2);
+  color: inherit;
+}
+::-moz-selection {
+  background: rgba(16, 185, 129, 0.2);
+  color: inherit;
+}
+
+/* Better placeholder styling */
+::placeholder {
+  font-size: 0.8em;
+  opacity: 0.45;
+}
+
+/* Smooth border-color transitions on hover for interactive elements */
+button, a, [role="button"], input, select, textarea {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Refined tooltip animation (fade + slight scale) */
+[data-state="delayed-open"][data-side] {
+  animation: tooltip-fade-scale 0.15s ease-out;
+}
+@keyframes tooltip-fade-scale {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Better skeleton loading shimmer animation */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(16, 185, 129, 0.04) 25%,
+    rgba(16, 185, 129, 0.08) 50%,
+    rgba(16, 185, 129, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 2s ease-in-out infinite;
+}
+
+/* "Breathing" animation for active agent status dots */
+@keyframes breathing {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+.animate-breathing {
+  animation: breathing 2s ease-in-out infinite;
+}
+
+/* Improved scrollbar for code areas (thinner, emerald-tinted track) */
+.code-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.code-scrollbar::-webkit-scrollbar-track {
+  background: rgba(16, 185, 129, 0.03);
+  border-radius: 3px;
+}
+.code-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.12);
+  border-radius: 3px;
+}
+.code-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.22);
+}
+.code-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* "Glass" utility class for frosted glass effect */
+.glass {
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.dark .glass {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Top bar bottom border gradient */
+.topbar-border-gradient {
+  position: relative;
+}
+.topbar-border-gradient::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.2) 30%, rgba(16, 185, 129, 0.25) 50%, rgba(16, 185, 129, 0.2) 70%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Project name shimmer when agents are active */
+@keyframes text-shimmer {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+.text-shimmer-active {
+  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.3) 50%, transparent 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  animation: text-shimmer 3s ease-in-out infinite;
+}
+
+/* Active file row left border glow */
+.active-file-glow {
+  box-shadow: inset 3px 0 6px -2px rgba(16, 185, 129, 0.3);
+  border-left: 2px solid rgba(16, 185, 129, 0.6) !important;
+}
+
+/* Agent progress bar */
+@keyframes progress-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+.agent-progress-bar {
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(16, 185, 129, 0.15);
+  overflow: hidden;
+  margin-top: 2px;
+}
+.agent-progress-bar-fill {
+  height: 100%;
+  border-radius: 1px;
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.5), rgba(16, 185, 129, 0.8));
+  animation: progress-pulse 2s ease-in-out infinite;
+  transition: width 0.5s ease;
+}
+
+/* Chat system message left border accent */
+.system-message-accent {
+  border-left: 2px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Chat scroll-to-bottom floating button */
+@keyframes fade-in-scale {
+  from { opacity: 0; transform: scale(0.8) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.scroll-to-bottom-btn {
+  animation: fade-in-scale 0.2s ease-out;
+}
+
+/* Chat typing indicator wave */
+@keyframes typing-wave {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+.typing-wave-dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.7);
+}
+.typing-wave-dot:nth-child(1) { animation: typing-wave 1.4s ease-in-out infinite; }
+.typing-wave-dot:nth-child(2) { animation: typing-wave 1.4s ease-in-out 0.15s infinite; }
+.typing-wave-dot:nth-child(3) { animation: typing-wave 1.4s ease-in-out 0.3s infinite; }
+
+/* Animated gradient border around logo */
+@keyframes gradient-rotate {
+  0% { --gradient-angle: 0deg; }
+  100% { --gradient-angle: 360deg; }
+}
+@property --gradient-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.animated-gradient-border {
+  position: relative;
+  border-radius: 1rem;
+}
+.animated-gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--gradient-angle), #10b981, #8b5cf6, #f59e0b, #10b981);
+  animation: gradient-rotate 3s linear infinite;
+  z-index: -1;
+  opacity: 0.6;
+}
+.animated-gradient-border::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  z-index: -1;
+}
+
+/* Kbd badge styling */
+.kbd-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Bottom panel top border gradient */
+.bottom-panel-gradient {
+  position: relative;
+}
+.bottom-panel-gradient::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.15) 30%, rgba(16, 185, 129, 0.2) 50%, rgba(16, 185, 129, 0.15) 70%, transparent 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Dotted resize handle */
+.resize-handle-dotted {
+  background-image: radial-gradient(circle, rgba(16, 185, 129, 0.3) 1px, transparent 1px);
+  background-size: 8px 4px;
+  background-position: center;
+  background-repeat: repeat-x;
+}
+
+/* Terminal prompt improved styling */
+.terminal-prompt {
+  font-family: var(--font-mono);
+}
+.terminal-prompt .prompt-path {
+  color: #10b981;
+  font-weight: 600;
+}
+.terminal-prompt .prompt-branch {
+  color: #a78bfa;
+}
+.terminal-prompt .prompt-arrow {
+  color: #f59e0b;
+  margin: 0 2px;
+}
+.terminal-prompt .prompt-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: rgba(161, 161, 170, 0.7);
+  animation: blink 1s step-end infinite;
+  vertical-align: text-bottom;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Empty state illustration styling */
+.empty-state-illustration {
+  position: relative;
+}
+.empty-state-illustration::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Chat timestamp group header */
+.timestamp-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.timestamp-group-header::before,
+.timestamp-group-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+}

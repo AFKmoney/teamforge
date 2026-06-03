@@ -45,10 +45,53 @@ function deduplicateById<T extends { id: string }>(items: T[]): T[] {
   return Array.from(seen.values())
 }
 
+// Settings defaults
+const DEFAULT_SETTINGS = {
+  fontSize: 13,
+  tabSize: 2,
+  wordWrap: false,
+  minimapEnabled: true,
+  lineNumbers: true,
+  autoSave: true,
+  pollingInterval: 30,
+}
+
+// Load settings from localStorage
+function loadSettings(): typeof DEFAULT_SETTINGS {
+  if (typeof window === 'undefined') return DEFAULT_SETTINGS
+  try {
+    const stored = localStorage.getItem('teamforge-ide-settings')
+    if (stored) return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) }
+  } catch {
+    // ignore parse errors
+  }
+  return DEFAULT_SETTINGS
+}
+
+// Save settings to localStorage
+function saveSettings(settings: typeof DEFAULT_SETTINGS) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem('teamforge-ide-settings', JSON.stringify(settings))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export type AppSettings = typeof DEFAULT_SETTINGS
+
 interface AppState {
   // Current project
   currentProject: Project | null
   setCurrentProject: (project: Project | null) => void
+
+  // Settings
+  settings: AppSettings
+  updateSettings: (updates: Partial<AppSettings>) => void
+  settingsOpen: boolean
+  setSettingsOpen: (open: boolean) => void
+  fileSearchOpen: boolean
+  setFileSearchOpen: (open: boolean) => void
 
   // Data
   agents: Agent[]
@@ -136,6 +179,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Current project
   currentProject: null,
   setCurrentProject: (project) => set({ currentProject: project }),
+
+  // Settings
+  settings: loadSettings(),
+  updateSettings: (updates) => {
+    const next = { ...get().settings, ...updates }
+    saveSettings(next)
+    set({ settings: next })
+  },
+  settingsOpen: false,
+  setSettingsOpen: (open) => set({ settingsOpen: open }),
+  fileSearchOpen: false,
+  setFileSearchOpen: (open) => set({ fileSearchOpen: open }),
 
   // Data
   agents: [],

@@ -37,6 +37,8 @@ import {
   TestTube2,
   Rocket,
   MessageSquare,
+  Pin,
+  FileX2,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useMemo, useRef, useEffect } from 'react'
@@ -234,14 +236,17 @@ function FileTreeNodeView({
           onClick={() => node.file && onFileClick(node.file)}
           className={cn(
             'file-tree-item flex items-center gap-1.5 w-full px-2 py-1 text-xs hover:bg-muted/60 transition-colors rounded-sm group relative',
-            isActive && 'bg-primary/10 text-primary',
+            isActive && 'bg-primary/10 text-primary active-file-glow',
           )}
           style={{ paddingLeft: `${depth * 12 + 20}px` }}
         >
           <div className={cn('file-color-bar', getFileTypeColor(node.name))} />
           {getFileIcon(node.name)}
           <span className={cn('truncate', isActive ? 'text-primary font-medium' : 'text-foreground/80')}>{node.name}</span>
-          {fileSize > 0 && (
+          {isActive && (
+            <Pin className="size-2.5 text-emerald-500/60 shrink-0 ml-auto" />
+          )}
+          {!isActive && fileSize > 0 && (
             <span className="text-[9px] text-muted-foreground/40 ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
               {formatFileSize(fileSize)}
             </span>
@@ -294,6 +299,23 @@ function AgentRow({ agent, onClick }: { agent: Agent; onClick: () => void }) {
   const roleConfig = AGENT_ROLE_CONFIG[agent.role]
   const statusConfig = AGENT_STATUS_CONFIG[agent.status]
   const isActive = agent.status !== 'idle' && agent.status !== 'sleeping'
+  const tasks = useAppStore((s) => s.tasks)
+
+  // Calculate progress for active agent based on task status
+  const progress = useMemo(() => {
+    if (!isActive || !agent.currentTaskId) return 0
+    const task = tasks.find((t) => t.id === agent.currentTaskId)
+    if (!task) return 0
+    // Simulate progress based on status
+    const statusProgress: Record<string, number> = {
+      todo: 10,
+      in_progress: 50,
+      in_review: 80,
+      done: 100,
+      backlog: 5,
+    }
+    return statusProgress[task.status] || 30
+  }, [isActive, agent.currentTaskId, tasks])
 
   return (
     <TooltipProvider delayDuration={400}>
@@ -314,12 +336,17 @@ function AgentRow({ agent, onClick }: { agent: Agent; onClick: () => void }) {
                 <span className={cn(
                   'size-1.5 rounded-full shrink-0',
                   statusConfig.dotColor,
-                  isActive && 'animate-pulse',
+                  isActive && 'animate-breathing',
                 )} />
               </div>
               <div className="text-[10px] text-muted-foreground truncate">
                 {statusConfig.label} · {roleConfig.label}
               </div>
+              {isActive && (
+                <div className="agent-progress-bar mt-0.5">
+                  <div className="agent-progress-bar-fill" style={{ width: `${progress}%` }} />
+                </div>
+              )}
             </div>
           </div>
         </TooltipTrigger>
@@ -328,6 +355,7 @@ function AgentRow({ agent, onClick }: { agent: Agent; onClick: () => void }) {
           <p className="text-muted-foreground">Status: {statusConfig.label}</p>
           {agent.specialty && <p className="text-muted-foreground">{agent.specialty}</p>}
           <p className="text-muted-foreground">Tasks completed: {agent.tasksCompleted}</p>
+          {isActive && agent.currentTaskId && <p className="text-muted-foreground">Progress: {progress}%</p>}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -649,6 +677,18 @@ export function IDESidebar() {
               onContextMenuAction={handleContextMenuAction}
             />
           ))}
+          {fileTree.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground px-4">
+              <div className="empty-state-illustration">
+                <div className="size-10 rounded-xl bg-muted/30 flex items-center justify-center mb-2">
+                  <FileX2 className="size-4 text-muted-foreground/40" />
+                </div>
+              </div>
+              <p className="text-[10px] text-center text-muted-foreground/50 mt-1">
+                {searchQuery ? 'No files match your search' : 'No files in project'}
+              </p>
+            </div>
+          )}
         </div>
 
         <Separator className="mx-3" />

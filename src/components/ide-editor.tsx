@@ -4,7 +4,7 @@ import { useAppStore } from '@/lib/store'
 import { type ProjectFile } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
-import { X, Code2, Keyboard, Zap, Command, Save, Play, ChevronRight } from 'lucide-react'
+import { X, Code2, Keyboard, Zap, Command, Save, Play, ChevronRight, FileCode2, Clock, Terminal, Search } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
@@ -252,6 +252,31 @@ function Minimap({ lines, scrollHeight, clientHeight, scrollTop }: {
 }
 
 function WelcomeScreen() {
+  const files = useAppStore((s) => s.files)
+  const setActiveFileId = useAppStore((s) => s.setActiveFileId)
+  const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
+  const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
+
+  // Get recent files (last 5 by last modified or just the first 5)
+  const recentFiles = useMemo(() => {
+    return files
+      .filter((f) => !f.isDirectory)
+      .slice(0, 5)
+  }, [files])
+
+  const shortcuts = [
+    { icon: <Command className="size-4 text-emerald-500" />, title: 'Command Palette', shortcut: 'Ctrl+K', keys: ['Ctrl', 'K'] },
+    { icon: <Code2 className="size-4 text-violet-500" />, title: 'Toggle Terminal', shortcut: 'Ctrl+J', keys: ['Ctrl', 'J'] },
+    { icon: <Keyboard className="size-4 text-amber-500" />, title: 'Save File', shortcut: 'Ctrl+S', keys: ['Ctrl', 'S'] },
+    { icon: <Zap className="size-4 text-pink-500" />, title: 'Run Project', shortcut: 'F5', keys: ['F5'] },
+  ]
+
+  const quickActions = [
+    { icon: <Search className="size-3.5" />, label: 'Search Files', action: () => {} },
+    { icon: <Terminal className="size-3.5" />, label: 'Open Terminal', action: () => { setBottomPanelOpen(true); setActiveBottomTab('terminal') } },
+    { icon: <Code2 className="size-3.5" />, label: 'New File', action: () => {} },
+  ]
+
   return (
     <div className="flex-1 flex items-center justify-center bg-zinc-900 dark:bg-zinc-950">
       <motion.div
@@ -266,38 +291,66 @@ function WelcomeScreen() {
           transition={{ delay: 0.1, duration: 0.4, ease: 'easeOut' }}
           className="flex items-center justify-center mb-8"
         >
-          <div className="flex items-center justify-center size-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/5 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/10">
-            <Zap className="size-9 text-emerald-500" />
+          <div className="animated-gradient-border">
+            <div className="flex items-center justify-center size-20 rounded-2xl bg-zinc-900">
+              <Zap className="size-9 text-emerald-500" />
+            </div>
           </div>
         </motion.div>
         <motion.h1
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-2xl font-bold text-foreground mb-2 tracking-tight"
+          className="text-2xl font-bold text-foreground mb-1 tracking-tight"
         >
           TeamForge IDE
         </motion.h1>
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          transition={{ delay: 0.25 }}
+          className="text-muted-foreground/50 text-[10px] mb-3 font-mono"
+        >
+          v0.8.0
+        </motion.p>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="text-muted-foreground text-sm mb-8"
+          className="text-muted-foreground text-sm mb-6"
         >
           Where AI agents collaborate to build software 24/7
         </motion.p>
+
+        {/* Quick Actions Row */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="flex items-center justify-center gap-2 mb-6"
+        >
+          {quickActions.map((action, i) => (
+            <motion.button
+              key={action.label}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 + i * 0.05 }}
+              onClick={action.action}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/8 text-muted-foreground hover:text-foreground text-[11px] transition-colors border border-white/5 hover:border-white/10"
+            >
+              {action.icon}
+              <span>{action.label}</span>
+            </motion.button>
+          ))}
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
           className="grid grid-cols-2 gap-3 text-xs"
         >
-          {[
-            { icon: <Command className="size-4 text-emerald-500" />, title: 'Command Palette', shortcut: 'Ctrl+K' },
-            { icon: <Code2 className="size-4 text-violet-500" />, title: 'Toggle Terminal', shortcut: 'Ctrl+J' },
-            { icon: <Keyboard className="size-4 text-amber-500" />, title: 'Save File', shortcut: 'Ctrl+S' },
-            { icon: <Zap className="size-4 text-pink-500" />, title: 'Run Project', shortcut: 'F5' },
-          ].map((item, i) => (
+          {shortcuts.map((item, i) => (
             <motion.div
               key={item.title}
               initial={{ opacity: 0, x: i % 2 === 0 ? -10 : 10 }}
@@ -306,18 +359,53 @@ function WelcomeScreen() {
               className="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-white/8 text-muted-foreground transition-colors cursor-default border border-white/5"
             >
               {item.icon}
-              <div className="text-left">
+              <div className="text-left flex-1">
                 <div className="text-foreground font-medium">{item.title}</div>
-                <div className="text-muted-foreground/60">{item.shortcut}</div>
+                <div className="flex items-center gap-0.5 mt-0.5">
+                  {item.keys.map((key, ki) => (
+                    <span key={ki}>
+                      {ki > 0 && <span className="text-muted-foreground/30 mx-0.5">+</span>}
+                      <span className="kbd-badge">{key}</span>
+                    </span>
+                  ))}
+                </div>
               </div>
             </motion.div>
           ))}
         </motion.div>
+
+        {/* Recent Files Section */}
+        {recentFiles.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="mt-6 text-left"
+          >
+            <div className="flex items-center gap-1.5 mb-2 px-1">
+              <Clock className="size-3 text-muted-foreground/50" />
+              <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/60 uppercase">Recent Files</span>
+            </div>
+            <div className="space-y-0.5">
+              {recentFiles.map((file) => (
+                <button
+                  key={file.id}
+                  onClick={() => setActiveFileId(file.id)}
+                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                >
+                  <FileCode2 className="size-3 text-emerald-500/50 shrink-0" />
+                  <span className="truncate">{file.path}</span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="text-muted-foreground/40 text-[10px] mt-8"
+          transition={{ delay: 0.9 }}
+          className="text-muted-foreground/40 text-[10px] mt-6"
         >
           Select a file from the explorer to start editing
         </motion.p>

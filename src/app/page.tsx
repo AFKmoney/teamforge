@@ -9,6 +9,8 @@ import { IDEBottomPanel } from '@/components/ide-bottom-panel'
 import { AgentDetailDialog } from '@/components/agent-detail-dialog'
 import { CommandPalette } from '@/components/command-palette'
 import { KeyboardShortcutsOverlay } from '@/components/keyboard-shortcuts-overlay'
+import { FileSearchOverlay } from '@/components/file-search-overlay'
+import { SettingsDialog } from '@/components/settings-dialog'
 import { useAppStore } from '@/lib/store'
 import { useAgentOrchestrator } from '@/hooks/use-agent-orchestrator'
 import { useRealtimeWS } from '@/hooks/use-realtime-ws'
@@ -24,6 +26,24 @@ export default function Home() {
   const tasks = useAppStore((s) => s.tasks)
   const messages = useAppStore((s) => s.messages)
   const loading = useAppStore((s) => s.loading)
+  const setFileSearchOpen = useAppStore((s) => s.setFileSearchOpen)
+  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen)
+
+  // Keyboard shortcuts: Ctrl+P for file search, Ctrl+, for settings
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+        e.preventDefault()
+        setFileSearchOpen(true)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault()
+        setSettingsOpen(true)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [setFileSearchOpen, setSettingsOpen])
 
   // Track uptime
   const startTime = useRef(Date.now())
@@ -55,6 +75,9 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [])
 
+  // Calculate totals (must be declared before the useEffect that references it)
+  const totalTokens = agents.reduce((sum, a) => sum + a.tokensUsed, 0)
+
   // Track token usage over time for sparkline
   useEffect(() => {
     const interval = setInterval(() => {
@@ -66,8 +89,6 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [totalTokens])
 
-  // Calculate totals
-  const totalTokens = agents.reduce((sum, a) => sum + a.tokensUsed, 0)
   const formatTokens = (n: number) => {
     if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
     if (n >= 1000) return `${(n / 1000).toFixed(1)}K`
@@ -263,7 +284,7 @@ export default function Home() {
         <div className="flex items-center gap-2 ml-auto">
           <span className="font-semibold text-foreground/60 tracking-tight">TeamForge IDE</span>
           <div className="h-3 w-px bg-border/60" />
-          <span className="text-muted-foreground/60">v0.7.0</span>
+          <span className="text-muted-foreground/60">v0.8.0</span>
           <div className="h-3 w-px bg-border/60" />
           <span className="flex items-center gap-0.5">
             Made with <Heart className="size-2.5 text-red-500 fill-red-500" />
@@ -276,6 +297,12 @@ export default function Home() {
 
       {/* Keyboard Shortcuts Overlay */}
       <KeyboardShortcutsOverlay />
+
+      {/* File Search Overlay */}
+      <FileSearchOverlay />
+
+      {/* Settings Dialog */}
+      <SettingsDialog />
 
       {/* Agent Detail Dialog */}
       <AgentDetailDialog />

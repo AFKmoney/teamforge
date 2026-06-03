@@ -119,12 +119,12 @@ function TerminalView() {
           </div>
         ))}
         {/* Terminal prompt */}
-        <div className="flex items-center gap-1 text-zinc-400">
-          <span className="text-emerald-500 font-bold">~/project</span>
+        <div className="flex items-center gap-1 text-zinc-400 terminal-prompt">
+          <span className="prompt-path">~/project</span>
           <span className="text-muted-foreground/60">on</span>
-          <span className="text-violet-400">main</span>
-          <span className="text-amber-400">❯</span>
-          <span className="w-2 h-4 bg-zinc-400 animate-pulse" />
+          <span className="prompt-branch">main</span>
+          <span className="prompt-arrow">❯</span>
+          <span className="prompt-cursor" />
         </div>
       </div>
     </ScrollArea>
@@ -740,18 +740,18 @@ export function IDEBottomPanel() {
   }
 
   return (
-    <div className="flex flex-col border-t shrink-0 bg-gradient-to-b from-card/80 to-card/60">
+    <div className="flex flex-col border-t shrink-0 bg-gradient-to-b from-card/80 to-card/60 bottom-panel-gradient">
       {/* Resize handle */}
       <div
         ref={resizeRef}
         className={cn(
-          'h-1.5 cursor-row-resize hover:bg-emerald-500/30 transition-colors -mt-0.5 relative z-10 group',
-          isResizing && 'bg-emerald-500/40',
+          'h-1.5 cursor-row-resize transition-colors -mt-0.5 relative z-10 group resize-handle-dotted',
+          isResizing && 'bg-emerald-500/30',
         )}
         onMouseDown={handleMouseDown}
       >
         <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="w-8 h-0.5 rounded-full bg-muted-foreground/30" />
+          <div className="w-8 h-0.5 rounded-full bg-emerald-500/30" />
         </div>
       </div>
 
@@ -778,6 +778,9 @@ export function IDEBottomPanel() {
             )}
             {tab.id === 'problems' && problemCount > 0 && (
               <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4">{problemCount}</Badge>
+            )}
+            {tab.id === 'terminal' && buildLogs.length > 0 && (
+              <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">{buildLogs.length}</Badge>
             )}
           </button>
         ))}
