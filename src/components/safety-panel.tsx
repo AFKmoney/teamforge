@@ -1,0 +1,449 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Shield,
+  ShieldCheck,
+  ShieldX,
+  AlertTriangle,
+  Info,
+  XCircle,
+  CheckCircle2,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  ArrowRight,
+} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useAppStore } from '@/lib/store'
+import type { SafetyEvent, ConstitutionalRule, Severity } from '@/lib/types'
+
+// ---------------------------------------------------------------------------
+// Severity config
+// ---------------------------------------------------------------------------
+
+const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string; dot: string; icon: React.ElementType }> = {
+  info: { color: 'text-blue-600', bg: 'bg-blue-50', dot: 'bg-blue-500', icon: Info },
+  warning: { color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500', icon: AlertTriangle },
+  critical: { color: 'text-red-600', bg: 'bg-red-50', dot: 'bg-red-500', icon: XCircle },
+}
+
+// ---------------------------------------------------------------------------
+// Relative time
+// ---------------------------------------------------------------------------
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline stages
+// ---------------------------------------------------------------------------
+
+const PIPELINE_STAGES = [
+  { label: 'Proposed Change', key: 'proposed' },
+  { label: 'Sandbox', key: 'sandbox' },
+  { label: 'Validation', key: 'validation' },
+  { label: 'Approval', key: 'approval' },
+  { label: 'Production', key: 'production' },
+] as const
+
+function getPipelineActiveStage(): number {
+  // Simulate: show pipeline in "validation" stage (index 2) as a default
+  // In production this would be dynamic
+  return 2
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function SafetyPanel() {
+  const { safetyEvents: rawEvents, setSafetyEvents } = useAppStore()
+  const [loading, setLoading] = useState(true)
+  const [rules, setRules] = useState<ConstitutionalRule[]>([])
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null)
+
+  // ------- data fetching -------
+  const fetchData = useCallback(async () => {
+    try {
+      const [eventsRes, rulesRes] = await Promise.all([
+        fetch('/api/safety'),
+        fetch('/api/constitutional-rules'),
+      ])
+      const eventsData = await eventsRes.json()
+      const rulesData = await rulesRes.json()
+      setSafetyEvents(Array.isArray(eventsData) ? eventsData : [])
+      setRules(Array.isArray(rulesData) ? rulesData : [])
+    } catch {
+      // silent
+    } finally {
+      setLoading(false)
+    }
+  }, [setSafetyEvents])
+
+  useEffect(() => {
+    fetchData()
+    const interval = setInterval(fetchData, 30000)
+    return () => clearInterval(interval)
+  }, [fetchData])
+
+  // ------- parse JSON string fields -------
+  const events: SafetyEvent[] = useMemo(
+    () =>
+      rawEvents.map((e) => ({
+        ...e,
+        metadata:
+          typeof e.metadata === 'string'
+            ? (JSON.parse(e.metadata as string) as Record<string, unknown>)
+            : e.metadata,
+      })),
+    [rawEvents]
+  )
+
+  // ------- derived data -------
+  const unresolvedCount = useMemo(
+    () => events.filter((e) => !e.resolved).length,
+    [events]
+  )
+
+  const overallStatus = useMemo(() => {
+    if (events.some((e) => !e.resolved && e.severity === 'critical'))
+      return { label: 'Critical', color: 'text-red-600', bg: 'bg-red-50', icon: ShieldX }
+    if (events.some((e) => !e.resolved && e.severity === 'warning'))
+      return { label: 'Caution', color: 'text-amber-600', bg: 'bg-amber-50', icon: AlertTriangle }
+    return { label: 'Safe', color: 'text-green-600', bg: 'bg-green-50', icon: ShieldCheck }
+  }, [events])
+
+  const activeRulesCount = useMemo(
+    () => rules.filter((r) => r.active).length,
+    [rules]
+  )
+
+  // ------- toggle rule -------
+  const handleToggleRule = useCallback(
+    async (id: string, active: boolean) => {
+      try {
+        const res = await fetch('/api/constitutional-rules', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, active }),
+        })
+        if (res.ok) {
+          setRules((prev) =>
+            prev.map((r) => (r.id === id ? { ...r, active } : r))
+          )
+        }
+      } catch (err) {
+        console.error(err)
+      }
+    },
+    []
+  )
+
+  const pipelineActive = getPipelineActiveStage()
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50">
+            <Shield className="h-5 w-5 text-amber-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">
+              Safety Monitor
+            </h2>
+            <p className="text-sm text-slate-500">
+              {unresolvedCount} active alert{unresolvedCount !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+        <Badge className={`${overallStatus.bg} ${overallStatus.color} gap-1`}>
+          {(() => {
+            const Icon = overallStatus.icon
+            return <Icon className="h-3 w-3" />
+          })()}
+          {overallStatus.label}
+        </Badge>
+      </div>
+
+      {/* Constitutional Rules */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-700">
+            Constitutional Rules
+          </h3>
+          <span className="text-xs text-slate-500">
+            {activeRulesCount}/{rules.length} active
+          </span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {rules.map((rule) => (
+            <motion.div
+              key={rule.id}
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.15 }}
+            >
+              <Card className={`transition-colors ${rule.active ? '' : 'opacity-60'}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2 min-w-0">
+                      {rule.active ? (
+                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                      ) : (
+                        <ShieldX className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                      )}
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-medium text-slate-900 leading-tight">
+                          {rule.rule}
+                        </h4>
+                        <p className="mt-1 text-xs text-slate-500 line-clamp-2">
+                          {rule.description}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={rule.active}
+                      onCheckedChange={(checked) =>
+                        handleToggleRule(rule.id, checked)
+                      }
+                      className="shrink-0"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+          {rules.length === 0 && (
+            <Card className="sm:col-span-2 lg:col-span-3">
+              <CardContent className="py-8 text-center text-sm text-slate-500">
+                No constitutional rules configured.
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Validation Pipeline */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-slate-600">
+            Deployment Safety Pipeline
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pb-4">
+          <div className="flex items-center justify-between gap-1 overflow-x-auto">
+            {PIPELINE_STAGES.map((stage, i) => {
+              const isActive = i <= pipelineActive
+              const isCurrent = i === pipelineActive
+              return (
+                <div key={stage.key} className="flex items-center gap-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`flex h-8 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors ${
+                            isCurrent
+                              ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300'
+                              : isActive
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-slate-100 text-slate-400'
+                          }`}
+                        >
+                          {stage.label}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isCurrent ? 'Current Stage' : isActive ? 'Passed' : 'Pending'}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  {i < PIPELINE_STAGES.length - 1 && (
+                    <ArrowRight
+                      className={`h-3.5 w-3.5 ${
+                        i < pipelineActive ? 'text-green-400' : 'text-slate-300'
+                      }`}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Safety Events Timeline */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-slate-700">
+          Safety Events
+        </h3>
+        {events.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-slate-500">
+              No safety events recorded.
+            </CardContent>
+          </Card>
+        ) : (
+          <ScrollArea className="max-h-[500px]">
+            <div className="relative space-y-0">
+              {/* Timeline line */}
+              <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200" />
+
+              {events.map((event, idx) => {
+                const sevCfg =
+                  SEVERITY_CONFIG[event.severity as Severity] ??
+                  SEVERITY_CONFIG.info
+                const SevIcon = sevCfg.icon
+                const isExpanded = expandedEventId === event.id
+                const hasMetadata =
+                  event.metadata && Object.keys(event.metadata).length > 0
+
+                return (
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.15, delay: idx * 0.03 }}
+                  >
+                    <div className="relative flex gap-3 pb-4">
+                      {/* Timeline dot */}
+                      <div className="relative z-10 mt-1.5 flex shrink-0">
+                        <span
+                          className={`h-[22px] w-[22px] rounded-full border-2 border-white flex items-center justify-center ${sevCfg.bg}`}
+                        >
+                          <SevIcon className={`h-2.5 w-2.5 ${sevCfg.color}`} />
+                        </span>
+                      </div>
+
+                      {/* Content */}
+                      <Card className="flex-1 min-w-0">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge
+                                  variant="secondary"
+                                  className={`${sevCfg.bg} ${sevCfg.color} text-[10px]`}
+                                >
+                                  {event.type}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] ${
+                                    event.resolved
+                                      ? 'text-green-600 border-green-200'
+                                      : 'text-red-600 border-red-200'
+                                  }`}
+                                >
+                                  {event.resolved ? (
+                                    <span className="flex items-center gap-0.5">
+                                      <CheckCircle2 className="h-2.5 w-2.5" />
+                                      Resolved
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-0.5">
+                                      <XCircle className="h-2.5 w-2.5" />
+                                      Unresolved
+                                    </span>
+                                  )}
+                                </Badge>
+                              </div>
+                              <p className="mt-1.5 text-sm text-slate-700">
+                                {event.description}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                                <Clock className="h-2.5 w-2.5" />
+                                {relativeTime(event.createdAt)}
+                              </span>
+                              {hasMetadata && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5"
+                                  onClick={() =>
+                                    setExpandedEventId((prev) =>
+                                      prev === event.id ? null : event.id
+                                    )
+                                  }
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {event.resolved && event.resolvedBy && (
+                            <p className="mt-1.5 text-xs text-green-600">
+                              Resolved by {event.resolvedBy}
+                            </p>
+                          )}
+
+                          {/* Expanded metadata */}
+                          <AnimatePresence>
+                            {isExpanded && hasMetadata && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden"
+                              >
+                                <Separator className="my-2" />
+                                <pre className="rounded-md bg-slate-50 p-2 text-[11px] text-slate-600 overflow-auto max-h-32">
+                                  {JSON.stringify(event.metadata, null, 2)}
+                                </pre>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </ScrollArea>
+        )}
+      </div>
+    </div>
+  )
+}

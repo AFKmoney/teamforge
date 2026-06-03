@@ -1,0 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id          String   @id @default(cuid())
+  name        String
+  role        String   // research, coding, evaluation, memory, evolution, safety, deployment
+  status      String   @default("idle") // idle, active, busy, error, offline
+  description String
+  goals       String   @default("[]") // JSON array of strings
+  tools       String   @default("[]") // JSON array of tool names
+  config      String   @default("{}") // JSON config object
+  successRate Float    @default(0)
+  tasksCompleted Int   @default(0)
+  tokensUsed  Int      @default(0)
+  lastActive  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memories    Memory[]
+  events      EvolutionEvent[]
+  experiments Experiment[]
+}
+
+model Memory {
+  id          String   @id @default(cuid())
+  agentId     String?
+  type        String   // working, episodic, semantic, procedural, evolution
+  category    String   @default("general")
+  content     String
+  metadata    String   @default("{}") // JSON
+  importance  Float    @default(0.5) // 0-1
+  accessCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  expiresAt   DateTime?
+
+  agent       Agent?   @relation(fields: [agentId], references: [id])
+}
+
+model KnowledgeNode {
+  id          String   @id @default(cuid())
+  label       String
+  type        String   // concept, skill, pattern, tool, strategy
+  description String   @default("")
+  data        String   @default("{}") // JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sourceEdges KnowledgeEdge[] @relation("SourceNode")
+  targetEdges KnowledgeEdge[] @relation("TargetNode")
+}
+
+model KnowledgeEdge {
+  id          String   @id @default(cuid())
+  sourceId    String
+  targetId    String
+  relation    String   // connectedTo, improves, dependsOn, replaces, derivedFrom
+  weight      Float    @default(1.0)
+  metadata    String   @default("{}")
+
+  source      KnowledgeNode @relation("SourceNode", fields: [sourceId], references: [id])
+  target      KnowledgeNode @relation("TargetNode", fields: [targetId], references: [id])
+}
+
+model EvolutionEvent {
+  id            String   @id @default(cuid())
+  agentId       String?
+  type          String   // prompt, workflow, architecture, tool
+  title         String
+  description   String
+  status        String   @default("proposed") // proposed, testing, validated, deployed, rejected
+  beforeState   String   @default("{}") // JSON
+  afterState    String   @default("{}") // JSON
+  metrics       String   @default("{}") // JSON
+  improvementPercent Float @default(0)
+  riskLevel     String   @default("low") // low, medium, high, critical
+  approvedBy    String?  // human approver
+  createdAt     DateTime @default(now())
+  validatedAt   DateTime?
+  deployedAt    DateTime?
+
+  agent         Agent?   @relation(fields: [agentId], references: [id])
+}
+
+model Benchmark {
+  id          String   @id @default(cuid())
+  name        String
+  category    String   // coding, reasoning, math, agent, planning, tool_use, research
+  score       Float
+  maxScore    Float    @default(100)
+  previousScore Float?
+  version     Int      @default(1)
+  runAt       DateTime @default(now())
+  details     String   @default("{}") // JSON
+}
+
+model SafetyEvent {
+  id          String   @id @default(cuid())
+  type        String   // policy_violation, hallucination, unauthorized_access, constitutional_breach
+  severity    String   // info, warning, critical
+  description String
+  agentId     String?
+  resolved    Boolean  @default(false)
+  resolvedBy  String?
+  metadata    String   @default("{}")
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+}
+
+model Experiment {
+  id            String   @id @default(cuid())
+  agentId       String?
+  title         String
+  hypothesis    String
+  methodology   String
+  status        String   @default("draft") // draft, running, completed, failed
+  results       String   @default("{}")
+  conclusion    String?
+  score         Float?
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+
+  agent         Agent?   @relation(fields: [agentId], references: [id])
+}
+
+model SystemMetric {
+  id          String   @id @default(cuid())
+  metric      String   // cpu_usage, memory_usage, token_usage, cost, task_success_rate, etc.
+  value       Float
+  unit        String   @default("")
+  timestamp   DateTime @default(now())
+}
+
+model ConstitutionalRule {
+  id          String   @id @default(cuid())
+  rule        String
+  description String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
