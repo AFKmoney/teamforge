@@ -57,6 +57,8 @@ export function AgentDetailDialog() {
   const updateAgent = useAppStore((s) => s.updateAgent)
 
   const [isAssigning, setIsAssigning] = useState(false)
+  const [assignTaskTitle, setAssignTaskTitle] = useState('')
+  const [showAssignTask, setShowAssignTask] = useState(false)
 
   const agent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) || null,
@@ -115,6 +117,48 @@ export function AgentDetailDialog() {
       }
     } catch (e) {
       console.error('Failed to update agent status:', e)
+    }
+  }
+
+  const handleAssignTask = async () => {
+    if (!agent || !assignTaskTitle.trim()) return
+    setIsAssigning(true)
+    try {
+      const currentProject = useAppStore.getState().currentProject
+      const fetchTasks = useAppStore.getState().fetchTasks
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: currentProject?.id || '',
+          title: assignTaskTitle.trim(),
+          assigneeId: agent.id,
+          status: 'todo',
+          priority: 'medium',
+          type: 'feature',
+        }),
+      })
+      if (res.ok) {
+        await fetchTasks()
+        // Set agent to thinking if idle
+        if (agent.status === 'idle' || agent.status === 'sleeping') {
+          const task = await res.json()
+          const agentRes = await fetch(`/api/agents/${agent.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'thinking', currentTaskId: task.id }),
+          })
+          if (agentRes.ok) {
+            updateAgent(agent.id, { status: 'thinking', currentTaskId: task.id })
+          }
+        }
+        setAssignTaskTitle('')
+        setShowAssignTask(false)
+      }
+    } catch (e) {
+      console.error('Failed to assign task:', e)
+    } finally {
+      setIsAssigning(false)
     }
   }
 
@@ -284,18 +328,39 @@ export function AgentDetailDialog() {
         <Separator />
 
         <DialogFooter className="gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
-            onClick={() => {
-              // Open the task creation flow - for now just close and user can use New Task
-              setSelectedAgentId(null)
-            }}
-          >
-            <Play className="size-3" />
-            Assign Task
-          </Button>
+          {showAssignTask ? (
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                type="text"
+                value={assignTaskTitle}
+                onChange={(e) => setAssignTaskTitle(e.target.value)}
+                placeholder="Task title..."
+                className="flex-1 h-8 rounded-md border bg-transparent px-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-500/50"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && assignTaskTitle.trim()) handleAssignTask()
+                  if (e.key === 'Escape') { setShowAssignTask(false); setAssignTaskTitle('') }
+                }}
+                autoFocus
+              />
+              <Button size="sm" onClick={handleAssignTask} disabled={!assignTaskTitle.trim() || isAssigning} className="gap-1">
+                {isAssigning ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
+                Assign
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setShowAssignTask(false); setAssignTaskTitle('') }}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setShowAssignTask(true)}
+            >
+              <Play className="size-3" />
+              Assign Task
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"

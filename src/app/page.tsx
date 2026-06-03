@@ -421,7 +421,7 @@ export default function Home() {
         <div className="flex items-center gap-2 ml-auto">
           <span className="font-semibold text-foreground/60 tracking-tight">TeamForge IDE</span>
           <div className="h-3 w-px bg-border/60" />
-          <span className="text-muted-foreground/60">v0.8.0</span>
+          <span className="text-muted-foreground/60">v1.0.0</span>
           <div className="h-3 w-px bg-border/60" />
           <span className="flex items-center gap-0.5">
             Made with <Heart className="size-2.5 text-red-500 fill-red-500" />

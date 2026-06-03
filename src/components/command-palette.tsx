@@ -103,11 +103,24 @@ export function CommandPalette() {
       label: 'Run Build',
       icon: <Play className="size-4 text-emerald-400" />,
       shortcut: '⇧⌘B',
-      action: () => {
+      action: async () => {
         setIsRunning(true)
-        setActiveBottomTab('build')
+        setActiveBottomTab('terminal')
         setBottomPanelOpen(true)
-        setTimeout(() => setIsRunning(false), 3000)
+        try {
+          const res = await fetch('/api/build-logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId: currentProject?.id || '', type: 'build' }),
+          })
+          if (res.ok) {
+            const log = await res.json()
+            const addBuildLog = useAppStore.getState().addBuildLog
+            addBuildLog(log)
+          }
+        } catch { /* ignore */ } finally {
+          setIsRunning(false)
+        }
         handleClose()
       },
     },
@@ -116,11 +129,24 @@ export function CommandPalette() {
       label: 'Run Tests',
       icon: <TestTube2 className="size-4 text-amber-400" />,
       shortcut: '⇧⌘T',
-      action: () => {
+      action: async () => {
         setIsRunning(true)
         setActiveBottomTab('terminal')
         setBottomPanelOpen(true)
-        setTimeout(() => setIsRunning(false), 2000)
+        try {
+          const res = await fetch('/api/build-logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId: currentProject?.id || '', type: 'test' }),
+          })
+          if (res.ok) {
+            const log = await res.json()
+            const addBuildLog = useAppStore.getState().addBuildLog
+            addBuildLog(log)
+          }
+        } catch { /* ignore */ } finally {
+          setIsRunning(false)
+        }
         handleClose()
       },
     },
@@ -171,20 +197,27 @@ export function CommandPalette() {
       label: 'New File',
       icon: <FilePlus className="size-4 text-emerald-400" />,
       shortcut: '⌘N',
-      action: () => {
-        // Create a new untitled file
-        const newFile = {
-          id: `file_${Date.now()}`,
-          projectId: currentProject?.id || '',
-          path: `untitled-${Date.now()}.ts`,
-          content: '',
-          language: 'typescript',
-          isDirectory: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-        addFile(newFile)
-        setActiveFileId(newFile.id)
+      action: async () => {
+        // Create a new untitled file and persist to server
+        const path = `untitled-${Date.now()}.ts`
+        try {
+          const res = await fetch('/api/files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectId: currentProject?.id || '',
+              path,
+              content: '',
+              language: 'typescript',
+              isDirectory: false,
+            }),
+          })
+          if (res.ok) {
+            const newFile = await res.json()
+            addFile(newFile)
+            setActiveFileId(newFile.id)
+          }
+        } catch { /* ignore */ }
         handleClose()
       },
     },

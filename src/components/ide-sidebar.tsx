@@ -52,7 +52,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, formatRelativeTime } from '@/lib/utils'
 import { toast } from 'sonner'
 
 // File tree node type
@@ -366,22 +366,6 @@ const ACTIVITY_TYPE_CONFIG: Record<string, { icon: React.ReactNode; borderColor:
 }
 
 // Format relative timestamp
-function formatRelativeTime(dateStr: string): string {
-  const now = Date.now()
-  const then = new Date(dateStr).getTime()
-  const diffMs = now - then
-  const diffSec = Math.floor(diffMs / 1000)
-  const diffMin = Math.floor(diffSec / 60)
-  const diffHr = Math.floor(diffMin / 60)
-  const diffDay = Math.floor(diffHr / 24)
-
-  if (diffSec < 60) return 'just now'
-  if (diffMin < 60) return `${diffMin}m ago`
-  if (diffHr < 24) return `${diffHr}h ago`
-  if (diffDay < 7) return `${diffDay}d ago`
-  return new Date(dateStr).toLocaleDateString()
-}
-
 function AgentRow({ agent, onClick }: { agent: Agent; onClick: () => void }) {
   const roleConfig = AGENT_ROLE_CONFIG[agent.role]
   const statusConfig = AGENT_STATUS_CONFIG[agent.status]
@@ -666,7 +650,7 @@ export function IDESidebar() {
     }
 
     try {
-      const res = await fetch('/api/vfs', {
+      const res = await fetch('/api/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

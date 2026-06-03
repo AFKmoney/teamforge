@@ -434,7 +434,7 @@ function WelcomeScreen() {
           transition={{ delay: 0.25 }}
           className="text-muted-foreground/50 text-[10px] mb-3 font-mono"
         >
-          v0.9.0
+          v1.0.0
         </motion.p>
         <motion.p
           initial={{ opacity: 0 }}
@@ -684,8 +684,6 @@ export function IDEEditor() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: currentProject?.id || '',
-          output: `$ bun run build\n⠋ Compiling...\n✓ Compiled successfully in 1.2s\n✓ Build completed\n✓ All checks passed\n\nDone in 2.3s`,
-          status: 'success',
           type: 'build',
         }),
       })
@@ -693,7 +691,13 @@ export function IDEEditor() {
         const log = await res.json()
         addBuildLog(log)
         toast.dismiss('editor-run')
-        toast.success('Build completed successfully')
+        if (log.status === 'success') {
+          toast.success('Build completed successfully')
+        } else if (log.status === 'failed') {
+          toast.error('Build failed')
+        } else {
+          toast.warning('Build completed with warnings')
+        }
       } else {
         toast.dismiss('editor-run')
         toast.error('Build failed')
@@ -838,14 +842,14 @@ export function IDEEditor() {
       return
     }
 
-    // Ctrl+L : Select current line
+    // Ctrl+L : Select current line (including trailing newline)
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'l') {
       e.preventDefault()
       const content = value
       const lineStartIdx = content.lastIndexOf('\n', start - 1) + 1
       let lineEndIdx = content.indexOf('\n', start)
       if (lineEndIdx === -1) lineEndIdx = content.length
-      else lineEndIdx = lineEndIdx // Don't include the newline in selection, but for "select line" we should include it
+      else lineEndIdx = lineEndIdx + 1 // Include the trailing newline in the selection
       requestAnimationFrame(() => {
         textarea.selectionStart = lineStartIdx
         textarea.selectionEnd = lineEndIdx

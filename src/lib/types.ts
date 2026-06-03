@@ -27,6 +27,16 @@ export interface GitBranch {
 export type NotificationType = 'info' | 'success' | 'warning' | 'error'
 export type NotificationCategory = 'task' | 'build' | 'agent' | 'system' | 'chat'
 
+// AI Provider types
+export type AIProviderType = 'zai' | 'nvidia' | 'openai-compatible'
+
+export interface AIModel {
+  id: string
+  name: string
+  provider: AIProviderType
+  description?: string
+}
+
 export interface Notification {
   id: string
   title: string

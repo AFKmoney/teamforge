@@ -146,20 +146,6 @@ export function AnalyticsDashboard() {
       days.push({ day: dayStr, count: count + buildCount })
     }
 
-    // If no data, generate mock data for visual appeal
-    const hasData = days.some((d) => d.count > 0)
-    if (!hasData) {
-      return [
-        { day: 'Mon', count: 3 },
-        { day: 'Tue', count: 7 },
-        { day: 'Wed', count: 5 },
-        { day: 'Thu', count: 12 },
-        { day: 'Fri', count: 8 },
-        { day: 'Sat', count: 2 },
-        { day: 'Sun', count: 6 },
-      ]
-    }
-
     return days
   }, [activities, buildLogs])
 

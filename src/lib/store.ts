@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { Agent, Task, Message, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus } from '@/lib/types'
+import type { Agent, Task, Message, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus, AIProviderType } from '@/lib/types'
+import { AI_SETTINGS_KEY, DEFAULT_AI_SETTINGS, type AISettings } from '@/lib/ai-providers'
 
 /**
  * Fetch with retry logic and graceful error handling.
@@ -54,6 +55,13 @@ const DEFAULT_SETTINGS = {
   lineNumbers: true,
   autoSave: true,
   pollingInterval: 30,
+  // AI Provider settings
+  aiProvider: 'zai' as AIProviderType,
+  aiModel: 'deepseek-chat',
+  nvidiaApiKey: '',
+  openaiCompatibleBaseUrl: '',
+  openaiCompatibleApiKey: '',
+  openaiCompatibleModelId: 'custom',
 }
 
 // Load settings from localStorage
@@ -78,7 +86,29 @@ function saveSettings(settings: typeof DEFAULT_SETTINGS) {
   }
 }
 
-export type AppSettings = typeof DEFAULT_SETTINGS
+// Save AI settings to localStorage (separate key)
+function saveAISettingsLocal(settings: AISettings) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+// Load AI settings from localStorage
+function loadAISettingsFromStorage(): AISettings {
+  if (typeof window === 'undefined') return DEFAULT_AI_SETTINGS
+  try {
+    const stored = localStorage.getItem(AI_SETTINGS_KEY)
+    if (stored) return { ...DEFAULT_AI_SETTINGS, ...JSON.parse(stored) }
+  } catch {
+    // ignore parse errors
+  }
+  return DEFAULT_AI_SETTINGS
+}
+
+export type AppSettings = typeof DEFAULT_SETTINGS & AISettings
 
 interface AppState {
   // Current project
@@ -184,6 +214,10 @@ interface AppState {
   markAllNotificationsRead: () => void
   clearNotifications: () => void
   generateSeedNotifications: () => void
+
+  // AI Provider settings (synced with localStorage)
+  aiSettings: AISettings
+  updateAISettings: (updates: Partial<AISettings>) => void
 
   // Loading
   loading: boolean
@@ -316,8 +350,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCurrentBranch: (branch) => set({ currentBranch: branch, branches: get().branches.map((b) => ({ ...b, isCurrent: b.name === branch })) }),
   branches: [
     { name: 'main', isCurrent: true, lastCommitDate: new Date().toISOString() },
-    { name: 'develop', isCurrent: false, lastCommitDate: new Date(Date.now() - 86400000).toISOString() },
-    { name: 'feature/agent-autonomy', isCurrent: false, lastCommitDate: new Date(Date.now() - 172800000).toISOString() },
   ],
   setBranches: (branches) => set({ branches }),
   addBranch: (name) => set((s) => ({
@@ -336,13 +368,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     return { gitFileStatuses: next }
   }),
   clearGitFileStatuses: () => set({ gitFileStatuses: {} }),
-  gitCommits: [
-    { id: 'a1b2c3d', message: 'Initial project setup', timestamp: new Date(Date.now() - 604800000).toISOString(), filesChanged: 12, branch: 'main' },
-    { id: 'e4f5g6h', message: 'Add agent orchestration system', timestamp: new Date(Date.now() - 432000000).toISOString(), filesChanged: 5, branch: 'main' },
-    { id: 'i7j8k9l', message: 'Implement file explorer and editor', timestamp: new Date(Date.now() - 259200000).toISOString(), filesChanged: 8, branch: 'main' },
-    { id: 'm0n1o2p', message: 'Add real-time WebSocket updates', timestamp: new Date(Date.now() - 172800000).toISOString(), filesChanged: 3, branch: 'develop' },
-    { id: 'q3r4s5t', message: 'Agent autonomy improvements', timestamp: new Date(Date.now() - 86400000).toISOString(), filesChanged: 4, branch: 'feature/agent-autonomy' },
-  ],
+  gitCommits: [],
   addGitCommit: (commit) => set((s) => ({ gitCommits: [commit, ...s.gitCommits] })),
 
   // Running state
@@ -368,6 +394,23 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearNotifications: () => set({ notifications: [] }),
   generateSeedNotifications: () => {
     // No-op: removed seed/placeholder notifications
+  },
+
+  // AI Provider settings
+  aiSettings: loadAISettingsFromStorage(),
+  updateAISettings: (updates) => {
+    const next = { ...get().aiSettings, ...updates }
+    saveAISettingsLocal(next)
+    // Also update the main settings for backward compat
+    const settingsNext = { ...get().settings }
+    if (updates.provider !== undefined) settingsNext.aiProvider = updates.provider
+    if (updates.model !== undefined) settingsNext.aiModel = updates.model
+    if (updates.nvidiaApiKey !== undefined) settingsNext.nvidiaApiKey = updates.nvidiaApiKey
+    if (updates.openaiCompatibleBaseUrl !== undefined) settingsNext.openaiCompatibleBaseUrl = updates.openaiCompatibleBaseUrl
+    if (updates.openaiCompatibleApiKey !== undefined) settingsNext.openaiCompatibleApiKey = updates.openaiCompatibleApiKey
+    if (updates.openaiCompatibleModelId !== undefined) settingsNext.openaiCompatibleModelId = updates.openaiCompatibleModelId
+    saveSettings(settingsNext)
+    set({ aiSettings: next, settings: settingsNext })
   },
 
   // Loading

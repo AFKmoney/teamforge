@@ -2,9 +2,17 @@
 
 import { useAppStore } from '@/lib/store'
 import { AGENT_ROLE_CONFIG, type Message, type MessageType } from '@/lib/types'
+import { AI_PROVIDERS, getModelsForProvider, type AIProviderType } from '@/lib/ai-providers'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   MessageSquare,
   Send,
@@ -27,6 +35,8 @@ import {
   ArrowDown,
   MessageCircle,
   Zap,
+  Bot,
+  ChevronDown,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
@@ -201,6 +211,13 @@ function ChatMessage({ message }: { message: Message }) {
               {typeConfig.icon}
               {typeConfig.label}
             </Badge>
+            {/* Show provider/model badge for AI messages */}
+            {metadata?.sender === 'ai' && metadata?.provider && (
+              <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 gap-0.5 text-muted-foreground">
+                <Bot className="size-2" />
+                {metadata.provider === 'zai' ? 'Z-AI' : metadata.provider === 'nvidia' ? 'NVIDIA' : 'Custom'}
+              </Badge>
+            )}
             <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
               {formatTime(message.createdAt)}
             </span>
@@ -249,6 +266,173 @@ function ChatMessage({ message }: { message: Message }) {
   )
 }
 
+/** Model selector dropdown for the chat input area */
+function ModelSelector() {
+  const aiSettings = useAppStore((s) => s.aiSettings)
+  const updateAISettings = useAppStore((s) => s.updateAISettings)
+  const [isOpen, setIsOpen] = useState(false)
+
+  const currentProvider = AI_PROVIDERS.find((p) => p.type === aiSettings.provider)
+  const currentModels = getModelsForProvider(aiSettings.provider)
+
+  // Determine the display label
+  const displayLabel = useMemo(() => {
+    if (aiSettings.provider === 'nvidia') {
+      const model = currentModels.find((m) => m.id === aiSettings.model)
+      return model?.name || aiSettings.model.split('/').pop() || aiSettings.model
+    }
+    if (aiSettings.provider === 'openai-compatible') {
+      return aiSettings.openaiCompatibleModelId === 'custom' ? 'Custom' : aiSettings.openaiCompatibleModelId
+    }
+    return 'DeepSeek'
+  }, [aiSettings, currentModels])
+
+  // Provider icon
+  const providerIcon = useMemo(() => {
+    switch (aiSettings.provider) {
+      case 'nvidia': return <Zap className="size-3 text-green-500" />
+      case 'openai-compatible': return <Sparkles className="size-3 text-violet-500" />
+      default: return <Bot className="size-3 text-emerald-500" />
+    }
+  }, [aiSettings.provider])
+
+  // Has required API key?
+  const hasRequiredKey = useMemo(() => {
+    if (aiSettings.provider === 'zai') return true
+    if (aiSettings.provider === 'nvidia') return !!aiSettings.nvidiaApiKey
+    return !!aiSettings.openaiCompatibleBaseUrl
+  }, [aiSettings])
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] transition-colors border',
+          hasRequiredKey
+            ? 'border-border/50 hover:bg-muted/50 text-foreground/70'
+            : 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+        )}
+      >
+        {providerIcon}
+        <span className="max-w-[60px] truncate">{displayLabel}</span>
+        <ChevronDown className={cn('size-2.5 transition-transform', isOpen && 'rotate-180')} />
+        {!hasRequiredKey && (
+          <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+        )}
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setIsOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 4, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.95 }}
+              transition={{ duration: 0.12 }}
+              className="absolute bottom-full left-0 mb-1 w-64 bg-card border border-border/60 rounded-lg shadow-xl z-50 overflow-hidden"
+            >
+              {/* Provider section */}
+              <div className="p-1.5 border-b border-border/40">
+                <div className="px-2 py-1 text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">
+                  Provider
+                </div>
+                {AI_PROVIDERS.map((p) => (
+                  <button
+                    key={p.type}
+                    onClick={() => {
+                      const defaultModel = getModelsForProvider(p.type)[0]?.id || 'deepseek-chat'
+                      updateAISettings({ provider: p.type, model: defaultModel })
+                    }}
+                    className={cn(
+                      'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition-colors',
+                      aiSettings.provider === p.type
+                        ? 'bg-emerald-500/10 text-foreground'
+                        : 'hover:bg-muted/50 text-foreground/80',
+                    )}
+                  >
+                    {p.type === 'zai' && <Bot className="size-3 text-emerald-500" />}
+                    {p.type === 'nvidia' && <Zap className="size-3 text-green-500" />}
+                    {p.type === 'openai-compatible' && <Sparkles className="size-3 text-violet-500" />}
+                    <div className="flex-1 text-left">
+                      <span className="font-medium">{p.label}</span>
+                    </div>
+                    {aiSettings.provider === p.type && (
+                      <span className="size-1.5 rounded-full bg-emerald-500" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Model section */}
+              <div className="p-1.5 max-h-48 overflow-y-auto">
+                <div className="px-2 py-1 text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">
+                  Models
+                </div>
+                {aiSettings.provider === 'openai-compatible' ? (
+                  <div className="px-2 py-1.5">
+                    <input
+                      type="text"
+                      value={aiSettings.openaiCompatibleModelId === 'custom' ? '' : aiSettings.openaiCompatibleModelId}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        updateAISettings({ model: val || 'custom', openaiCompatibleModelId: val || 'custom' })
+                      }}
+                      placeholder="Enter model name..."
+                      className="w-full h-7 rounded-md border bg-transparent px-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500/50"
+                    />
+                  </div>
+                ) : (
+                  currentModels.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        updateAISettings({ model: m.id })
+                        setIsOpen(false)
+                      }}
+                      className={cn(
+                        'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition-colors',
+                        aiSettings.model === m.id
+                          ? 'bg-emerald-500/10 text-foreground'
+                          : 'hover:bg-muted/50 text-foreground/80',
+                      )}
+                    >
+                      <Bot className="size-3 text-muted-foreground/60" />
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="font-medium truncate">{m.name}</div>
+                        {m.description && (
+                          <div className="text-[9px] text-muted-foreground/60 truncate">{m.description}</div>
+                        )}
+                      </div>
+                      {aiSettings.model === m.id && (
+                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+
+              {/* Warning for missing API key */}
+              {!hasRequiredKey && (
+                <div className="px-2 py-1.5 border-t border-border/40 bg-amber-500/5">
+                  <p className="text-[9px] text-amber-600 dark:text-amber-400">
+                    ⚠️ API key required — set it in Settings → AI
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 export function IDEChatPanel() {
   const messages = useAppStore((s) => s.messages)
   const agents = useAppStore((s) => s.agents)
@@ -262,6 +446,7 @@ export function IDEChatPanel() {
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
   const fetchTasks = useAppStore((s) => s.fetchTasks)
   const updateAgent = useAppStore((s) => s.updateAgent)
+  const aiSettings = useAppStore((s) => s.aiSettings)
 
   const [inputValue, setInputValue] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -506,13 +691,21 @@ export function IDEChatPanel() {
     setIsSending(true)
 
     try {
-      // Send to AI chat API (which returns both user and AI messages)
-      const res = await fetch('/api/chat', {
+      // Use the new multi-provider AI chat endpoint
+      const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: msg,
           projectId: currentProject?.id || '',
+          provider: aiSettings.provider,
+          model: aiSettings.provider === 'openai-compatible'
+            ? (aiSettings.openaiCompatibleModelId || aiSettings.model)
+            : aiSettings.model,
+          nvidiaApiKey: aiSettings.nvidiaApiKey || undefined,
+          openaiCompatibleBaseUrl: aiSettings.openaiCompatibleBaseUrl || undefined,
+          openaiCompatibleApiKey: aiSettings.openaiCompatibleApiKey || undefined,
+          openaiCompatibleModelId: aiSettings.openaiCompatibleModelId || undefined,
         }),
       })
 
@@ -534,13 +727,26 @@ export function IDEChatPanel() {
           }
           addMessage(aiMsg)
         }
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+        toast.error(errorData.error || 'Failed to send message')
+        addMessage({
+          id: `sys_${Date.now()}`,
+          projectId: currentProject?.id || '',
+          agentId: null,
+          content: `⚠️ Error: ${errorData.error || 'Failed to get AI response'}. Check your AI provider settings.`,
+          type: 'system',
+          metadata: {},
+          createdAt: new Date().toISOString(),
+        })
       }
     } catch (error) {
       console.error('Failed to send message:', error)
+      toast.error('Failed to send message')
     } finally {
       setIsSending(false)
     }
-  }, [inputValue, isSending, currentProject, addMessage, executeSlashCommand])
+  }, [inputValue, isSending, currentProject, addMessage, executeSlashCommand, aiSettings])
 
   if (!rightPanelOpen) {
     return (
@@ -638,7 +844,9 @@ export function IDEChatPanel() {
                   <span className="typing-wave-dot" />
                   <span className="typing-wave-dot" />
                 </span>
-                <span>Agent is thinking...</span>
+                <span>
+                  {aiSettings.provider === 'nvidia' ? 'NVIDIA' : aiSettings.provider === 'openai-compatible' ? 'AI' : 'Agent'} is thinking...
+                </span>
               </motion.div>
             )}
             {messages.length === 0 && (
@@ -723,6 +931,14 @@ export function IDEChatPanel() {
 
       {/* Message input */}
       <div className="p-2 border-t shrink-0 bg-card/30">
+        {/* Model selector row */}
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <ModelSelector />
+          <div className="flex-1" />
+          <span className="text-[8px] text-muted-foreground/40">
+            {aiSettings.provider === 'zai' ? 'Z-AI' : aiSettings.provider === 'nvidia' ? 'NVIDIA NIM' : 'Custom'}
+          </span>
+        </div>
         <div className="flex items-end gap-1.5">
           <textarea
             ref={textareaRef}

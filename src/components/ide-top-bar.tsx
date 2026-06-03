@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG, type AgentRole, type AgentStatus, TASK_PRIORITY_CONFIG, TASK_TYPE_CONFIG } from '@/lib/types'
+import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG, type AgentRole, type AgentStatus, TASK_PRIORITY_CONFIG, TASK_TYPE_CONFIG, type Project } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
@@ -411,6 +411,8 @@ export function IDETopBar() {
   const fetchTasks = useAppStore((s) => s.fetchTasks)
   const fetchBuildLogs = useAppStore((s) => s.fetchBuildLogs)
   const unsavedFileIds = useAppStore((s) => s.unsavedFileIds)
+  const setCurrentProject = useAppStore((s) => s.setCurrentProject)
+  const fetchAll = useAppStore((s) => s.fetchAll)
   const currentProjectId = currentProject?.id || ''
   const { theme, setTheme } = useTheme()
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -678,6 +680,21 @@ export function IDETopBar() {
 
   // Project selector state
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [newProjectName, setNewProjectName] = useState('')
+  const [newProjectDesc, setNewProjectDesc] = useState('')
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
+  const [showNewProject, setShowNewProject] = useState(false)
+
+  // Fetch projects when dialog opens
+  useEffect(() => {
+    if (projectSelectorOpen) {
+      fetch('/api/projects')
+        .then((res) => res.ok ? res.json() : [])
+        .then((data) => setProjects(data))
+        .catch(() => {})
+    }
+  }, [projectSelectorOpen])
 
   return (
     <div className="flex items-center h-11 px-3 border-b bg-gradient-to-r from-card/95 via-card/90 to-card/95 backdrop-blur-md gap-2 shrink-0 z-20 shadow-sm shadow-black/5 topbar-border-gradient">
@@ -690,7 +707,7 @@ export function IDETopBar() {
                 <Zap className="size-3.5 text-emerald-500" />
               </div>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs">TeamForge IDE v0.8.0</TooltipContent>
+            <TooltipContent side="bottom" className="text-xs">TeamForge IDE v1.0.0</TooltipContent>
           </Tooltip>
         </TooltipProvider>
         <div className="flex flex-col min-w-0">
@@ -877,28 +894,118 @@ export function IDETopBar() {
       </div>
 
       {/* Project Selector Dialog */}
-      <Dialog open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+      <Dialog open={projectSelectorOpen} onOpenChange={(v) => { setProjectSelectorOpen(v); if (!v) setShowNewProject(false) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FolderOpen className="size-4 text-emerald-500" />
-              Project Settings
+              Switch Project
             </DialogTitle>
-            <DialogDescription>Current project information and settings.</DialogDescription>
+            <DialogDescription>Select an existing project or create a new one.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Project Name</Label>
-              <div className="text-sm font-medium text-foreground">{currentProject?.name || 'No project'}</div>
+            {/* Project list */}
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              <Label className="text-xs text-muted-foreground">Projects</Label>
+              {projects.map((proj) => (
+                <button
+                  key={proj.id}
+                  onClick={async () => {
+                    setCurrentProject(proj)
+                    setProjectSelectorOpen(false)
+                    await fetchAll(proj.id)
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs transition-colors text-left',
+                    proj.id === currentProject?.id
+                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-foreground'
+                      : 'hover:bg-muted/50 border border-transparent',
+                  )}
+                >
+                  <FolderOpen className="size-3.5 text-emerald-500/60 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{proj.name}</div>
+                    {proj.description && <div className="text-muted-foreground text-[10px] truncate">{proj.description}</div>}
+                  </div>
+                  {proj.id === currentProject?.id && (
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0">Active</Badge>
+                  )}
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0">{proj.status}</Badge>
+                </button>
+              ))}
+              {projects.length === 0 && (
+                <div className="text-xs text-muted-foreground text-center py-3">No projects found</div>
+              )}
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Description</Label>
-              <div className="text-sm text-muted-foreground">{currentProject?.description || 'No description'}</div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Status</Label>
-              <Badge variant="outline" className="text-xs">{currentProject?.status || 'N/A'}</Badge>
-            </div>
+
+            {/* New project form */}
+            {showNewProject ? (
+              <div className="space-y-2 p-3 rounded-lg border bg-muted/20">
+                <Label className="text-xs font-medium">Create New Project</Label>
+                <input
+                  type="text"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  placeholder="Project name"
+                  className="w-full h-8 rounded-md border bg-transparent px-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  autoFocus
+                />
+                <textarea
+                  value={newProjectDesc}
+                  onChange={(e) => setNewProjectDesc(e.target.value)}
+                  placeholder="Description (optional)"
+                  className="w-full min-h-[48px] rounded-md border bg-transparent px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-emerald-500/50 resize-none"
+                  rows={2}
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      if (!newProjectName.trim()) return
+                      setIsCreatingProject(true)
+                      try {
+                        const res = await fetch('/api/projects', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ name: newProjectName.trim(), description: newProjectDesc.trim() }),
+                        })
+                        if (res.ok) {
+                          const project = await res.json()
+                          setCurrentProject(project)
+                          await fetchAll(project.id)
+                          setNewProjectName('')
+                          setNewProjectDesc('')
+                          setShowNewProject(false)
+                          setProjectSelectorOpen(false)
+                          toast.success(`Created project "${project.name}"`)
+                        } else {
+                          toast.error('Failed to create project')
+                        }
+                      } catch {
+                        toast.error('Failed to create project')
+                      } finally {
+                        setIsCreatingProject(false)
+                      }
+                    }}
+                    disabled={!newProjectName.trim() || isCreatingProject}
+                    className="gap-1"
+                  >
+                    {isCreatingProject ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+                    Create
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowNewProject(false); setNewProjectName(''); setNewProjectDesc('') }}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" className="w-full gap-1.5" onClick={() => setShowNewProject(true)}>
+                <Plus className="size-3" />
+                New Project
+              </Button>
+            )}
+
+            {/* Current project info */}
             <div className="flex items-center gap-3 text-xs text-muted-foreground pt-2 border-t">
               <span>{agents.length} agents</span>
               <span>{tasks.length} tasks</span>
