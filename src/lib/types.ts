@@ -10,7 +10,7 @@ export type BuildStatus = 'running' | 'success' | 'failed' | 'warning'
 export type BuildType = 'build' | 'test' | 'lint' | 'deploy'
 export type ProjectStatus = 'active' | 'paused' | 'completed' | 'archived'
 export type IDEPanel = 'agents' | 'chat' | 'tasks' | 'terminal' | 'files'
-export type IDEBottomTab = 'terminal' | 'tasks' | 'build' | 'problems' | 'analytics'
+export type IDEBottomTab = 'terminal' | 'tasks' | 'build' | 'problems' | 'analytics' | 'activities'
 export type NotificationType = 'info' | 'success' | 'warning' | 'error'
 export type NotificationCategory = 'task' | 'build' | 'agent' | 'system' | 'chat'
 

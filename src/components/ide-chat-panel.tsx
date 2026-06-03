@@ -76,12 +76,25 @@ const QUICK_PROMPTS = [
   { label: 'Code review', icon: '🔍', prompt: 'Review the latest code changes' },
 ]
 
+const REACTION_EMOJIS = ['👍', '❤️', '🎉', '🚀', '👀']
+
 function ChatMessage({ message }: { message: Message }) {
   const typeConfig = MESSAGE_TYPE_CONFIG[message.type] || MESSAGE_TYPE_CONFIG.chat
   const agent = message.agent
   const roleConfig = agent ? AGENT_ROLE_CONFIG[agent.role] : null
   const isSystem = message.type === 'system'
   const isCodeChange = message.type === 'code_change'
+  const [showReactions, setShowReactions] = useState(false)
+  const [reactions, setReactions] = useState<Record<string, number>>({})
+
+  const handleReaction = (emoji: string) => {
+    setReactions((prev) => {
+      const next = { ...prev }
+      next[emoji] = (next[emoji] || 0) + 1
+      return next
+    })
+    setShowReactions(false)
+  }
 
   // Parse metadata for code changes
   const metadata = useMemo(() => {
@@ -98,12 +111,52 @@ function ChatMessage({ message }: { message: Message }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        'px-3 py-2.5 rounded-xl mx-2 mb-1.5 transition-colors',
+        'px-3 py-2.5 rounded-xl mx-2 mb-1.5 transition-colors group relative',
         typeConfig.bgColor,
         !isSystem && 'hover:bg-muted/20',
         isSystem && 'border border-border/40 bg-gradient-to-r from-muted/30 to-muted/10',
       )}
+      onMouseEnter={() => setShowReactions(true)}
+      onMouseLeave={() => setShowReactions(false)}
     >
+      {/* Message reactions - small emoji buttons that appear on hover */}
+      <AnimatePresence>
+        {showReactions && !isSystem && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute -top-3 right-3 flex items-center gap-0.5 bg-card/95 border border-border/60 rounded-full px-1 py-0.5 shadow-lg z-10"
+          >
+            {REACTION_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => handleReaction(emoji)}
+                className="size-5 flex items-center justify-center rounded-full hover:bg-muted/80 text-xs transition-colors reaction-pop"
+              >
+                {emoji}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Show active reactions */}
+      {Object.keys(reactions).length > 0 && (
+        <div className="flex items-center gap-1 mb-1.5">
+          {Object.entries(reactions).map(([emoji, count]) => (
+            <span
+              key={emoji}
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted/50 text-[10px] border border-border/30"
+            >
+              <span>{emoji}</span>
+              <span className="text-muted-foreground">{count}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-start gap-2">
         {/* Avatar */}
         {agent ? (
@@ -462,7 +515,11 @@ export function IDEChatPanel() {
               animate={{ opacity: 1 }}
               className="flex items-center gap-2 px-5 py-2 text-xs text-muted-foreground"
             >
-              <Loader2 className="size-3 animate-spin" />
+              <span className="flex items-center gap-1">
+                <span className="typing-bounce-dot" />
+                <span className="typing-bounce-dot" />
+                <span className="typing-bounce-dot" />
+              </span>
               <span>Agent is thinking...</span>
             </motion.div>
           )}
@@ -480,7 +537,7 @@ export function IDEChatPanel() {
                   <button
                     key={qp.label}
                     onClick={() => { setInputValue(qp.prompt) }}
-                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-muted/40 hover:bg-muted/70 text-[10px] text-foreground/80 transition-colors text-left"
+                    className="quick-prompt-card flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-muted/40 hover:bg-muted/70 text-[10px] text-foreground/80 transition-colors text-left border border-transparent hover:border-border/40"
                   >
                     <span>{qp.icon}</span>
                     <span className="truncate">{qp.label}</span>
@@ -556,7 +613,7 @@ export function IDEChatPanel() {
               }
             }}
             rows={1}
-            className="flex-1 bg-muted/40 rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-1 focus:ring-emerald-500/40 transition-all resize-none max-h-[120px] font-mono border border-transparent focus:border-emerald-500/20"
+            className="flex-1 bg-muted/40 rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-1 focus:ring-emerald-500/40 transition-all resize-none max-h-[120px] font-mono border border-transparent focus:border-emerald-500/20 textarea-focus-glow"
           />
           <Button
             size="icon"

@@ -3,10 +3,9 @@
 import { useAppStore } from '@/lib/store'
 import { type ProjectFile } from '@/lib/types'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
-import { X, Code2, Keyboard, Zap, Command, Save, Play } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { X, Code2, Keyboard, Zap, Command, Save, Play, ChevronRight } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -99,7 +98,6 @@ function highlightCode(code: string, language: string): string {
     .replace(/>/g, '&gt;')
 
   if (language === 'json') {
-    // JSON highlighting
     html = html.replace(/("(?:[^"\\]|\\.)*")\s*:/g, '<span class="text-violet-400 font-medium">$1</span>:')
     html = html.replace(/:\s*("(?:[^"\\]|\\.)*")/g, ': <span class="text-emerald-400">$1</span>')
     html = html.replace(/\b(true|false|null)\b/g, '<span class="text-amber-300">$1</span>')
@@ -108,91 +106,55 @@ function highlightCode(code: string, language: string): string {
   }
 
   if (language === 'css') {
-    // CSS highlighting
-    // Comments
     html = html.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="text-muted-foreground/60 italic">$1</span>')
-    // At-rules
     html = html.replace(/(@[\w-]+)/g, '<span class="text-violet-400 font-medium">$1</span>')
-    // Selectors (lines ending with {)
     html = html.replace(/^([.#:@][\w\-"'\s>~+.]+)\s*\{/gm, '<span class="text-amber-300">$1</span> {')
-    // Properties
     const cssPropRegex = new RegExp(`\\b(${CSS_PROPERTIES.join('|')})\\s*:`, 'g')
     html = html.replace(cssPropRegex, '<span class="text-cyan-300">$1</span>:')
-    // Values - strings
     html = html.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="text-emerald-400">$1</span>')
-    // Values - numbers with units
     html = html.replace(/\b(\d+\.?\d*)(px|rem|em|%|vh|vw|fr|s|ms|deg|turn)\b/g, '<span class="text-cyan-300">$1$2</span>')
-    // Values - keywords
     const cssKwRegex = new RegExp(`\\b(${LANGUAGE_KEYWORDS.css.join('|')})\\b`, 'g')
     html = html.replace(cssKwRegex, '<span class="text-violet-400 font-medium">$1</span>')
-    // Important
     html = html.replace(/(!important)/g, '<span class="text-red-400 font-bold">$1</span>')
     return html
   }
 
   if (language === 'markdown') {
-    // Markdown highlighting
-    // Headers
     html = html.replace(/^(#{1,6}\s.+)$/gm, '<span class="text-violet-400 font-bold">$1</span>')
-    // Bold
     html = html.replace(/(\*\*[^*]+\*\*)/g, '<span class="text-foreground font-bold">$1</span>')
-    // Italic
     html = html.replace(/(\*[^*]+\*)/g, '<span class="text-foreground italic">$1</span>')
-    // Code blocks markers
     html = html.replace(/(`{3}[\w]*)/g, '<span class="text-emerald-400">$1</span>')
-    // Inline code
     html = html.replace(/(`[^`]+`)/g, '<span class="text-emerald-400">$1</span>')
-    // Links
     html = html.replace(/(\[.*?\]\(.*?\))/g, '<span class="text-cyan-300">$1</span>')
-    // Lists
     html = html.replace(/^(\s*[-*+]\s)/gm, '<span class="text-amber-300">$1</span>')
     html = html.replace(/^(\s*\d+\.\s)/gm, '<span class="text-amber-300">$1</span>')
-    // Horizontal rule
     html = html.replace(/^(---+|\*\*\*+|___+)$/gm, '<span class="text-muted-foreground/60">$1</span>')
     return html
   }
 
   if (language === 'prisma') {
-    // Prisma highlighting
     html = html.replace(/(\/\/.*$)/gm, '<span class="text-muted-foreground/60 italic">$1</span>')
     html = html.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="text-emerald-400">$1</span>')
-    // Model/enum keywords
     const prismaKwRegex = new RegExp(`\\b(${LANGUAGE_KEYWORDS.prisma.join('|')})\\b`, 'g')
     html = html.replace(prismaKwRegex, '<span class="text-violet-400 font-medium">$1</span>')
-    // Decorators (@...)
     html = html.replace(/(@@?[\w.]+)/g, '<span class="text-yellow-400">$1</span>')
-    // Field types
     html = html.replace(/\b(Int|String|Boolean|DateTime|Float|Decimal|BigInt|Bytes|Json)\b/g, '<span class="text-cyan-300">$1</span>')
     html = html.replace(/\b(\d+\.?\d*)\b/g, '<span class="text-amber-300">$1</span>')
     return html
   }
 
   // Default: TypeScript/JavaScript style highlighting
-  // Comments (single-line)
   html = html.replace(/(\/\/.*$)/gm, '<span class="text-muted-foreground/60 italic">$1</span>')
-  // Comments (multi-line)
   html = html.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="text-muted-foreground/60 italic">$1</span>')
-
-  // Strings (double and single quotes, template literals)
   html = html.replace(/(&quot;.*?&quot;|".*?"|'.*?'|`[^`]*`)/g, '<span class="text-emerald-400">$1</span>')
-
-  // Keywords
   const kws = LANGUAGE_KEYWORDS[language] || LANGUAGE_KEYWORDS.typescript
   if (kws.length > 0) {
     const kwRegex = new RegExp(`\\b(${kws.join('|')})\\b`, 'g')
     html = html.replace(kwRegex, '<span class="text-violet-400 font-medium">$1</span>')
   }
-
-  // Types (capitalized words)
   html = html.replace(/\b([A-Z][a-zA-Z0-9]*)\b/g, '<span class="text-amber-300">$1</span>')
-
-  // Numbers
   html = html.replace(/\b(\d+\.?\d*)\b/g, '<span class="text-cyan-300">$1</span>')
-
-  // Decorators / annotations
   html = html.replace(/(@\w+)/g, '<span class="text-yellow-400">$1</span>')
-
-  // JSX/HTML tags
   html = html.replace(/(&lt;\/?)([\w.]+)/g, '$1<span class="text-red-400">$2</span>')
 
   return html
@@ -253,7 +215,6 @@ function Minimap({ lines, scrollHeight, clientHeight, scrollTop }: {
   const startLine = Math.max(0, lines.length - maxLines)
   const visibleLines = lines.slice(startLine)
 
-  // Calculate viewport indicator position
   const totalRatio = scrollHeight > 0 ? clientHeight / scrollHeight : 1
   const viewportTop = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0
   const viewportHeight = Math.max(totalRatio * 100, 5)
@@ -279,7 +240,6 @@ function Minimap({ lines, scrollHeight, clientHeight, scrollTop }: {
           </div>
         ))}
       </div>
-      {/* Viewport indicator */}
       <div
         className="absolute left-0 right-0 bg-white/5 border-y border-white/10 pointer-events-none"
         style={{
@@ -381,10 +341,13 @@ export function IDEEditor() {
   const addBuildLog = useAppStore((s) => s.addBuildLog)
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
   const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
+  const updateFileContent = useAppStore((s) => s.updateFileContent)
 
   const [manuallyOpenIds, setManuallyOpenIds] = useState<string[]>([])
   const [isSaving, setIsSaving] = useState(false)
+  const [saveFlash, setSaveFlash] = useState(false)
   const codeAreaRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [scrollState, setScrollState] = useState({ scrollTop: 0, scrollHeight: 0, clientHeight: 0 })
 
   const activeFile = useMemo(
@@ -392,13 +355,11 @@ export function IDEEditor() {
     [files, activeFileId],
   )
 
-  // Derive the detected language
   const detectedLanguage = useMemo(
     () => activeFile ? detectLanguage(activeFile.path) : 'plaintext',
     [activeFile],
   )
 
-  // Derive open files: manually opened + active file (if not already included)
   const openFileIds = useMemo(() => {
     const ids = [...manuallyOpenIds]
     if (activeFileId && !ids.includes(activeFileId)) {
@@ -412,7 +373,6 @@ export function IDEEditor() {
     [openFileIds, files],
   )
 
-  // When active file changes, add it to open tabs
   const handleFileClick = useCallback((fileId: string) => {
     setActiveFileId(fileId)
     if (!manuallyOpenIds.includes(fileId)) {
@@ -441,6 +401,8 @@ export function IDEEditor() {
       })
       if (res.ok) {
         markFileSaved(activeFile.id)
+        setSaveFlash(true)
+        setTimeout(() => setSaveFlash(false), 600)
       }
     } catch (e) {
       console.error('Failed to save file:', e)
@@ -477,6 +439,84 @@ export function IDEEditor() {
     }
   }, [currentProject, addBuildLog, setBottomPanelOpen, setActiveBottomTab, setIsRunning])
 
+  // Handle textarea content change - update store on every keystroke
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!activeFile) return
+    const newContent = e.target.value
+    updateFileContent(activeFile.id, newContent)
+    markFileUnsaved(activeFile.id)
+  }, [activeFile, updateFileContent, markFileUnsaved])
+
+  // Handle special keys: Tab for indentation, Enter for auto-indent
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!activeFile) return
+
+    // Let Ctrl/Cmd shortcuts pass through to the window handler
+    if ((e.ctrlKey || e.metaKey) && ['s', 'c', 'v', 'x', 'a', 'z', 'y'].includes(e.key.toLowerCase())) return
+    if (e.key === 'F5') return
+
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      const textarea = e.currentTarget
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const value = textarea.value
+
+      if (e.shiftKey) {
+        // Shift+Tab: remove indentation from the current line
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1
+        const lineContent = value.substring(lineStart, lineStart + 2)
+        if (lineContent === '  ') {
+          const newValue = value.substring(0, lineStart) + value.substring(lineStart + 2)
+          updateFileContent(activeFile.id, newValue)
+          markFileUnsaved(activeFile.id)
+          const newCursorPos = Math.max(lineStart, start - 2)
+          requestAnimationFrame(() => {
+            textarea.selectionStart = textarea.selectionEnd = newCursorPos
+          })
+        }
+      } else {
+        // Tab: insert 2 spaces
+        const newValue = value.substring(0, start) + '  ' + value.substring(end)
+        updateFileContent(activeFile.id, newValue)
+        markFileUnsaved(activeFile.id)
+        requestAnimationFrame(() => {
+          textarea.selectionStart = textarea.selectionEnd = start + 2
+        })
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const textarea = e.currentTarget
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const value = textarea.value
+
+      // Find the start of the current line
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1
+      const currentLine = value.substring(lineStart, start)
+
+      // Match the current line's indentation
+      const indentMatch = currentLine.match(/^(\s*)/)
+      const indent = indentMatch ? indentMatch[1] : ''
+
+      // Add extra indent after opening braces, parens, brackets, or colons
+      const trimmedLine = currentLine.trimEnd()
+      const lastChar = trimmedLine.slice(-1)
+      const extraIndent = ['{', '(', '[', ':'].includes(lastChar) ? '  ' : ''
+
+      const newIndent = indent + extraIndent
+      const newValue = value.substring(0, start) + '\n' + newIndent + value.substring(end)
+
+      updateFileContent(activeFile.id, newValue)
+      markFileUnsaved(activeFile.id)
+
+      const newCursorPos = start + 1 + newIndent.length
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = newCursorPos
+      })
+    }
+  }, [activeFile, updateFileContent, markFileUnsaved])
+
   // Keyboard shortcut: Ctrl+S to save, F5 to run
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -493,7 +533,7 @@ export function IDEEditor() {
     return () => window.removeEventListener('keydown', handler)
   }, [handleSave, handleRun])
 
-  const lines = activeFile?.content?.split('\n') || []
+  const lines = useMemo(() => activeFile?.content?.split('\n') || [], [activeFile?.content])
 
   // Track scroll position for minimap
   const handleScroll = useCallback(() => {
@@ -507,21 +547,56 @@ export function IDEEditor() {
     }
   }, [])
 
-  // Calculate line/column from click
-  const handleCodeClick = useCallback(() => {
-    // For display purposes, default cursor to line 1, column 1; real editor would track selection
-    // We'll set it based on active file info
-    if (activeFile) {
-      setCursorPosition(1, 1)
-    }
-  }, [activeFile, setCursorPosition])
+  // Track cursor position from textarea selection
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const textarea = textareaRef.current
+      if (!textarea || document.activeElement !== textarea) return
 
-  // Update cursor position when file changes
+      const pos = textarea.selectionStart
+      const content = textarea.value
+      const linesBeforeCursor = content.substring(0, pos).split('\n')
+      const line = linesBeforeCursor.length
+      const column = linesBeforeCursor[linesBeforeCursor.length - 1].length + 1
+      setCursorPosition(line, column)
+    }
+
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => document.removeEventListener('selectionchange', handleSelectionChange)
+  }, [setCursorPosition])
+
+  // Scroll to keep cursor visible when cursor line changes
+  useEffect(() => {
+    if (!codeAreaRef.current || !textareaRef.current) return
+    if (document.activeElement !== textareaRef.current) return
+
+    const container = codeAreaRef.current
+    const lineHeight = 13 * 1.6 // 13px font-size * 1.6 line-height = 20.8px
+    const paddingTop = 12 // pt-3 = 0.75rem ≈ 12px
+    const cursorY = paddingTop + (cursorLine - 1) * lineHeight
+
+    if (cursorY < container.scrollTop + paddingTop) {
+      container.scrollTop = cursorY - paddingTop
+    } else if (cursorY > container.scrollTop + container.clientHeight - lineHeight - paddingTop) {
+      container.scrollTop = cursorY - container.clientHeight + lineHeight + paddingTop
+    }
+  }, [cursorLine, cursorColumn])
+
+  // When active file changes, reset cursor position
   useEffect(() => {
     if (activeFile) {
       setCursorPosition(1, 1)
     }
-  }, [activeFileId, activeFile, setCursorPosition])
+  }, [activeFileId, setCursorPosition])
+
+  // Focus textarea when active file changes
+  useEffect(() => {
+    if (activeFileId && textareaRef.current) {
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus()
+      })
+    }
+  }, [activeFileId])
 
   return (
     <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -535,10 +610,11 @@ export function IDEEditor() {
                   size="icon"
                   variant="ghost"
                   className={cn(
-                    'size-6',
+                    'size-6 transition-all',
                     unsavedFileIds.has(activeFile.id)
                       ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'
                       : 'text-muted-foreground hover:text-foreground',
+                    saveFlash && 'text-emerald-400 save-flash',
                   )}
                   onClick={handleSave}
                   disabled={isSaving || !unsavedFileIds.has(activeFile.id)}
@@ -574,6 +650,22 @@ export function IDEEditor() {
         </div>
       )}
 
+      {/* Breadcrumb showing full file path */}
+      {activeFile && (
+        <div className="flex items-center h-6 px-3 bg-muted/10 border-b text-[10px] text-muted-foreground/60 shrink-0 gap-0.5 overflow-hidden">
+          {activeFile.path.split('/').map((segment, i, arr) => (
+            <span key={i} className="flex items-center gap-0.5 shrink-0">
+              {i > 0 && <ChevronRight className="size-2.5 breadcrumb-separator" />}
+              <span className={cn(
+                i === arr.length - 1 ? 'text-foreground/70 font-medium' : 'hover:text-foreground/50 cursor-default',
+              )}>
+                {segment}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* File tabs */}
       {openFiles.length > 0 && (
         <div className="flex items-center h-9 bg-muted/20 border-b overflow-x-auto scrollbar-none shrink-0">
@@ -595,28 +687,45 @@ export function IDEEditor() {
         <div className="flex-1 flex overflow-hidden">
           <div
             ref={codeAreaRef}
-            className="flex-1 overflow-auto bg-zinc-900 dark:bg-zinc-950 custom-scrollbar"
+            className="flex-1 overflow-auto bg-zinc-900 dark:bg-zinc-950 custom-scrollbar code-area-gradient"
             onScroll={handleScroll}
-            onClick={handleCodeClick}
           >
             <div className="flex min-w-fit">
               {/* Line numbers */}
-              <div className="select-none text-right pr-4 pl-4 pt-3 text-[13px] leading-[1.6] font-mono text-zinc-600 shrink-0 sticky left-0 bg-zinc-900 dark:bg-zinc-950">
+              <div className="select-none text-right pr-4 pl-4 pt-3 text-[13px] leading-[1.6] font-mono text-zinc-600 shrink-0 sticky left-0 bg-zinc-900 dark:bg-zinc-950 z-10">
                 {lines.map((_, i) => (
                   <div key={i} className={cn(i + 1 === cursorLine && 'text-emerald-500/70')}>{i + 1}</div>
                 ))}
               </div>
-              {/* Code content */}
-              <pre className="text-[13px] leading-[1.6] font-mono pt-3 pr-4 whitespace-pre text-zinc-300">
-                {lines.map((line, i) => (
-                  <div key={i} className={cn(
-                    'hover:bg-white/5 px-2 -mx-2',
-                    i + 1 === cursorLine && 'bg-white/5 border-l-2 border-emerald-500/50',
-                  )}>
-                    <code dangerouslySetInnerHTML={{ __html: highlightCode(line, detectedLanguage) }} />
-                  </div>
-                ))}
-              </pre>
+              {/* Code content with textarea overlay for editing */}
+              <div className="relative min-w-0 flex-1">
+                {/* Syntax highlighted display layer - pointer-events-none so clicks go to textarea */}
+                <pre className="text-[13px] leading-[1.6] font-mono pt-3 pr-4 pl-4 whitespace-pre text-zinc-300 pointer-events-none">
+                  {lines.map((line, i) => (
+                    <div key={i} className={cn(
+                      'px-2 -mx-2',
+                      i + 1 === cursorLine && 'current-line-gradient',
+                    )}>
+                      <code dangerouslySetInnerHTML={{ __html: highlightCode(line, detectedLanguage) }} />
+                    </div>
+                  ))}
+                </pre>
+                {/* Editable textarea overlay - transparent text, visible caret */}
+                <textarea
+                  key={activeFileId}
+                  ref={textareaRef}
+                  className="absolute inset-0 w-full h-full text-[13px] leading-[1.6] font-mono pt-3 pr-4 pl-4 whitespace-pre bg-transparent text-transparent resize-none border-0 outline-0 overflow-hidden"
+                  style={{ caretColor: '#d4d4d8', tabSize: 2 }}
+                  value={activeFile.content}
+                  onChange={handleChange}
+                  onKeyDown={handleKeyDown}
+                  spellCheck={false}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  wrap="off"
+                />
+              </div>
             </div>
           </div>
 

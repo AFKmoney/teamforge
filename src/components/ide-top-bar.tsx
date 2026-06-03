@@ -14,7 +14,7 @@ import { NotificationBell } from '@/components/notification-panel'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 
 // Agent pill color mapping by role
 const ROLE_PILL_COLORS: Record<AgentRole, { bg: string; border: string; activeBg: string }> = {
@@ -26,11 +26,21 @@ const ROLE_PILL_COLORS: Record<AgentRole, { bg: string; border: string; activeBg
   pm: { bg: 'bg-pink-500/10 border-pink-500/30', border: 'border-pink-500/30', activeBg: 'bg-pink-500/20' },
 }
 
-function AgentPill({ agent }: { agent: { id: string; name: string; role: AgentRole; status: AgentStatus; avatar: string; currentTaskId: string | null } }) {
+function AgentPill({ agent, currentTaskTitle }: { agent: { id: string; name: string; role: AgentRole; status: AgentStatus; avatar: string; currentTaskId: string | null }; currentTaskTitle?: string }) {
   const roleConfig = AGENT_ROLE_CONFIG[agent.role]
   const statusConfig = AGENT_STATUS_CONFIG[agent.status]
   const pillColors = ROLE_PILL_COLORS[agent.role]
   const isActive = agent.status !== 'idle' && agent.status !== 'sleeping'
+
+  // Map role to a glow color
+  const glowColorMap: Record<AgentRole, string> = {
+    architect: 'rgba(139, 92, 246, 0.4)',
+    developer: 'rgba(16, 185, 129, 0.4)',
+    reviewer: 'rgba(59, 130, 246, 0.4)',
+    tester: 'rgba(245, 158, 11, 0.4)',
+    devops: 'rgba(249, 115, 22, 0.4)',
+    pm: 'rgba(236, 72, 153, 0.4)',
+  }
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -40,18 +50,24 @@ function AgentPill({ agent }: { agent: { id: string; name: string; role: AgentRo
             layout
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ scale: 1.08 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs cursor-default select-none transition-colors',
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs cursor-default select-none transition-colors relative',
               pillColors.bg,
               isActive && 'ring-1 ring-current/20',
             )}
+            style={isActive ? {
+              boxShadow: `0 0 8px 1px ${glowColorMap[agent.role]}`,
+              animation: 'agent-glow 2.5s ease-in-out infinite',
+            } : undefined}
           >
             <span className="text-sm">{agent.avatar}</span>
             <span className={cn('font-medium hidden sm:inline', roleConfig.color)}>{agent.name}</span>
             <span className={cn('size-2 rounded-full shrink-0', statusConfig.dotColor, isActive && 'animate-pulse')} />
           </motion.div>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-xs">
+        <TooltipContent side="bottom" className="text-xs max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <span>{agent.avatar}</span>
             <span className={roleConfig.color}>{agent.name}</span>
@@ -61,6 +77,11 @@ function AgentPill({ agent }: { agent: { id: string; name: string; role: AgentRo
           <div className="text-muted-foreground mt-0.5">
             Status: <span className={statusConfig.color}>{statusConfig.label}</span>
           </div>
+          {isActive && currentTaskTitle && (
+            <div className="mt-1 pt-1 border-t border-border/40 text-muted-foreground">
+              Task: <span className="text-foreground font-medium">{currentTaskTitle}</span>
+            </div>
+          )}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -322,11 +343,24 @@ function RunAllDropdown() {
 
 export function IDETopBar() {
   const agents = useAppStore((s) => s.agents)
+  const tasks = useAppStore((s) => s.tasks)
   const currentProject = useAppStore((s) => s.currentProject)
   const isRunning = useAppStore((s) => s.isRunning)
   const { theme, setTheme } = useTheme()
 
   const activeAgents = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping')
+
+  // Build a map of agentId -> current task title for tooltips
+  const agentTaskMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const agent of agents) {
+      if (agent.currentTaskId) {
+        const task = tasks.find((t) => t.id === agent.currentTaskId)
+        if (task) map[agent.id] = task.title
+      }
+    }
+    return map
+  }, [agents, tasks])
 
   return (
     <div className="flex items-center h-11 px-3 border-b bg-gradient-to-r from-card/95 via-card/90 to-card/95 backdrop-blur-md gap-2 shrink-0 z-20 shadow-sm shadow-black/5">
@@ -362,7 +396,7 @@ export function IDETopBar() {
       <div className="flex items-center gap-1.5 overflow-x-auto flex-1 scrollbar-none py-1">
         <AnimatePresence mode="popLayout">
           {agents.map((agent) => (
-            <AgentPill key={agent.id} agent={agent} />
+            <AgentPill key={agent.id} agent={agent} currentTaskTitle={agentTaskMap[agent.id]} />
           ))}
         </AnimatePresence>
       </div>

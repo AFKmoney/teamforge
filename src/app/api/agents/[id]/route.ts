@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { broadcastEvent } from '@/lib/ws-broadcast'
 
 export async function GET(
   _req: NextRequest,
@@ -61,6 +62,9 @@ export async function PATCH(
       where: { id },
       data,
     })
+
+    // Broadcast agent update to WS clients
+    broadcastEvent('agent:update', agent)
 
     return NextResponse.json(agent)
   } catch (error) {

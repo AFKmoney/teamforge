@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { broadcastEvent } from '@/lib/ws-broadcast'
 
 export async function GET(req: NextRequest) {
   try {
@@ -42,6 +43,9 @@ export async function POST(req: NextRequest) {
         type: type || 'build',
       },
     })
+
+    // Broadcast new build log to WS clients
+    broadcastEvent('build:new', buildLog)
 
     return NextResponse.json(buildLog, { status: 201 })
   } catch (error) {

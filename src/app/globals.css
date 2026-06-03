@@ -222,20 +222,20 @@
   animation: float 3s ease-in-out infinite;
 }
 
-/* Custom scrollbar styling */
+/* Custom scrollbar styling - thinner and more elegant */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.2);
-  border-radius: 3px;
+  background: hsl(var(--muted-foreground) / 0.15);
+  border-radius: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.4);
+  background: hsl(var(--muted-foreground) / 0.3);
 }
 
 /* Subtle glass effect */
@@ -250,20 +250,20 @@
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.3), 0 0 2px rgba(16, 185, 129, 0.2);
 }
 
-/* IDE-specific styles */
+/* IDE-specific styles - refined scrollbar */
 .ide-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 .ide-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .ide-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 4px;
 }
 .ide-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
 }
 .ide-scrollbar::-webkit-scrollbar-corner {
   background: transparent;
@@ -285,26 +285,34 @@
 }
 
 /* Smooth transitions for theme changes */
-* {
-  transition-property: background-color, border-color, color;
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, box-shadow;
   transition-duration: 150ms;
   transition-timing-function: ease;
 }
 
-/* Enhanced scrollbar for sidebar/chat */
+/* Override: keep transforms snappy for animated elements */
+[data-framer-motion],
+.motion-safe * {
+  transition-property: background-color, border-color, color, box-shadow;
+}
+
+/* Enhanced scrollbar for sidebar/chat - thinner and more elegant */
 .thin-scrollbar::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
 }
 .thin-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .thin-scrollbar::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.15);
-  border-radius: 2px;
+  background: hsl(var(--muted-foreground) / 0.12);
+  border-radius: 4px;
 }
 .thin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.3);
+  background: hsl(var(--muted-foreground) / 0.25);
 }
 
 /* Subtle hover lift effect */
@@ -350,4 +358,221 @@
 }
 .resize-handle:hover::after {
   opacity: 1;
+}
+
+/* ===== Premium UI Enhancements ===== */
+
+/* CSS noise texture overlay on background */
+.noise-overlay::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.015;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+.dark .noise-overlay::before {
+  opacity: 0.025;
+}
+
+/* Page load animation sequence */
+@keyframes page-load-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-page-load {
+  animation: page-load-fade 0.5s ease-out both;
+}
+.animate-page-load-delay-1 { animation-delay: 0.08s; }
+.animate-page-load-delay-2 { animation-delay: 0.16s; }
+.animate-page-load-delay-3 { animation-delay: 0.24s; }
+.animate-page-load-delay-4 { animation-delay: 0.32s; }
+
+/* Agent pill glow animation */
+@keyframes agent-glow {
+  0%, 100% { box-shadow: 0 0 4px 0 currentColor; opacity: 0.4; }
+  50% { box-shadow: 0 0 8px 2px currentColor; opacity: 0.7; }
+}
+.agent-pill-glow {
+  animation: agent-glow 2.5s ease-in-out infinite;
+}
+
+/* Save button green flash */
+@keyframes save-flash {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+  50% { box-shadow: 0 0 12px 4px rgba(16, 185, 129, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+.save-flash {
+  animation: save-flash 0.6s ease-out;
+}
+
+/* Typing indicator bouncing dots */
+@keyframes typing-bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+}
+.typing-bounce-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.6);
+}
+.typing-bounce-dot:nth-child(1) { animation: typing-bounce 1.2s ease-in-out infinite; }
+.typing-bounce-dot:nth-child(2) { animation: typing-bounce 1.2s ease-in-out 0.15s infinite; }
+.typing-bounce-dot:nth-child(3) { animation: typing-bounce 1.2s ease-in-out 0.3s infinite; }
+
+/* Pulsing running dot */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+.pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* Textarea focus glow */
+@keyframes textarea-glow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.15), 0 0 8px 0 rgba(16, 185, 129, 0.05); }
+  50% { box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25), 0 0 12px 2px rgba(16, 185, 129, 0.08); }
+}
+.textarea-focus-glow {
+  animation: textarea-glow 2.5s ease-in-out infinite;
+}
+
+/* Sparkline chart via CSS */
+.sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 12px;
+}
+.sparkline-bar {
+  width: 2px;
+  border-radius: 1px;
+  background: rgba(16, 185, 129, 0.5);
+  transition: height 0.3s ease;
+}
+
+/* Emerald tab indicator glow */
+.tab-glow-active {
+  position: relative;
+}
+.tab-glow-active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.8), transparent);
+  filter: blur(1px);
+}
+
+/* Message reaction button */
+@keyframes reaction-pop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.reaction-pop {
+  animation: reaction-pop 0.2s ease-out both;
+}
+
+/* File tree hover gradient */
+.file-tree-item {
+  position: relative;
+  overflow: hidden;
+}
+.file-tree-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, hsl(var(--muted) / 0.4) 30%, hsl(var(--muted) / 0.3) 70%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.file-tree-item:hover::before {
+  opacity: 1;
+}
+
+/* File type color bar on hover */
+.file-color-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: 1px;
+}
+.file-tree-item:hover .file-color-bar {
+  opacity: 1;
+}
+
+/* Editor breadcrumb */
+.breadcrumb-separator {
+  color: hsl(var(--muted-foreground) / 0.4);
+  margin: 0 2px;
+}
+
+/* Code area top gradient */
+.code-area-gradient::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  background: linear-gradient(to bottom, rgba(24, 24, 27, 0.4), transparent);
+  pointer-events: none;
+  z-index: 5;
+  display: block;
+}
+.dark .code-area-gradient::before {
+  background: linear-gradient(to bottom, rgba(9, 9, 11, 0.4), transparent);
+}
+
+/* Current line gradient highlight */
+.current-line-gradient {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.06) 0%, rgba(16, 185, 129, 0.03) 50%, transparent 100%) !important;
+  border-left: 2px solid rgba(16, 185, 129, 0.4) !important;
+}
+
+/* Quick prompt card gradient backgrounds */
+.quick-prompt-card {
+  position: relative;
+  overflow: hidden;
+}
+.quick-prompt-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.06;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.quick-prompt-card:nth-child(1)::before { background: linear-gradient(135deg, #10b981, #059669); }
+.quick-prompt-card:nth-child(2)::before { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+.quick-prompt-card:nth-child(3)::before { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.quick-prompt-card:nth-child(4)::before { background: linear-gradient(135deg, #ec4899, #db2777); }
+.quick-prompt-card:hover::before {
+  opacity: 0.12;
+}
+
+/* Status bar connected pulse */
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
 }

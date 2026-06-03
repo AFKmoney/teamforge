@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { broadcastEvent } from '@/lib/ws-broadcast'
 
 export async function GET(req: NextRequest) {
   try {
@@ -47,6 +48,9 @@ export async function POST(req: NextRequest) {
       },
       include: { assignee: true },
     })
+
+    // Broadcast task creation to WS clients
+    broadcastEvent('task:update', task)
 
     return NextResponse.json(task, { status: 201 })
   } catch (error) {

@@ -11,7 +11,9 @@ import { CommandPalette } from '@/components/command-palette'
 import { KeyboardShortcutsOverlay } from '@/components/keyboard-shortcuts-overlay'
 import { useAppStore } from '@/lib/store'
 import { useAgentOrchestrator } from '@/hooks/use-agent-orchestrator'
-import { Cpu, Clock, Zap, Heart, Activity, GitBranch } from 'lucide-react'
+import { useRealtimeWS } from '@/hooks/use-realtime-ws'
+import { Cpu, Clock, Zap, Heart, Activity, GitBranch, Wifi, WifiOff } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { motion } from 'framer-motion'
 
 export default function Home() {
@@ -26,16 +28,20 @@ export default function Home() {
   // Track uptime
   const startTime = useRef(Date.now())
   const [uptime, setUptime] = useState('0m')
+  const [tokenHistory, setTokenHistory] = useState<number[]>([])
 
-  // Start agent orchestrator (real LLM-powered agent execution)
-  useAgentOrchestrator()
+  // Start WebSocket real-time updates
+  const { isConnected: wsConnected } = useRealtimeWS()
+
+  // Start agent orchestrator as fallback polling (reduced to 60s when WS is active)
+  useAgentOrchestrator({ pollingInterval: wsConnected ? 60000 : 30000 })
 
   // Initial data load
   useEffect(() => {
     fetchAll('proj_01')
   }, [fetchAll])
 
-  // Update uptime every 30 seconds
+  // Update uptime every 30 seconds and track token history
   useEffect(() => {
     const updateUptime = () => {
       const diff = Date.now() - startTime.current
@@ -48,6 +54,17 @@ export default function Home() {
     const interval = setInterval(updateUptime, 30000)
     return () => clearInterval(interval)
   }, [])
+
+  // Track token usage over time for sparkline
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTokenHistory((prev) => {
+        const next = [...prev, totalTokens]
+        return next.length > 10 ? next.slice(-10) : next
+      })
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [totalTokens])
 
   // Calculate totals
   const totalTokens = agents.reduce((sum, a) => sum + a.tokensUsed, 0)
@@ -65,12 +82,14 @@ export default function Home() {
   const taskCompletionPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="h-screen flex flex-col bg-background overflow-hidden noise-overlay">
       {/* Top Bar */}
-      <IDETopBar />
+      <div className="animate-page-load">
+        <IDETopBar />
+      </div>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden animate-page-load animate-page-load-delay-1">
         {/* Sidebar */}
         <IDESidebar />
 
@@ -82,82 +101,169 @@ export default function Home() {
       </div>
 
       {/* Bottom Panel */}
-      <IDEBottomPanel />
+      <div className="animate-page-load animate-page-load-delay-2">
+        <IDEBottomPanel />
+      </div>
 
       {/* Footer Status Bar */}
       <motion.footer
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.3 }}
-        className="flex items-center h-7 px-3 border-t bg-gradient-to-r from-card/95 via-card/90 to-card/95 backdrop-blur-md shrink-0 text-[10px] text-muted-foreground gap-2.5"
+        className="flex items-center h-7 px-3 border-t bg-gradient-to-r from-card/95 via-card/90 to-card/95 backdrop-blur-md shrink-0 text-[10px] text-muted-foreground gap-2.5 animate-page-load animate-page-load-delay-4"
       >
-        {/* Left side - Connection */}
-        <div className="flex items-center gap-1.5">
-          <span className="relative flex size-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full size-2 bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-          </span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Connected</span>
-        </div>
+        {/* Left side - Connection with pulsing */}
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1.5 cursor-default">
+                {wsConnected ? (
+                  <>
+                    <span className="relative flex size-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full size-2 bg-emerald-500 shadow-sm shadow-emerald-500/50" />
+                    </span>
+                    <Wifi className="size-3 text-emerald-500" />
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold status-pulse">Live</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="relative flex size-2">
+                      <span className="relative inline-flex rounded-full size-2 bg-amber-500 shadow-sm shadow-amber-500/50" />
+                    </span>
+                    <WifiOff className="size-3 text-amber-500" />
+                    <span className="text-amber-600 dark:text-amber-400 font-semibold">Polling</span>
+                  </>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {wsConnected ? 'WebSocket connected — real-time updates active' : 'WebSocket disconnected — falling back to polling'}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <div className="h-3 w-px bg-border/60" />
 
         {/* Agents */}
-        <div className="flex items-center gap-1 hover:text-foreground/80 transition-colors">
-          <Cpu className="size-3" />
-          <span className="font-medium">{activeAgents}</span>
-          <span className="text-muted-foreground/60">/ {agents.length} agents</span>
-        </div>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 hover:text-foreground/80 transition-colors cursor-default">
+                <Cpu className="size-3" />
+                <span className="font-medium">{activeAgents}</span>
+                <span className="text-muted-foreground/60">/ {agents.length} agents</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {activeAgents} of {agents.length} agents currently active
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <div className="h-3 w-px bg-border/60" />
 
         {/* Tasks progress with mini bar */}
-        <div className="flex items-center gap-1.5 hover:text-foreground/80 transition-colors">
-          <Activity className="size-3 text-emerald-500" />
-          <span className="font-medium">{completedTasks}</span>
-          <span className="text-muted-foreground/60">/ {totalTasks}</span>
-          {/* Mini progress bar */}
-          <div className="w-12 h-1.5 rounded-full bg-muted/50 overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${taskCompletionPct}%` }}
-              transition={{ duration: 1, ease: 'easeOut', delay: 0.8 }}
-              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-            />
-          </div>
-          <span className="text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">{taskCompletionPct}%</span>
-        </div>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1.5 hover:text-foreground/80 transition-colors cursor-default">
+                <Activity className="size-3 text-emerald-500" />
+                <span className="font-medium">{completedTasks}</span>
+                <span className="text-muted-foreground/60">/ {totalTasks}</span>
+                {/* Mini progress bar */}
+                <div className="w-12 h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${taskCompletionPct}%` }}
+                    transition={{ duration: 1, ease: 'easeOut', delay: 0.8 }}
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                  />
+                </div>
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">{taskCompletionPct}%</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {completedTasks} of {totalTasks} tasks completed ({taskCompletionPct}%)
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <div className="h-3 w-px bg-border/60" />
 
-        {/* Tokens */}
-        <div className="flex items-center gap-1 hover:text-foreground/80 transition-colors">
-          <Zap className="size-3 text-amber-500" />
-          <span className="font-medium">{formatTokens(totalTokens)}</span>
-          <span className="text-muted-foreground/60">tokens</span>
-        </div>
+        {/* Tokens with sparkline */}
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 hover:text-foreground/80 transition-colors cursor-default">
+                <Zap className="size-3 text-amber-500" />
+                <span className="font-medium">{formatTokens(totalTokens)}</span>
+                <span className="text-muted-foreground/60">tokens</span>
+                {/* Mini sparkline */}
+                {tokenHistory.length > 1 && (
+                  <div className="sparkline">
+                    {tokenHistory.map((val, i) => {
+                      const max = Math.max(...tokenHistory)
+                      const min = Math.min(...tokenHistory)
+                      const range = max - min || 1
+                      const height = Math.max(2, ((val - min) / range) * 10)
+                      return (
+                        <div
+                          key={i}
+                          className="sparkline-bar"
+                          style={{ height: `${height}px` }}
+                        />
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              Total tokens used: {totalTokens.toLocaleString()}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <div className="h-3 w-px bg-border/60" />
 
         {/* Uptime */}
-        <div className="flex items-center gap-1 hover:text-foreground/80 transition-colors">
-          <Clock className="size-3" />
-          <span className="font-medium tabular-nums">{uptime}</span>
-        </div>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 hover:text-foreground/80 transition-colors cursor-default">
+                <Clock className="size-3" />
+                <span className="font-medium tabular-nums">{uptime}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              Session uptime
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <div className="h-3 w-px bg-border/60" />
 
         {/* Branch */}
-        <div className="flex items-center gap-1 hover:text-foreground/80 transition-colors">
-          <GitBranch className="size-3" />
-          <span className="font-medium">main</span>
-        </div>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 hover:text-foreground/80 transition-colors cursor-default">
+                <GitBranch className="size-3" />
+                <span className="font-medium">main</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              Current Git branch
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Right side */}
         <div className="flex items-center gap-2 ml-auto">
           <span className="font-semibold text-foreground/60 tracking-tight">TeamForge IDE</span>
           <div className="h-3 w-px bg-border/60" />
-          <span className="text-muted-foreground/60">v0.6.0</span>
+          <span className="text-muted-foreground/60">v0.7.0</span>
           <div className="h-3 w-px bg-border/60" />
           <span className="flex items-center gap-0.5">
             Made with <Heart className="size-2.5 text-red-500 fill-red-500" />

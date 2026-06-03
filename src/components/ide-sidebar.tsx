@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG, type ProjectFile, type Agent, type AgentRole, type AgentStatus } from '@/lib/types'
+import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG, type ProjectFile, type Agent, type AgentRole, type AgentStatus, type AgentActivity } from '@/lib/types'
 import { FileCreationDialog } from '@/components/file-creation-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,9 +31,15 @@ import {
   Trash2,
   Pencil,
   X,
+  Activity,
+  Play,
+  CheckCircle2,
+  TestTube2,
+  Rocket,
+  MessageSquare,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 // File tree node type
@@ -107,6 +113,20 @@ function getFileIcon(name: string) {
   }
 }
 
+// Get the file type accent color for the left bar on hover
+function getFileTypeColor(name: string): string {
+  const ext = name.split('.').pop()?.toLowerCase()
+  switch (ext) {
+    case 'tsx': case 'ts': return 'bg-blue-500'
+    case 'jsx': case 'js': return 'bg-amber-500'
+    case 'json': return 'bg-yellow-500'
+    case 'prisma': return 'bg-teal-500'
+    case 'css': return 'bg-pink-500'
+    case 'md': case 'mdx': return 'bg-gray-400'
+    default: return 'bg-muted-foreground'
+  }
+}
+
 // Format file size
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -164,7 +184,7 @@ function FileTreeNodeView({
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.15 }}
+                  transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                   className="overflow-hidden"
                 >
                   {node.children.map((child) => (
@@ -213,11 +233,12 @@ function FileTreeNodeView({
         <button
           onClick={() => node.file && onFileClick(node.file)}
           className={cn(
-            'flex items-center gap-1.5 w-full px-2 py-1 text-xs hover:bg-muted/60 transition-colors rounded-sm group',
+            'file-tree-item flex items-center gap-1.5 w-full px-2 py-1 text-xs hover:bg-muted/60 transition-colors rounded-sm group relative',
             isActive && 'bg-primary/10 text-primary',
           )}
           style={{ paddingLeft: `${depth * 12 + 20}px` }}
         >
+          <div className={cn('file-color-bar', getFileTypeColor(node.name))} />
           {getFileIcon(node.name)}
           <span className={cn('truncate', isActive ? 'text-primary font-medium' : 'text-foreground/80')}>{node.name}</span>
           {fileSize > 0 && (
@@ -240,6 +261,33 @@ function FileTreeNodeView({
       </ContextMenuContent>
     </ContextMenu>
   )
+}
+
+// Activity type config
+const ACTIVITY_TYPE_CONFIG: Record<string, { icon: React.ReactNode; borderColor: string }> = {
+  task_started: { icon: <Play className="size-3 text-emerald-500" />, borderColor: 'border-l-emerald-500' },
+  code_written: { icon: <FileCode2 className="size-3 text-blue-500" />, borderColor: 'border-l-blue-500' },
+  review_completed: { icon: <CheckCircle2 className="size-3 text-violet-500" />, borderColor: 'border-l-violet-500' },
+  test_run: { icon: <TestTube2 className="size-3 text-amber-500" />, borderColor: 'border-l-amber-500' },
+  deploy_triggered: { icon: <Rocket className="size-3 text-orange-500" />, borderColor: 'border-l-orange-500' },
+  message_sent: { icon: <MessageSquare className="size-3 text-pink-500" />, borderColor: 'border-l-pink-500' },
+}
+
+// Format relative timestamp
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now()
+  const then = new Date(dateStr).getTime()
+  const diffMs = now - then
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHr = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHr / 24)
+
+  if (diffSec < 60) return 'just now'
+  if (diffMin < 60) return `${diffMin}m ago`
+  if (diffHr < 24) return `${diffHr}h ago`
+  if (diffDay < 7) return `${diffDay}d ago`
+  return new Date(dateStr).toLocaleDateString()
 }
 
 function AgentRow({ agent, onClick }: { agent: Agent; onClick: () => void }) {
@@ -283,6 +331,112 @@ function AgentRow({ agent, onClick }: { agent: Agent; onClick: () => void }) {
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  )
+}
+
+function ActivityFeedSection() {
+  const activities = useAppStore((s) => s.activities)
+  const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
+  const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Show last 20 activities, newest first
+  const recentActivities = useMemo(() => {
+    return [...activities]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 20)
+  }, [activities])
+
+  // Auto-scroll to top (newest) when new activities arrive
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0
+    }
+  }, [recentActivities.length])
+
+  return (
+    <div className="py-2">
+      <div className="px-3 py-0.5 flex items-center gap-1.5">
+        <Activity className="size-3 text-muted-foreground/70" />
+        <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+          Activity Feed
+        </span>
+        {recentActivities.length > 0 && (
+          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 ml-auto bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20">
+            {recentActivities.length}
+          </Badge>
+        )}
+      </div>
+
+      <div
+        ref={scrollRef}
+        className="mt-1 max-h-48 overflow-y-auto thin-scrollbar px-1"
+      >
+        {recentActivities.length === 0 ? (
+          <div className="flex items-center justify-center py-6 text-muted-foreground/50 text-[10px]">
+            <Activity className="size-3 mr-1.5 opacity-40" />
+            No recent activity
+          </div>
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            {recentActivities.map((activity) => (
+              <ActivityItem key={activity.id} activity={activity} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {recentActivities.length > 0 && (
+        <button
+          onClick={() => {
+            setActiveBottomTab('activities')
+            setBottomPanelOpen(true)
+          }}
+          className="mx-2 mt-1.5 flex items-center justify-center gap-1 w-auto px-2 py-1 rounded-md text-[10px] text-muted-foreground/70 hover:text-foreground hover:bg-muted/40 transition-colors"
+        >
+          View All
+          <ChevronRight className="size-2.5" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ActivityItem({ activity }: { activity: AgentActivity }) {
+  const typeConfig = ACTIVITY_TYPE_CONFIG[activity.action] || {
+    icon: <Activity className="size-3 text-muted-foreground" />,
+    borderColor: 'border-l-muted-foreground/40',
+  }
+  const agent = activity.agent
+  const roleConfig = agent ? AGENT_ROLE_CONFIG[agent.role as AgentRole] : null
+
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-1.5 px-2 py-1.5 rounded-md border-l-2 transition-colors hover:bg-muted/40',
+        typeConfig.borderColor,
+      )}
+    >
+      <div className="shrink-0 mt-0.5">
+        {typeConfig.icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1">
+          {agent && (
+            <span className="text-[10px] shrink-0">{agent.avatar}</span>
+          )}
+          <span className={cn('text-[10px] font-medium truncate', roleConfig?.color || 'text-foreground/80')}>
+            {agent?.name || 'Agent'}
+          </span>
+          <span className="text-[9px] text-muted-foreground/50 ml-auto shrink-0">
+            {formatRelativeTime(activity.createdAt)}
+          </span>
+        </div>
+        <p className="text-[10px] text-muted-foreground/80 truncate leading-tight mt-0.5">
+          {activity.description}
+        </p>
+      </div>
+    </div>
   )
 }
 
@@ -477,8 +631,11 @@ export function IDESidebar() {
               </button>
             )}
           </div>
-          <div className="px-3 py-1 mt-0.5">
+          <div className="px-3 py-1 mt-0.5 flex items-center gap-1.5">
             <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">Files</span>
+            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 ml-1 bg-muted/50 text-muted-foreground">
+              {files.filter((f) => !f.isDirectory).length}
+            </Badge>
           </div>
           {fileTree.map((node) => (
             <FileTreeNodeView
@@ -513,6 +670,11 @@ export function IDESidebar() {
             ))}
           </div>
         </div>
+
+        <Separator className="mx-3" />
+
+        {/* Activity Feed Section */}
+        <ActivityFeedSection />
       </ScrollArea>
 
       {/* File Creation Dialogs */}

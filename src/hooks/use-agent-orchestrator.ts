@@ -1,15 +1,16 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useAppStore } from '@/lib/store'
 
 /**
  * useAgentOrchestrator
  *
- * Manages agent orchestration. Currently only refreshes data periodically.
- * Agent execution is triggered manually via the UI or API.
+ * Manages agent orchestration. Refreshes data periodically as a fallback
+ * for WebSocket real-time updates. When WS is connected, polling is
+ * reduced to every 60s; otherwise it defaults to every 30s.
  */
-export function useAgentOrchestrator() {
+export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
   const currentProject = useAppStore((s) => s.currentProject)
   const fetchAll = useAppStore((s) => s.fetchAll)
   const fetchAgents = useAppStore((s) => s.fetchAgents)
@@ -18,6 +19,8 @@ export function useAgentOrchestrator() {
   const fetchFiles = useAppStore((s) => s.fetchFiles)
   const fetchActivities = useAppStore((s) => s.fetchActivities)
 
+  const pollingInterval = options?.pollingInterval ?? 30000
+
   // Initial data load
   useEffect(() => {
     if (currentProject?.id) {
@@ -25,7 +28,7 @@ export function useAgentOrchestrator() {
     }
   }, [])
 
-  // Periodic data refresh every 30 seconds
+  // Periodic data refresh
   useEffect(() => {
     const refreshInterval = setInterval(async () => {
       const projectId = currentProject?.id
@@ -41,8 +44,8 @@ export function useAgentOrchestrator() {
       } catch {
         // Silently ignore refresh errors
       }
-    }, 30000)
+    }, pollingInterval)
 
     return () => clearInterval(refreshInterval)
-  }, [currentProject?.id, fetchAgents, fetchTasks, fetchMessages])
+  }, [currentProject?.id, fetchAgents, fetchTasks, fetchMessages, pollingInterval])
 }

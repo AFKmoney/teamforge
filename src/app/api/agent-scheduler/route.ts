@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import ZAI from 'z-ai-web-dev-sdk'
+import { broadcastEvent } from '@/lib/ws-broadcast'
 
 // GET /api/agent-scheduler - Get scheduler status
 export async function GET() {
@@ -93,12 +94,14 @@ export async function POST(req: NextRequest) {
         where: { id: agent.id },
         data: { status: workStatus, lastActive: new Date() },
       })
+      broadcastEvent('agent:update', { id: agent.id, status: workStatus, lastActive: new Date().toISOString() })
 
       // Update task status to in_progress
       await db.task.update({
         where: { id: task.id },
         data: { status: 'in_progress' },
       })
+      broadcastEvent('task:update', { id: task.id, status: 'in_progress' })
 
       // Get project files for context
       const files = await db.projectFile.findMany({
@@ -159,7 +162,7 @@ export async function POST(req: NextRequest) {
             }
             case 'message': {
               if (action.content) {
-                await db.message.create({
+                const newMsg = await db.message.create({
                   data: {
                     projectId: task.projectId,
                     agentId: agent.id,
@@ -167,7 +170,9 @@ export async function POST(req: NextRequest) {
                     type: 'chat',
                     metadata: JSON.stringify({ sender: 'agent', taskTitle: task.title }),
                   },
+                  include: { agent: true },
                 })
+                broadcastEvent('message:new', newMsg)
                 executedActions.push(`Sent message`)
               }
               break
@@ -183,6 +188,7 @@ export async function POST(req: NextRequest) {
                       ...(action.status === 'done' ? { completedAt: new Date() } : {}),
                     },
                   })
+                  broadcastEvent('task:update', { id: task.id, status: action.status })
                   executedActions.push(`Task status → ${action.status}`)
                 }
               }
@@ -190,7 +196,7 @@ export async function POST(req: NextRequest) {
             }
             case 'create_task': {
               if (action.title) {
-                await db.task.create({
+                const newTask = await db.task.create({
                   data: {
                     projectId: task.projectId,
                     title: action.title,
@@ -199,7 +205,9 @@ export async function POST(req: NextRequest) {
                     type: action.taskType || 'feature',
                     status: 'todo',
                   },
+                  include: { assignee: true },
                 })
+                broadcastEvent('task:update', newTask)
                 executedActions.push(`Created task: ${action.title}`)
               }
               break
@@ -211,20 +219,23 @@ export async function POST(req: NextRequest) {
       }
 
       // Log activity
-      await db.agentActivity.create({
+      const activity = await db.agentActivity.create({
         data: {
           agentId: agent.id,
           action: 'task_completed',
           description: `Worked on: ${task.title}. Actions: ${executedActions.join(', ') || 'none'}`,
           metadata: JSON.stringify({ taskId: task.id, actions: executedActions }),
         },
+        include: { agent: true },
       })
+      broadcastEvent('activity:new', activity)
 
       // Reset agent to idle
       await db.agent.update({
         where: { id: agent.id },
         data: { status: 'idle', lastActive: new Date(), tasksCompleted: { increment: 1 }, tokensUsed: { increment: Math.floor(content.length * 0.5) } },
       })
+      broadcastEvent('agent:update', { id: agent.id, status: 'idle', lastActive: new Date().toISOString() })
 
       return NextResponse.json({
         executed: 1,
@@ -240,6 +251,7 @@ export async function POST(req: NextRequest) {
         where: { id: agent.id },
         data: { status: 'idle' },
       }).catch(() => {})
+      broadcastEvent('agent:update', { id: agent.id, status: 'idle' })
 
       return NextResponse.json({
         executed: 0,
