@@ -12,6 +12,9 @@ import {
   Trophy,
   Target,
   BarChartHorizontal,
+  Download,
+  FileSpreadsheet,
+  FileJson,
 } from 'lucide-react'
 import {
   BarChart,
@@ -27,12 +30,19 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
+import { exportToCSV, exportToJSON } from '@/lib/export-utils'
 import { useAppStore } from '@/lib/store'
 import type { Benchmark } from '@/lib/types'
 
@@ -276,6 +286,49 @@ export function BenchmarksPanel() {
             </p>
           </div>
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Download className="size-4" />
+              Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => {
+              const data = filtered.map((b) => ({
+                Name: b.name,
+                Category: b.category,
+                Version: b.version,
+                Score: b.score,
+                'Max Score': b.maxScore,
+                'Score %': Math.round((b.score / b.maxScore) * 100),
+                'Previous Score': b.previousScore ?? '',
+                'Created At': b.createdAt,
+              }))
+              exportToCSV(data, 'benchmarks')
+            }}>
+              <FileSpreadsheet className="mr-2 size-4" />
+              Export as CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              const data = filtered.map((b) => ({
+                id: b.id,
+                name: b.name,
+                category: b.category,
+                version: b.version,
+                score: b.score,
+                maxScore: b.maxScore,
+                previousScore: b.previousScore,
+                details: b.details,
+                createdAt: b.createdAt,
+              }))
+              exportToJSON(data, 'benchmarks')
+            }}>
+              <FileJson className="mr-2 size-4" />
+              Export as JSON
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Summary Stats Row */}

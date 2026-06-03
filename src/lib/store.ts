@@ -16,6 +16,7 @@ import type {
   SafetyEvent,
   SystemMetric,
   SystemSettings,
+  Notification,
 } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -33,6 +34,7 @@ export type Page =
   | 'safety'
   | 'chat'
   | 'settings'
+  | 'topology'
 
 // ---------------------------------------------------------------------------
 // Store interface
@@ -57,6 +59,11 @@ interface AppState {
   metrics: SystemMetric[]
   chatMessages: ChatMessage[]
   settings: SystemSettings
+  notifications: Notification[]
+  unreadNotificationCount: number
+
+  // Realtime
+  realtimeConnected: boolean
 
   // Loading state
   isLoading: boolean
@@ -81,6 +88,15 @@ interface AppState {
 
   // Actions — Chat
   addChatMessage: (message: ChatMessage) => void
+
+  // Actions — Notifications
+  addNotification: (notification: Notification) => void
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: () => void
+  clearNotifications: () => void
+
+  // Actions — Realtime
+  setRealtimeConnected: (connected: boolean) => void
 
   // Actions — Loading
   setIsLoading: (loading: boolean) => void
@@ -118,6 +134,11 @@ export const useAppStore = create<AppState>((set) => ({
     enableResearchLab: true,
     logVerbosity: 'normal',
   },
+  notifications: [],
+  unreadNotificationCount: 0,
+
+  // Realtime default
+  realtimeConnected: false,
 
   // Loading default
   isLoading: false,
@@ -143,6 +164,29 @@ export const useAppStore = create<AppState>((set) => ({
   // Chat action — append message
   addChatMessage: (message) =>
     set((state) => ({ chatMessages: [...state.chatMessages, message] })),
+
+  // Notification actions
+  addNotification: (notification) =>
+    set((state) => ({
+      notifications: [notification, ...state.notifications].slice(0, 50),
+      unreadNotificationCount: state.unreadNotificationCount + (notification.read ? 0 : 1),
+    })),
+  markNotificationRead: (id) =>
+    set((state) => ({
+      notifications: state.notifications.map((n) =>
+        n.id === id ? { ...n, read: true } : n
+      ),
+      unreadNotificationCount: Math.max(0, state.unreadNotificationCount - 1),
+    })),
+  markAllNotificationsRead: () =>
+    set((state) => ({
+      notifications: state.notifications.map((n) => ({ ...n, read: true })),
+      unreadNotificationCount: 0,
+    })),
+  clearNotifications: () => set({ notifications: [], unreadNotificationCount: 0 }),
+
+  // Realtime action
+  setRealtimeConnected: (connected) => set({ realtimeConnected: connected }),
 
   // Loading action
   setIsLoading: (loading) => set({ isLoading: loading }),

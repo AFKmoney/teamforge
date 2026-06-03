@@ -248,3 +248,19 @@ export interface SystemSettings {
   enableResearchLab: boolean
   logVerbosity: string
 }
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error'
+
+export interface Notification {
+  id: string
+  title: string
+  message: string
+  severity: NotificationSeverity
+  timestamp: string
+  read: boolean
+  source?: string
+}

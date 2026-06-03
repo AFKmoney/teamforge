@@ -17,6 +17,7 @@ import {
   Moon,
   Monitor,
   Settings,
+  GitBranch,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useAppStore, type Page } from '@/lib/store'
@@ -45,6 +46,7 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { Cpu } from 'lucide-react'
+import { NotificationBell } from '@/components/notification-bell'
 
 const navItems: { page: Page; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { page: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -52,6 +54,7 @@ const navItems: { page: Page; label: string; icon: React.ComponentType<{ classNa
   { page: 'evolution', label: 'Evolution', icon: Dna },
   { page: 'memory', label: 'Memory', icon: Database },
   { page: 'knowledge', label: 'Knowledge', icon: Network },
+  { page: 'topology', label: 'Topology', icon: GitBranch },
   { page: 'research', label: 'Research', icon: FlaskConical },
   { page: 'benchmarks', label: 'Benchmarks', icon: BarChart3 },
   { page: 'safety', label: 'Safety', icon: Shield },
@@ -241,7 +244,10 @@ export function DashboardSidebar() {
               </span>
               <span>System Online</span>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -295,7 +301,10 @@ export function DashboardSidebar() {
               </span>
               <span>System Online</span>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-2 items-center">
@@ -312,6 +321,7 @@ export function DashboardSidebar() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <NotificationBell />
             <ThemeToggle collapsed />
           </div>
         )}

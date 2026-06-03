@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Dna,
   Plus,
@@ -173,6 +173,325 @@ function parseEvent(raw: RawEvolutionEvent): EvolutionEvent {
     validatedAt: raw.validatedAt,
     deployedAt: raw.deployedAt,
   }
+}
+
+// ---------------------------------------------------------------------------
+// DiffViewer sub-component
+// ---------------------------------------------------------------------------
+
+type DiffType = 'added' | 'removed' | 'changed' | 'unchanged'
+
+interface DiffEntry {
+  key: string
+  type: DiffType
+  beforeVal?: unknown
+  afterVal?: unknown
+}
+
+/** Format a value for display — strings get quoted, objects get JSON-pretty-printed */
+function formatVal(val: unknown): string {
+  if (val === undefined) return '—'
+  if (val === null) return 'null'
+  if (typeof val === 'string') return `"${val}"`
+  if (typeof val === 'object') {
+    try {
+      return JSON.stringify(val, null, 2)
+    } catch {
+      return String(val)
+    }
+  }
+  return String(val)
+}
+
+/** Check if a value is a plain object (not array, not null) */
+function isPlainObject(val: unknown): val is Record<string, unknown> {
+  return val !== null && typeof val === 'object' && !Array.isArray(val)
+}
+
+/** Collapsible nested object row */
+function NestedObjectDiff({
+  label,
+  obj,
+  depth,
+  accent,
+}: {
+  label: string
+  obj: Record<string, unknown>
+  depth: number
+  accent?: string
+}) {
+  const [open, setOpen] = useState(depth < 1)
+  const keys = Object.keys(obj)
+
+  return (
+    <div className={cn('pl-3', depth > 0 && 'border-l border-border')}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={cn(
+          'flex items-center gap-1 text-xs font-mono w-full text-left py-0.5 hover:text-foreground transition-colors',
+          accent ?? 'text-muted-foreground'
+        )}
+      >
+        {open ? <ChevronDown className="size-3 shrink-0" /> : <ChevronRight className="size-3 shrink-0" />}
+        <span className="font-semibold">{label}</span>
+        <span className="text-muted-foreground ml-1">{'{'}{keys.length} keys{'}'}</span>
+      </button>
+      {open && (
+        <div className="mt-1 space-y-0.5">
+          {keys.map((k) => {
+            const v = obj[k]
+            if (isPlainObject(v)) {
+              return <NestedObjectDiff key={k} label={k} obj={v} depth={depth + 1} />
+            }
+            return (
+              <div key={k} className="flex items-center gap-2 text-xs font-mono py-0.5 pl-4">
+                <span className="text-muted-foreground">{k}:</span>
+                <span className="text-foreground">{formatVal(v)}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Single diff row for a key-value pair */
+function DiffRow({ entry }: { entry: DiffEntry }) {
+  const [nestedOpen, setNestedOpen] = useState(false)
+  const beforeIsObj = isPlainObject(entry.beforeVal)
+  const afterIsObj = isPlainObject(entry.afterVal)
+  const bothObj = beforeIsObj && afterIsObj
+
+  // If both are objects, show recursive diff
+  if (bothObj) {
+    return (
+      <div
+        className={cn(
+          'rounded-md px-3 py-2 text-xs font-mono',
+          entry.type === 'added' && 'bg-emerald-500/10 border-l-2 border-emerald-500',
+          entry.type === 'removed' && 'bg-red-500/10 border-l-2 border-red-500',
+          entry.type === 'changed' && 'bg-amber-500/10 border-l-2 border-amber-500',
+          entry.type === 'unchanged' && 'bg-muted/30'
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => setNestedOpen(!nestedOpen)}
+          className="flex items-center gap-1 w-full text-left font-semibold text-foreground hover:text-foreground/80"
+        >
+          {nestedOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+          {entry.key}
+          <span className="text-muted-foreground font-normal ml-1">{'{...}'}</span>
+          {entry.type !== 'unchanged' && (
+            <Badge variant="outline" className={cn(
+              'ml-2 text-[10px] px-1.5 py-0 h-4',
+              entry.type === 'added' && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+              entry.type === 'removed' && 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+              entry.type === 'changed' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+            )}>
+              {entry.type}
+            </Badge>
+          )}
+        </button>
+        {nestedOpen && (
+          <div className="mt-2 ml-2">
+            <DiffViewer before={entry.beforeVal as Record<string, unknown>} after={entry.afterVal as Record<string, unknown>} depth={1} />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // If value is a nested object on one side only
+  if (beforeIsObj || afterIsObj) {
+    return (
+      <div
+        className={cn(
+          'rounded-md px-3 py-2 text-xs font-mono',
+          entry.type === 'added' && 'bg-emerald-500/10 border-l-2 border-emerald-500',
+          entry.type === 'removed' && 'bg-red-500/10 border-l-2 border-red-500',
+          entry.type === 'changed' && 'bg-amber-500/10 border-l-2 border-amber-500',
+          entry.type === 'unchanged' && 'bg-muted/30'
+        )}
+      >
+        <div className="font-semibold text-foreground">{entry.key}</div>
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-2 mt-1 items-start">
+          <div>
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider">Before</span>
+            {entry.beforeVal !== undefined ? (
+              isPlainObject(entry.beforeVal) ? (
+                <NestedObjectDiff label="" obj={entry.beforeVal} depth={1} accent="text-red-500 line-through" />
+              ) : (
+                <div className={cn('mt-0.5', entry.type === 'removed' && 'line-through text-red-600 dark:text-red-400')}>
+                  {formatVal(entry.beforeVal)}
+                </div>
+              )
+            ) : (
+              <div className="text-muted-foreground italic mt-0.5">—</div>
+            )}
+          </div>
+          {entry.type === 'changed' && (
+            <ArrowRight className="size-3 text-amber-500 mt-3 shrink-0" />
+          )}
+          <div>
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider">After</span>
+            {entry.afterVal !== undefined ? (
+              isPlainObject(entry.afterVal) ? (
+                <NestedObjectDiff label="" obj={entry.afterVal} depth={1} accent="text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <div className={cn('mt-0.5', entry.type === 'added' && 'text-emerald-600 dark:text-emerald-400')}>
+                  {formatVal(entry.afterVal)}
+                </div>
+              )
+            ) : (
+              <div className="text-muted-foreground italic mt-0.5">—</div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Primitive values — side-by-side comparison
+  return (
+    <div
+      className={cn(
+        'rounded-md px-3 py-1.5 text-xs font-mono flex items-center gap-2',
+        entry.type === 'added' && 'bg-emerald-500/10 border-l-2 border-emerald-500',
+        entry.type === 'removed' && 'bg-red-500/10 border-l-2 border-red-500',
+        entry.type === 'changed' && 'bg-amber-500/10 border-l-2 border-amber-500',
+        entry.type === 'unchanged' && 'bg-muted/30'
+      )}
+    >
+      <span className="font-semibold text-foreground min-w-[120px] max-w-[200px] truncate" title={entry.key}>
+        {entry.key}:
+      </span>
+      {entry.type === 'removed' ? (
+        <>
+          <span className="line-through text-red-600 dark:text-red-400">{formatVal(entry.beforeVal)}</span>
+          <span className="text-muted-foreground italic">removed</span>
+        </>
+      ) : entry.type === 'added' ? (
+        <>
+          <span className="text-muted-foreground italic">new</span>
+          <span className="text-emerald-600 dark:text-emerald-400">{formatVal(entry.afterVal)}</span>
+        </>
+      ) : entry.type === 'changed' ? (
+        <>
+          <span className="line-through text-red-600 dark:text-red-400">{formatVal(entry.beforeVal)}</span>
+          <ArrowRight className="size-3 text-amber-500 shrink-0" />
+          <span className="text-emerald-600 dark:text-emerald-400">{formatVal(entry.afterVal)}</span>
+        </>
+      ) : (
+        <span className="text-muted-foreground">{formatVal(entry.afterVal)}</span>
+      )}
+    </div>
+  )
+}
+
+/** Main DiffViewer component */
+function DiffViewer({
+  before,
+  after,
+  depth = 0,
+}: {
+  before: Record<string, unknown>
+  after: Record<string, unknown>
+  depth?: number
+}) {
+  // Get all keys from both objects
+  const allKeys = useMemo(() => {
+    const keys = new Set([...Object.keys(before), ...Object.keys(after)])
+    return Array.from(keys).sort()
+  }, [before, after])
+
+  // Classify each key
+  const diffEntries = useMemo(() => {
+    return allKeys.map((key): DiffEntry => {
+      const inBefore = key in before
+      const inAfter = key in after
+      const beforeVal = before[key]
+      const afterVal = after[key]
+
+      if (!inBefore) return { key, type: 'added', afterVal }
+      if (!inAfter) return { key, type: 'removed', beforeVal }
+      if (JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
+        return { key, type: 'changed', beforeVal, afterVal }
+      }
+      return { key, type: 'unchanged', beforeVal, afterVal }
+    })
+  }, [allKeys, before, after])
+
+  // Summary stats
+  const stats = useMemo(() => {
+    let added = 0
+    let removed = 0
+    let changed = 0
+    for (const entry of diffEntries) {
+      if (entry.type === 'added') added++
+      else if (entry.type === 'removed') removed++
+      else if (entry.type === 'changed') changed++
+    }
+    return { added, removed, changed, total: diffEntries.length }
+  }, [diffEntries])
+
+  const hasChanges = stats.added > 0 || stats.removed > 0 || stats.changed > 0
+
+  return (
+    <div className={cn('space-y-1.5', depth === 0 && 'mt-2')}>
+      {/* Summary stats */}
+      {depth === 0 && hasChanges && (
+        <div className="flex items-center gap-3 text-xs mb-2 px-1">
+          {stats.added > 0 && (
+            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+              <span className="inline-block size-2 rounded-full bg-emerald-500" />
+              {stats.added} added
+            </span>
+          )}
+          {stats.removed > 0 && (
+            <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+              <span className="inline-block size-2 rounded-full bg-red-500" />
+              {stats.removed} removed
+            </span>
+          )}
+          {stats.changed > 0 && (
+            <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+              <span className="inline-block size-2 rounded-full bg-amber-500" />
+              {stats.changed} changed
+            </span>
+          )}
+          <span className="text-muted-foreground">
+            ({stats.total} total keys)
+          </span>
+        </div>
+      )}
+
+      {/* Side-by-side header for top-level */}
+      {depth === 0 && (
+        <div className="grid grid-cols-2 gap-3 mb-1">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-1 flex items-center gap-1.5">
+            <span className="inline-block size-2 rounded bg-red-500/30" />
+            Before
+          </div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-1 flex items-center gap-1.5">
+            <span className="inline-block size-2 rounded bg-emerald-500/30" />
+            After
+          </div>
+        </div>
+      )}
+
+      {/* Diff entries */}
+      {diffEntries.map((entry) => (
+        <DiffRow key={entry.key} entry={entry} />
+      ))}
+
+      {diffEntries.length === 0 && (
+        <div className="text-xs text-muted-foreground text-center py-2 italic">No properties to compare</div>
+      )}
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -462,20 +781,7 @@ export function EvolutionPanel() {
                           </Button>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                            <div>
-                              <h4 className="text-xs font-medium text-muted-foreground mb-1">Before</h4>
-                              <pre className="text-xs bg-muted/50 rounded-md p-3 overflow-x-auto max-h-48 text-foreground">
-                                {JSON.stringify(event.beforeState, null, 2)}
-                              </pre>
-                            </div>
-                            <div>
-                              <h4 className="text-xs font-medium text-muted-foreground mb-1">After</h4>
-                              <pre className="text-xs bg-muted/50 rounded-md p-3 overflow-x-auto max-h-48 text-foreground">
-                                {JSON.stringify(event.afterState, null, 2)}
-                              </pre>
-                            </div>
-                          </div>
+                          <DiffViewer before={event.beforeState} after={event.afterState} />
                         </CollapsibleContent>
                       </Collapsible>
 

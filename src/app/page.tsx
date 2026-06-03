@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { DashboardSidebar } from '@/components/dashboard-sidebar'
 import { DashboardOverview } from '@/components/dashboard-overview'
 import { AgentsPanel } from '@/components/agents-panel'
@@ -11,11 +12,39 @@ import { BenchmarksPanel } from '@/components/benchmarks-panel'
 import { SafetyPanel } from '@/components/safety-panel'
 import { ChatPanel } from '@/components/chat-panel'
 import { SettingsPanel } from '@/components/settings-panel'
+import { TopologyPanel } from '@/components/topology-panel'
 import { useAppStore } from '@/lib/store'
+import { useRealtimeService } from '@/hooks/use-realtime'
 import { Cpu, Heart } from 'lucide-react'
 
 export default function Home() {
   const currentPage = useAppStore((s) => s.currentPage)
+
+  // Real-time service
+  const { isConnected, addListener } = useRealtimeService()
+  const addNotification = useAppStore((s) => s.addNotification)
+  const setRealtimeConnected = useAppStore((s) => s.setRealtimeConnected)
+
+  // Sync connection status
+  useEffect(() => {
+    setRealtimeConnected(isConnected)
+  }, [isConnected, setRealtimeConnected])
+
+  // Listen for notification events
+  useEffect(() => {
+    const unsub = addListener('notification', (event) => {
+      addNotification({
+        id: event.id,
+        title: (event.payload.title as string) || 'System Notification',
+        message: (event.payload.message as string) || '',
+        severity: (event.payload.severity as 'info' | 'success' | 'warning' | 'error') || 'info',
+        timestamp: event.timestamp,
+        read: false,
+        source: event.type,
+      })
+    })
+    return unsub
+  }, [addListener, addNotification])
 
   const renderPage = () => {
     switch (currentPage) {
@@ -39,6 +68,8 @@ export default function Home() {
         return <ChatPanel />
       case 'settings':
         return <SettingsPanel />
+      case 'topology':
+        return <TopologyPanel />
       default:
         return <DashboardOverview />
     }

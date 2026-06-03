@@ -23,6 +23,9 @@ import {
   Terminal,
   FileSearch,
   Activity,
+  Download,
+  FileSpreadsheet,
+  FileJson,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -47,10 +50,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts'
 import { useAppStore } from '@/lib/store'
 import type { Agent, AgentRole, AgentStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { exportToCSV, exportToJSON } from '@/lib/export-utils'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -584,6 +594,54 @@ export function AgentsPanel() {
               <List className="size-4" />
             </Button>
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="size-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                const data = filteredAgents.map((a) => ({
+                  Name: a.name,
+                  Role: a.role,
+                  Status: a.status,
+                  Description: a.description,
+                  'Success Rate': (a.successRate * 100).toFixed(1) + '%',
+                  'Tasks Completed': a.tasksCompleted,
+                  'Tokens Used': a.tokensUsed,
+                  Goals: (a.goals ?? []).join('; '),
+                  Tools: (a.tools ?? []).join('; '),
+                  'Last Active': a.lastActive,
+                  'Created At': a.createdAt,
+                }))
+                exportToCSV(data, 'agents')
+              }}>
+                <FileSpreadsheet className="mr-2 size-4" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                const data = filteredAgents.map((a) => ({
+                  name: a.name,
+                  role: a.role,
+                  status: a.status,
+                  description: a.description,
+                  successRate: a.successRate,
+                  tasksCompleted: a.tasksCompleted,
+                  tokensUsed: a.tokensUsed,
+                  goals: a.goals,
+                  tools: a.tools,
+                  lastActive: a.lastActive,
+                  createdAt: a.createdAt,
+                }))
+                exportToJSON(data, 'agents')
+              }}>
+                <FileJson className="mr-2 size-4" />
+                Export as JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4 mr-1" />
             Create Agent

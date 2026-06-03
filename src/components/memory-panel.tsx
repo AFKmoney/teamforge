@@ -7,6 +7,9 @@ import {
   Loader2,
   ChevronRight,
   Eye,
+  Download,
+  FileSpreadsheet,
+  FileJson,
 } from 'lucide-react'
 import type { Memory, MemoryType } from '@/lib/types'
 import { useAppStore } from '@/lib/store'
@@ -27,6 +30,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -43,6 +52,7 @@ import {
 } from '@/components/ui/collapsible'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { exportToCSV, exportToJSON } from '@/lib/export-utils'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -369,7 +379,54 @@ export function MemoryPanel() {
           </Badge>
         </div>
 
-        {/* Add Memory */}
+        {/* Export & Add Memory */}
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="size-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                const data = parsedMemories.map((m) => ({
+                  ID: m.id,
+                  Type: m.type,
+                  Category: m.category || '',
+                  Content: m.content,
+                  Importance: m.importance,
+                  'Access Count': m.accessCount,
+                  'Agent Name': m.agent?.name ?? '',
+                  'Created At': m.createdAt,
+                  'Updated At': m.updatedAt,
+                }))
+                exportToCSV(data, 'memories')
+              }}>
+                <FileSpreadsheet className="mr-2 size-4" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                const data = parsedMemories.map((m) => ({
+                  id: m.id,
+                  type: m.type,
+                  category: m.category,
+                  content: m.content,
+                  importance: m.importance,
+                  accessCount: m.accessCount,
+                  metadata: m.metadata,
+                  agent: m.agent?.name ?? null,
+                  createdAt: m.createdAt,
+                  updatedAt: m.updatedAt,
+                }))
+                exportToJSON(data, 'memories')
+              }}>
+                <FileJson className="mr-2 size-4" />
+                Export as JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm">
@@ -441,6 +498,7 @@ export function MemoryPanel() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Memory Type Tabs */}

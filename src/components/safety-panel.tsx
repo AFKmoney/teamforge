@@ -15,16 +15,26 @@ import {
   ChevronUp,
   ArrowRight,
   Activity,
+  Download,
+  FileSpreadsheet,
+  FileJson,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { exportToCSV, exportToJSON } from '@/lib/export-utils'
 import { useAppStore } from '@/lib/store'
 import type { SafetyEvent, ConstitutionalRule, Severity } from '@/lib/types'
 
@@ -292,13 +302,59 @@ export function SafetyPanel() {
             </p>
           </div>
         </div>
-        <Badge className={cn('gap-1', overallStatus.bg, overallStatus.color)}>
-          {(() => {
-            const Icon = overallStatus.icon
-            return <Icon className="h-3 w-3" />
-          })()}
-          {overallStatus.label}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="size-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                const data = events.map((e) => ({
+                  Type: e.type,
+                  Severity: e.severity,
+                  Description: e.description,
+                  Resolved: e.resolved ? 'Yes' : 'No',
+                  'Resolved By': e.resolvedBy ?? '',
+                  'Agent ID': e.agentId ?? '',
+                  'Created At': e.createdAt,
+                  'Updated At': e.updatedAt,
+                }))
+                exportToCSV(data, 'safety-events')
+              }}>
+                <FileSpreadsheet className="mr-2 size-4" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                const data = events.map((e) => ({
+                  id: e.id,
+                  type: e.type,
+                  severity: e.severity,
+                  description: e.description,
+                  resolved: e.resolved,
+                  resolvedBy: e.resolvedBy,
+                  metadata: e.metadata,
+                  agentId: e.agentId,
+                  createdAt: e.createdAt,
+                  updatedAt: e.updatedAt,
+                }))
+                exportToJSON(data, 'safety-events')
+              }}>
+                <FileJson className="mr-2 size-4" />
+                Export as JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Badge className={cn('gap-1', overallStatus.bg, overallStatus.color)}>
+            {(() => {
+              const Icon = overallStatus.icon
+              return <Icon className="h-3 w-3" />
+            })()}
+            {overallStatus.label}
+          </Badge>
+        </div>
       </div>
 
       {/* Safety Score Gauge + Quick Stats */}
