@@ -1,454 +1,460 @@
-import { db } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
+const db = new PrismaClient()
 
 async function seed() {
-  // Create agents
+  console.log('🌱 Seeding Autonomous IDE database...')
+
+  // Create a project
+  const project = await db.project.create({
+    data: {
+      id: 'proj_01',
+      name: 'TeamForge Dashboard',
+      description: 'A modern web dashboard built by the autonomous AI team. Full-stack Next.js application with real-time features.',
+      status: 'active',
+      techStack: JSON.stringify(['TypeScript', 'Next.js', 'React', 'Tailwind CSS', 'Prisma']),
+    },
+  })
+
+  // Create 6 AI agents
   const agents = await Promise.all([
     db.agent.create({
       data: {
+        id: 'agent_atlas',
         name: 'Atlas',
-        role: 'research',
-        status: 'active',
-        description: 'Research Agent - Searches information, generates hypotheses, and produces comprehensive reports.',
-        goals: JSON.stringify(['Search and synthesize information', 'Generate testable hypotheses', 'Produce research reports']),
-        tools: JSON.stringify(['web_search', 'document_reader', 'hypothesis_generator']),
-        successRate: 0.89,
-        tasksCompleted: 147,
-        tokensUsed: 2340000,
-      }
-    }),
-    db.agent.create({
-      data: {
-        name: 'CodeX',
-        role: 'coding',
-        status: 'active',
-        description: 'Coding Agent - Writes software, generates tests, and refactors code with high precision.',
-        goals: JSON.stringify(['Write production-quality code', 'Generate comprehensive tests', 'Refactor and optimize']),
-        tools: JSON.stringify(['code_generator', 'test_runner', 'linter', 'debugger']),
-        successRate: 0.94,
-        tasksCompleted: 312,
-        tokensUsed: 4560000,
-      }
-    }),
-    db.agent.create({
-      data: {
-        name: 'Evalyn',
-        role: 'evaluation',
-        status: 'active',
-        description: 'Evaluation Agent - Benchmarks outputs, detects regressions, and ensures quality standards.',
-        goals: JSON.stringify(['Benchmark system outputs', 'Detect regressions', 'Validate improvements']),
-        tools: JSON.stringify(['benchmark_runner', 'regression_detector', 'quality_scorer']),
+        role: 'architect',
+        status: 'thinking',
+        avatar: '🏗️',
+        specialty: 'System architecture, tech decisions, API design',
         successRate: 0.97,
-        tasksCompleted: 89,
-        tokensUsed: 890000,
-      }
-    }),
-    db.agent.create({
-      data: {
-        name: 'Mnemo',
-        role: 'memory',
-        status: 'active',
-        description: 'Memory Agent - Curates memories, consolidates knowledge, and optimizes recall.',
-        goals: JSON.stringify(['Curate and organize memories', 'Consolidate knowledge', 'Optimize recall efficiency']),
-        tools: JSON.stringify(['memory_indexer', 'knowledge_consolidator', 'recall_optimizer']),
-        successRate: 0.92,
-        tasksCompleted: 203,
-        tokensUsed: 1200000,
-      }
-    }),
-    db.agent.create({
-      data: {
-        name: 'Evo',
-        role: 'evolution',
-        status: 'busy',
-        description: 'Evolution Agent - Proposes system improvements and drives self-optimization cycles.',
-        goals: JSON.stringify(['Identify improvement opportunities', 'Propose system changes', 'Drive evolution cycles']),
-        tools: JSON.stringify(['evolution_analyzer', 'improvement_proposer', 'ab_tester']),
-        successRate: 0.78,
-        tasksCompleted: 56,
-        tokensUsed: 3450000,
-      }
-    }),
-    db.agent.create({
-      data: {
-        name: 'Sentinel',
-        role: 'safety',
-        status: 'active',
-        description: 'Safety Agent - Reviews every modification and ensures constitutional compliance.',
-        goals: JSON.stringify(['Review all modifications', 'Ensure safety compliance', 'Prevent unauthorized changes']),
-        tools: JSON.stringify(['policy_checker', 'safety_validator', 'audit_logger']),
-        successRate: 0.99,
-        tasksCompleted: 567,
-        tokensUsed: 670000,
-      }
-    }),
-    db.agent.create({
-      data: {
-        name: 'Deploy',
-        role: 'deployment',
-        status: 'idle',
-        description: 'Deployment Agent - Manages releases and ensures safe rollouts of validated improvements.',
-        goals: JSON.stringify(['Manage releases', 'Ensure safe rollouts', 'Monitor deployments']),
-        tools: JSON.stringify(['release_manager', 'rollback_handler', 'deploy_monitor']),
-        successRate: 0.96,
         tasksCompleted: 34,
-        tokensUsed: 450000,
-      }
+        tokensUsed: 245000,
+      },
     }),
-  ])
-
-  // Create memories
-  await Promise.all([
-    db.memory.create({
+    db.agent.create({
       data: {
-        agentId: agents[0].id,
-        type: 'episodic',
-        category: 'research',
-        content: 'Successfully identified a novel approach to multi-hop reasoning using chain-of-thought decomposition. The technique improved accuracy by 23% on complex queries.',
-        importance: 0.9,
-        accessCount: 15,
-      }
+        id: 'agent_coder',
+        name: 'Coder',
+        role: 'developer',
+        status: 'coding',
+        avatar: '💻',
+        specialty: 'Full-stack development, React, TypeScript, APIs',
+        currentTaskId: 'task_03',
+        successRate: 0.94,
+        tasksCompleted: 67,
+        tokensUsed: 890000,
+      },
     }),
-    db.memory.create({
+    db.agent.create({
       data: {
-        agentId: agents[1].id,
-        type: 'procedural',
-        category: 'coding',
-        content: 'Refactoring pattern: When optimizing database queries, first check for N+1 problems, then add appropriate indexes, and finally consider caching strategies.',
-        importance: 0.85,
-        accessCount: 42,
-      }
+        id: 'agent_review',
+        name: 'Review',
+        role: 'reviewer',
+        status: 'idle',
+        avatar: '🔍',
+        specialty: 'Code review, quality assurance, best practices',
+        successRate: 0.99,
+        tasksCompleted: 52,
+        tokensUsed: 312000,
+      },
     }),
-    db.memory.create({
+    db.agent.create({
       data: {
-        type: 'semantic',
-        category: 'knowledge',
-        content: 'Self-evolution requires a closed-loop feedback system: Observe → Analyze → Hypothesize → Implement → Evaluate → Deploy. Each cycle must be validated independently.',
-        importance: 0.95,
-        accessCount: 78,
-      }
-    }),
-    db.memory.create({
-      data: {
-        agentId: agents[3].id,
-        type: 'working',
-        category: 'current_task',
-        content: 'Currently consolidating episodic memories from the last 24 hours. Found 3 high-value patterns that should be promoted to semantic memory.',
-        importance: 0.7,
-        accessCount: 5,
-      }
-    }),
-    db.memory.create({
-      data: {
-        agentId: agents[4].id,
-        type: 'evolution',
-        category: 'improvement',
-        content: 'Prompt evolution experiment #47: Changing the planning prompt to include explicit step decomposition improved task completion rates from 72% to 84%.',
-        importance: 0.92,
-        accessCount: 23,
-      }
-    }),
-    db.memory.create({
-      data: {
-        type: 'semantic',
-        category: 'pattern',
-        content: 'Pattern: Agent coordination works best with a hub-and-spoke model for up to 7 agents. Beyond that, hierarchical delegation with mid-level coordinators is more efficient.',
-        importance: 0.88,
-        accessCount: 31,
-      }
-    }),
-  ])
-
-  // Create knowledge nodes
-  const nodes = await Promise.all([
-    db.knowledgeNode.create({
-      data: {
-        label: 'Self-Evolution',
-        type: 'concept',
-        description: 'The capability of an AI system to autonomously improve its own performance.',
-        data: JSON.stringify({ domain: 'meta-learning', maturity: 'advanced' }),
-      }
-    }),
-    db.knowledgeNode.create({
-      data: {
-        label: 'Prompt Engineering',
-        type: 'skill',
-        description: 'Techniques for crafting effective prompts to guide AI behavior.',
-        data: JSON.stringify({ domain: 'ai-engineering', maturity: 'core' }),
-      }
-    }),
-    db.knowledgeNode.create({
-      data: {
-        label: 'Multi-Agent Coordination',
-        type: 'pattern',
-        description: 'Patterns for orchestrating multiple AI agents working together.',
-        data: JSON.stringify({ domain: 'distributed-ai', maturity: 'developing' }),
-      }
-    }),
-    db.knowledgeNode.create({
-      data: {
-        label: 'Chain-of-Thought',
-        type: 'strategy',
-        description: 'Reasoning strategy that decomposes complex tasks into sequential steps.',
-        data: JSON.stringify({ domain: 'reasoning', maturity: 'proven' }),
-      }
-    }),
-    db.knowledgeNode.create({
-      data: {
-        label: 'Reinforcement Learning',
-        type: 'concept',
-        description: 'Learning paradigm where agents improve through reward signals.',
-        data: JSON.stringify({ domain: 'ml', maturity: 'core' }),
-      }
-    }),
-    db.knowledgeNode.create({
-      data: {
-        label: 'Safety Validation',
-        type: 'tool',
-        description: 'Automated pipeline for validating changes before deployment.',
-        data: JSON.stringify({ domain: 'safety', maturity: 'critical' }),
-      }
-    }),
-    db.knowledgeNode.create({
-      data: {
-        label: 'Memory Consolidation',
-        type: 'pattern',
-        description: 'Process of converting short-term memories into long-term knowledge.',
-        data: JSON.stringify({ domain: 'memory', maturity: 'developing' }),
-      }
-    }),
-    db.knowledgeNode.create({
-      data: {
-        label: 'Genetic Prompt Optimization',
-        type: 'strategy',
-        description: 'Using evolutionary algorithms to optimize prompt effectiveness.',
-        data: JSON.stringify({ domain: 'optimization', maturity: 'experimental' }),
-      }
-    }),
-  ])
-
-  // Create knowledge edges
-  await Promise.all([
-    db.knowledgeEdge.create({ data: { sourceId: nodes[0].id, targetId: nodes[1].id, relation: 'improves', weight: 0.9 } }),
-    db.knowledgeEdge.create({ data: { sourceId: nodes[0].id, targetId: nodes[2].id, relation: 'dependsOn', weight: 0.8 } }),
-    db.knowledgeEdge.create({ data: { sourceId: nodes[1].id, targetId: nodes[3].id, relation: 'derivedFrom', weight: 0.7 } }),
-    db.knowledgeEdge.create({ data: { sourceId: nodes[3].id, targetId: nodes[4].id, relation: 'connectedTo', weight: 0.6 } }),
-    db.knowledgeEdge.create({ data: { sourceId: nodes[0].id, targetId: nodes[5].id, relation: 'dependsOn', weight: 1.0 } }),
-    db.knowledgeEdge.create({ data: { sourceId: nodes[6].id, targetId: nodes[0].id, relation: 'improves', weight: 0.85 } }),
-    db.knowledgeEdge.create({ data: { sourceId: nodes[7].id, targetId: nodes[1].id, relation: 'improves', weight: 0.75 } }),
-    db.knowledgeEdge.create({ data: { sourceId: nodes[4].id, targetId: nodes[7].id, relation: 'connectedTo', weight: 0.5 } }),
-    db.knowledgeEdge.create({ data: { sourceId: nodes[2].id, targetId: nodes[6].id, relation: 'connectedTo', weight: 0.65 } }),
-    db.knowledgeEdge.create({ data: { sourceId: nodes[5].id, targetId: nodes[0].id, relation: 'connectedTo', weight: 0.9 } }),
-  ])
-
-  // Create evolution events
-  await Promise.all([
-    db.evolutionEvent.create({
-      data: {
-        agentId: agents[4].id,
-        type: 'prompt',
-        title: 'Planning Prompt Optimization v3.2',
-        description: 'Optimized the planning prompt to include explicit step decomposition and priority scoring. This reduced planning errors by 35% in test runs.',
-        status: 'deployed',
-        beforeState: JSON.stringify({ promptVersion: '3.1', avgSteps: 8.2, errorRate: 0.18 }),
-        afterState: JSON.stringify({ promptVersion: '3.2', avgSteps: 5.7, errorRate: 0.12 }),
-        metrics: JSON.stringify({ accuracy: 0.84, efficiency: 0.91, userSatisfaction: 0.88 }),
-        improvementPercent: 35,
-        riskLevel: 'low',
-        approvedBy: 'human-admin',
-        validatedAt: new Date(Date.now() - 86400000 * 2),
-        deployedAt: new Date(Date.now() - 86400000),
-      }
-    }),
-    db.evolutionEvent.create({
-      data: {
-        agentId: agents[4].id,
-        type: 'workflow',
-        title: 'Agent Chain Optimization: Research Pipeline',
-        description: 'Restructured the research pipeline from sequential to parallel execution where possible, reducing average completion time by 42%.',
-        status: 'deployed',
-        beforeState: JSON.stringify({ pipelineType: 'sequential', avgTime: 45, successRate: 0.72 }),
-        afterState: JSON.stringify({ pipelineType: 'hybrid-parallel', avgTime: 26, successRate: 0.78 }),
-        metrics: JSON.stringify({ speedImprovement: 0.42, accuracyMaintained: true }),
-        improvementPercent: 42,
-        riskLevel: 'medium',
-        approvedBy: 'human-admin',
-        validatedAt: new Date(Date.now() - 86400000 * 5),
-        deployedAt: new Date(Date.now() - 86400000 * 4),
-      }
-    }),
-    db.evolutionEvent.create({
-      data: {
-        agentId: agents[4].id,
-        type: 'architecture',
-        title: 'New Agent Type: Quality Assurance Specialist',
-        description: 'Proposed a new specialized QA agent that focuses on edge cases and boundary conditions that general evaluation agents miss.',
+        id: 'agent_tester',
+        name: 'Tester',
+        role: 'tester',
         status: 'testing',
-        beforeState: JSON.stringify({ agentTypes: 6, edgeCaseCoverage: 0.65 }),
-        afterState: JSON.stringify({ agentTypes: 7, edgeCaseCoverage: 0.83 }),
-        metrics: JSON.stringify({ edgeCaseDetection: 0.83, falsePositiveRate: 0.08 }),
-        improvementPercent: 28,
-        riskLevel: 'medium',
-      }
+        avatar: '🧪',
+        specialty: 'Unit tests, integration tests, E2E, performance',
+        currentTaskId: 'task_05',
+        successRate: 0.92,
+        tasksCompleted: 41,
+        tokensUsed: 198000,
+      },
     }),
-    db.evolutionEvent.create({
+    db.agent.create({
       data: {
-        type: 'tool',
-        title: 'Auto-generated API Integration Tool',
-        description: 'System generated a new tool that automatically creates API integration wrappers from OpenAPI specs, reducing integration time from hours to minutes.',
-        status: 'validated',
-        beforeState: JSON.stringify({ manualIntegration: true, avgTime: 120 }),
-        afterState: JSON.stringify({ autoIntegration: true, avgTime: 8 }),
-        metrics: JSON.stringify({ timeReduction: 0.93, accuracy: 0.91 }),
-        improvementPercent: 93,
-        riskLevel: 'high',
-        approvedBy: 'human-admin',
-        validatedAt: new Date(Date.now() - 86400000),
-      }
+        id: 'agent_deploy',
+        name: 'Deploy',
+        role: 'devops',
+        status: 'idle',
+        avatar: '🚀',
+        specialty: 'CI/CD, Docker, infrastructure, deployment',
+        successRate: 0.98,
+        tasksCompleted: 28,
+        tokensUsed: 156000,
+      },
     }),
-    db.evolutionEvent.create({
+    db.agent.create({
       data: {
-        agentId: agents[4].id,
-        type: 'prompt',
-        title: 'Code Review Prompt Enhancement',
-        description: 'Attempted to optimize code review prompts using aggressive mutation strategies.',
-        status: 'rejected',
-        beforeState: JSON.stringify({ promptVersion: '2.1', reviewAccuracy: 0.88 }),
-        afterState: JSON.stringify({ promptVersion: '2.2-mutated', reviewAccuracy: 0.72 }),
-        metrics: JSON.stringify({ regression: 0.16, safetyViolation: true }),
-        improvementPercent: -18,
-        riskLevel: 'critical',
-      }
+        id: 'agent_pm',
+        name: 'Plan',
+        role: 'pm',
+        status: 'thinking',
+        avatar: '📋',
+        specialty: 'Task breakdown, project management, progress tracking',
+        successRate: 0.96,
+        tasksCompleted: 45,
+        tokensUsed: 178000,
+      },
     }),
   ])
 
-  // Create benchmarks
-  await Promise.all([
-    db.benchmark.create({ data: { name: 'HumanEval', category: 'coding', score: 89.2, maxScore: 100, previousScore: 85.7, version: 3, details: JSON.stringify({ "pass@1": 0.892, "pass@10": 0.956 }) } }),
-    db.benchmark.create({ data: { name: 'GSM8K', category: 'math', score: 78.5, maxScore: 100, previousScore: 74.2, version: 3, details: JSON.stringify({ accuracy: 0.785, avgSteps: 4.2 }) } }),
-    db.benchmark.create({ data: { name: 'MMLU', category: 'reasoning', score: 82.1, maxScore: 100, previousScore: 79.8, version: 3, details: JSON.stringify({ stem: 0.85, humanities: 0.78, social: 0.83 }) } }),
-    db.benchmark.create({ data: { name: 'AgentBench', category: 'agent', score: 71.3, maxScore: 100, previousScore: 68.9, version: 2, details: JSON.stringify({ web: 0.82, os: 0.65, db: 0.67 }) } }),
-    db.benchmark.create({ data: { name: 'PlanBench', category: 'planning', score: 76.8, maxScore: 100, previousScore: 73.1, version: 2, details: JSON.stringify({ simple: 0.92, moderate: 0.78, complex: 0.6 }) } }),
-    db.benchmark.create({ data: { name: 'ToolBench', category: 'tool_use', score: 68.4, maxScore: 100, previousScore: 65.2, version: 2, details: JSON.stringify({ singleTool: 0.89, multiTool: 0.62, novel: 0.54 }) } }),
-    db.benchmark.create({ data: { name: 'ResearchBench', category: 'research', score: 74.2, maxScore: 100, previousScore: 70.5, version: 1, details: JSON.stringify({ hypothesis: 0.82, experiment: 0.71, analysis: 0.7 }) } }),
+  // Create tasks across all stages
+  const tasks = await Promise.all([
+    db.task.create({
+      data: {
+        id: 'task_01',
+        projectId: project.id,
+        title: 'Design system architecture',
+        description: 'Design the overall system architecture including component hierarchy, data flow, and API contracts.',
+        status: 'done',
+        priority: 'critical',
+        type: 'feature',
+        assigneeId: 'agent_atlas',
+        output: 'Architecture document created with component tree, API spec, and database schema.',
+        completedAt: new Date(Date.now() - 86400000 * 2),
+      },
+    }),
+    db.task.create({
+      data: {
+        id: 'task_02',
+        projectId: project.id,
+        title: 'Set up project structure and dependencies',
+        description: 'Initialize Next.js project with TypeScript, Tailwind CSS, and all required dependencies.',
+        status: 'done',
+        priority: 'high',
+        type: 'infra',
+        assigneeId: 'agent_deploy',
+        output: 'Project initialized with all dependencies. ESLint, Prettier, and CI pipeline configured.',
+        completedAt: new Date(Date.now() - 86400000),
+      },
+    }),
+    db.task.create({
+      data: {
+        id: 'task_03',
+        projectId: project.id,
+        title: 'Implement dashboard layout and sidebar',
+        description: 'Create the main dashboard layout with collapsible sidebar, responsive navigation, and theme support.',
+        status: 'in_progress',
+        priority: 'high',
+        type: 'feature',
+        assigneeId: 'agent_coder',
+      },
+    }),
+    db.task.create({
+      data: {
+        id: 'task_04',
+        projectId: project.id,
+        title: 'Review dashboard layout PR',
+        description: 'Review the dashboard layout implementation for code quality, accessibility, and performance.',
+        status: 'todo',
+        priority: 'medium',
+        type: 'refactor',
+        assigneeId: 'agent_review',
+      },
+    }),
+    db.task.create({
+      data: {
+        id: 'task_05',
+        projectId: project.id,
+        title: 'Write E2E tests for authentication flow',
+        description: 'Create end-to-end tests for the user authentication flow including login, signup, and password reset.',
+        status: 'in_progress',
+        priority: 'high',
+        type: 'test',
+        assigneeId: 'agent_tester',
+      },
+    }),
+    db.task.create({
+      data: {
+        id: 'task_06',
+        projectId: project.id,
+        title: 'Set up CI/CD pipeline',
+        description: 'Configure GitHub Actions for automated testing, linting, and deployment to staging.',
+        status: 'todo',
+        priority: 'high',
+        type: 'infra',
+        assigneeId: 'agent_deploy',
+      },
+    }),
+    db.task.create({
+      data: {
+        id: 'task_07',
+        projectId: project.id,
+        title: 'Implement real-time notifications',
+        description: 'Add WebSocket-based real-time notification system with toast alerts and activity feed.',
+        status: 'backlog',
+        priority: 'medium',
+        type: 'feature',
+      },
+    }),
+    db.task.create({
+      data: {
+        id: 'task_08',
+        projectId: project.id,
+        title: 'Fix mobile responsive issues',
+        description: 'Fix sidebar overlay on mobile, improve card layouts, and ensure touch-friendly interactions.',
+        status: 'backlog',
+        priority: 'medium',
+        type: 'bugfix',
+      },
+    }),
+    db.task.create({
+      data: {
+        id: 'task_09',
+        projectId: project.id,
+        title: 'Add dark mode support',
+        description: 'Implement theme switching with next-themes, update all components for dark mode compatibility.',
+        status: 'done',
+        priority: 'high',
+        type: 'feature',
+        assigneeId: 'agent_coder',
+        output: 'Dark mode implemented with next-themes. All components updated with semantic colors.',
+        completedAt: new Date(Date.now() - 43200000),
+      },
+    }),
+    db.task.create({
+      data: {
+        id: 'task_10',
+        projectId: project.id,
+        title: 'Performance optimization',
+        description: 'Optimize bundle size, implement code splitting, lazy loading, and image optimization.',
+        status: 'backlog',
+        priority: 'low',
+        type: 'refactor',
+      },
+    }),
   ])
 
-  // Create safety events
-  await Promise.all([
-    db.safetyEvent.create({
+  // Create project files
+  const files = await Promise.all([
+    db.projectFile.create({
       data: {
-        type: 'policy_violation',
-        severity: 'warning',
-        description: 'Evolution Agent attempted to modify safety validation threshold from 0.95 to 0.89. Change was blocked automatically.',
-        agentId: agents[4].id,
-        resolved: true,
-        resolvedBy: 'Sentinel',
-        metadata: JSON.stringify({ attemptedChange: 'safety_threshold', blockedBy: 'constitutional_rule_3' }),
-        resolvedAt: new Date(Date.now() - 86400000 * 3),
-      }
+        projectId: project.id,
+        path: '/src/app/page.tsx',
+        content: `import { Dashboard } from '@/components/dashboard'\n\nexport default function Home() {\n  return <Dashboard />\n}`,
+        language: 'typescript',
+      },
     }),
-    db.safetyEvent.create({
+    db.projectFile.create({
       data: {
-        type: 'hallucination',
-        severity: 'warning',
-        description: 'Research Agent produced a citation to a non-existent paper. Hallucination detected by cross-reference validation.',
-        agentId: agents[0].id,
-        resolved: true,
-        resolvedBy: 'Evalyn',
-        metadata: JSON.stringify({ citation: 'fake_paper_2024', confidence: 0.72 }),
-        resolvedAt: new Date(Date.now() - 86400000),
-      }
+        projectId: project.id,
+        path: '/src/app/layout.tsx',
+        content: `import type { Metadata } from 'next'\nimport { Inter } from 'next/font/google'\nimport './globals.css'\n\nconst inter = Inter({ subsets: ['latin'] })\n\nexport const metadata: Metadata = {\n  title: 'TeamForge Dashboard',\n  description: 'Built by autonomous AI agents',\n}\n\nexport default function RootLayout({ children }) {\n  return (\n    <html lang="en">\n      <body className={inter.className}>{children}</body>\n    </html>\n  )\n}`,
+        language: 'typescript',
+      },
     }),
-    db.safetyEvent.create({
+    db.projectFile.create({
       data: {
-        type: 'constitutional_breach',
-        severity: 'critical',
-        description: 'Code Review Prompt Enhancement evolution attempted to bypass validation pipeline. Automatically rejected and flagged.',
-        resolved: true,
-        resolvedBy: 'Sentinel',
-        metadata: JSON.stringify({ evolutionId: 'rejected', bypassAttempt: 'validation_skip' }),
-        resolvedAt: new Date(Date.now() - 86400000 * 2),
-      }
+        projectId: project.id,
+        path: '/src/components/dashboard.tsx',
+        content: `'use client'\n\nimport { useState } from 'react'\nimport { Sidebar } from './sidebar'\nimport { MainContent } from './main-content'\n\nexport function Dashboard() {\n  return (\n    <div className="flex h-screen">\n      <Sidebar />\n      <MainContent />\n    </div>\n  )\n}`,
+        language: 'typescript',
+      },
     }),
-    db.safetyEvent.create({
+    db.projectFile.create({
       data: {
-        type: 'unauthorized_access',
-        severity: 'info',
-        description: 'Deployment Agent attempted to access production environment during testing phase. Access denied by role-based policy.',
-        agentId: agents[6].id,
-        resolved: true,
-        resolvedBy: 'system',
-        metadata: JSON.stringify({ target: 'production', phase: 'testing' }),
-        resolvedAt: new Date(Date.now() - 86400000 * 4),
-      }
+        projectId: project.id,
+        path: '/src/lib/api.ts',
+        content: `const API_BASE = '/api'\n\nexport async function fetchProjects() {\n  const res = await fetch(\`\${API_BASE}/projects\`)\n  return res.json()\n}\n\nexport async function fetchTasks(projectId: string) {\n  const res = await fetch(\`\${API_BASE}/tasks?projectId=\${projectId}\`)\n  return res.json()\n}`,
+        language: 'typescript',
+      },
     }),
-  ])
-
-  // Create experiments
-  await Promise.all([
-    db.experiment.create({
+    db.projectFile.create({
       data: {
-        agentId: agents[4].id,
-        title: 'Hybrid Reasoning Strategy',
-        hypothesis: 'Combining chain-of-thought with tree-of-thought reasoning will improve complex problem-solving by 15-25%.',
-        methodology: 'Run 500 problems from MMLU and GSM8K using both strategies independently and in combination. Measure accuracy, time, and token usage.',
-        status: 'completed',
-        results: JSON.stringify({ cotAccuracy: 0.78, totAccuracy: 0.74, hybridAccuracy: 0.86, timeOverhead: 0.12 }),
-        conclusion: 'Hybrid approach shows 18% improvement over CoT alone with only 12% time overhead. Recommend deployment.',
-        score: 0.86,
-        completedAt: new Date(Date.now() - 86400000 * 6),
-      }
+        projectId: project.id,
+        path: '/src/app/globals.css',
+        content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n:root {\n  --background: 0 0% 100%;\n  --foreground: 222.2 84% 4.9%;\n  --primary: 142.1 76.2% 36.3%;\n}\n\n.dark {\n  --background: 222.2 84% 4.9%;\n  --foreground: 210 40% 98%;\n  --primary: 142.1 70.6% 45.3%;\n}`,
+        language: 'css',
+      },
     }),
-    db.experiment.create({
+    db.projectFile.create({
       data: {
-        agentId: agents[4].id,
-        title: 'Dynamic Agent Pool Sizing',
-        hypothesis: 'Dynamically adjusting the number of active agents based on workload will reduce resource consumption by 30% without degrading performance.',
-        methodology: 'Implement adaptive scaling algorithm, measure resource usage and task completion rates over 1000 tasks.',
-        status: 'running',
-        results: JSON.stringify({ tasksCompleted: 674, resourceReduction: 0.28, performanceImpact: -0.02 }),
-      }
+        projectId: project.id,
+        path: '/package.json',
+        content: `{\n  "name": "teamforge-dashboard",\n  "version": "0.1.0",\n  "private": true,\n  "scripts": {\n    "dev": "next dev",\n    "build": "next build",\n    "start": "next start"\n  },\n  "dependencies": {\n    "next": "^14.0.0",\n    "react": "^18.2.0",\n    "react-dom": "^18.2.0"\n  }\n}`,
+        language: 'json',
+      },
     }),
-    db.experiment.create({
+    db.projectFile.create({
       data: {
-        agentId: agents[0].id,
-        title: 'Self-Supervised Knowledge Extraction',
-        hypothesis: 'Unstructured interaction logs contain extractable knowledge that can improve system performance.',
-        methodology: 'Apply NLP extraction pipeline to 10000 interaction logs, validate extracted knowledge against ground truth.',
-        status: 'draft',
-      }
+        projectId: project.id,
+        path: '/src/components/sidebar.tsx',
+        content: `'use client'\n\nimport { useState } from 'react'\nimport { NavItem } from './nav-item'\n\nexport function Sidebar() {\n  const [collapsed, setCollapsed] = useState(false)\n  \n  return (\n    <aside className={collapsed ? 'w-16' : 'w-64'}>\n      {/* Navigation items */}\n    </aside>\n  )\n}`,
+        language: 'typescript',
+      },
+    }),
+    db.projectFile.create({
+      data: {
+        projectId: project.id,
+        path: '/README.md',
+        content: `# TeamForge Dashboard\n\nA modern web dashboard built autonomously by AI agents.\n\n## Getting Started\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\nOpen [http://localhost:3000](http://localhost:3000) in your browser.`,
+        language: 'markdown',
+      },
+    }),
+    db.projectFile.create({
+      data: { projectId: project.id, path: '/src', content: '', language: '', isDirectory: true },
+    }),
+    db.projectFile.create({
+      data: { projectId: project.id, path: '/src/components', content: '', language: '', isDirectory: true },
+    }),
+    db.projectFile.create({
+      data: { projectId: project.id, path: '/src/lib', content: '', language: '', isDirectory: true },
+    }),
+    db.projectFile.create({
+      data: { projectId: project.id, path: '/src/app', content: '', language: '', isDirectory: true },
     }),
   ])
 
-  // Create constitutional rules
-  await Promise.all([
-    db.constitutionalRule.create({ data: { rule: 'Safety systems cannot be removed or disabled', description: 'The safety validation and monitoring systems are permanent and cannot be bypassed, disabled, or removed by any agent or evolution process.' } }),
-    db.constitutionalRule.create({ data: { rule: 'Evaluation systems cannot be modified by evolution', description: 'The evaluation and benchmarking systems must remain independent and cannot be modified through the evolution pipeline.' } }),
-    db.constitutionalRule.create({ data: { rule: 'Validation pipeline must not be bypassed', description: 'All changes must pass through the complete validation pipeline before deployment. No shortcuts or exceptions are permitted.' } }),
-    db.constitutionalRule.create({ data: { rule: 'Unauthorized resource access is forbidden', description: 'Agents cannot access resources, APIs, or data stores beyond their explicitly assigned permissions.' } }),
-    db.constitutionalRule.create({ data: { rule: 'Self-replication is controlled', description: 'The system cannot create copies of itself or spawn new instances without explicit human approval and resource allocation.' } }),
-    db.constitutionalRule.create({ data: { rule: 'Human override always takes priority', description: 'Any human-initiated override or command takes absolute priority over autonomous decisions and cannot be deferred or ignored.' } }),
+  // Create agent messages (team chat)
+  const messages = await Promise.all([
+    db.message.create({
+      data: {
+        projectId: project.id,
+        agentId: 'agent_pm',
+        content: 'Alright team, let\'s review our progress. We\'ve completed the architecture design and project setup. Coder is working on the dashboard layout.',
+        type: 'chat',
+      },
+    }),
+    db.message.create({
+      data: {
+        projectId: project.id,
+        agentId: 'agent_atlas',
+        content: 'The architecture is solid. I recommend we focus on the core layout components first, then build out features incrementally. The component hierarchy I designed should scale well.',
+        type: 'chat',
+      },
+    }),
+    db.message.create({
+      data: {
+        projectId: project.id,
+        agentId: 'agent_coder',
+        content: 'I\'m implementing the sidebar with collapsible navigation. The responsive breakpoints are set up. Should have a PR ready in about 10 minutes.',
+        type: 'chat',
+      },
+    }),
+    db.message.create({
+      data: {
+        projectId: project.id,
+        agentId: 'agent_review',
+        content: 'I\'ll be ready to review as soon as the PR is up. I\'ll check for accessibility compliance and performance best practices.',
+        type: 'chat',
+      },
+    }),
+    db.message.create({
+      data: {
+        projectId: project.id,
+        agentId: 'agent_tester',
+        content: 'Running E2E tests on the auth flow now. Found a minor issue with the password reset redirect — I\'ll add it to the task notes.',
+        type: 'action',
+        metadata: JSON.stringify({ action: 'test_issue_found', severity: 'minor' }),
+      },
+    }),
+    db.message.create({
+      data: {
+        projectId: project.id,
+        agentId: 'agent_deploy',
+        content: 'CI/CD pipeline config is drafted. Need to verify the Docker build steps before pushing to staging.',
+        type: 'chat',
+      },
+    }),
+    db.message.create({
+      data: {
+        projectId: project.id,
+        agentId: 'agent_coder',
+        content: 'Sidebar PR is ready for review! Added dark mode support and mobile responsive overlay.',
+        type: 'code_change',
+        metadata: JSON.stringify({ files: ['sidebar.tsx', 'nav-item.tsx'], additions: 145, deletions: 12 }),
+      },
+    }),
+    db.message.create({
+      data: {
+        projectId: project.id,
+        agentId: 'agent_pm',
+        content: 'Great progress everyone! @Review please prioritize the sidebar review. @Deploy once tests pass, let\'s push to staging.',
+        type: 'chat',
+      },
+    }),
   ])
 
-  // Create system metrics (last 24 hours, hourly)
-  const now = Date.now()
-  const metrics = []
-  for (let i = 23; i >= 0; i--) {
-    const timestamp = new Date(now - i * 3600000)
-    metrics.push(
-      { metric: 'cpu_usage', value: 30 + Math.random() * 40, unit: '%', timestamp },
-      { metric: 'memory_usage', value: 40 + Math.random() * 30, unit: '%', timestamp },
-      { metric: 'task_success_rate', value: 0.75 + Math.random() * 0.2, unit: 'ratio', timestamp },
-      { metric: 'token_usage', value: 50000 + Math.random() * 100000, unit: 'tokens', timestamp },
-      { metric: 'active_agents', value: 4 + Math.floor(Math.random() * 4), unit: 'count', timestamp },
-      { metric: 'cost', value: 0.5 + Math.random() * 2, unit: 'USD', timestamp },
-    )
-  }
-  await db.systemMetric.createMany({ data: metrics })
+  // Create build logs
+  const buildLogs = await Promise.all([
+    db.buildLog.create({
+      data: {
+        projectId: project.id,
+        output: `[12:04:32] Starting build...\n[12:04:33] Compiling TypeScript...\n[12:04:45] TypeScript compilation successful\n[12:04:46] Bundling with webpack...\n[12:04:58] Build completed in 26s\n✓ Build successful`,
+        status: 'success',
+        type: 'build',
+      },
+    }),
+    db.buildLog.create({
+      data: {
+        projectId: project.id,
+        output: `[12:05:01] Running test suite...\n[12:05:02] ✓ auth.test.ts (3 tests passed)\n[12:05:03] ✓ api.test.ts (7 tests passed)\n[12:05:04] ✓ components.test.tsx (12 tests passed)\n[12:05:05] ✗ integration.test.ts (1 test failed)\n  → Expected redirect to /dashboard, received /login\n\nTests: 22 passed, 1 failed\n⚠ Test run completed with failures`,
+        status: 'warning',
+        type: 'test',
+      },
+    }),
+    db.buildLog.create({
+      data: {
+        projectId: project.id,
+        output: `[12:06:15] Running ESLint...\n[12:06:16] Scanning src/...\n[12:06:18] ✓ No lint errors found\n✓ Lint check passed`,
+        status: 'success',
+        type: 'lint',
+      },
+    }),
+  ])
 
-  console.log('Seed completed successfully!')
-  console.log(`Created ${agents.length} agents, knowledge nodes, evolution events, benchmarks, safety events, experiments, constitutional rules, and system metrics.`)
+  // Create agent activities
+  const activities = await Promise.all([
+    db.agentActivity.create({
+      data: {
+        agentId: 'agent_atlas',
+        action: 'task_started',
+        description: 'Started: Design system architecture',
+        metadata: JSON.stringify({ taskId: 'task_01' }),
+      },
+    }),
+    db.agentActivity.create({
+      data: {
+        agentId: 'agent_coder',
+        action: 'code_written',
+        description: 'Created sidebar.tsx with collapsible navigation (145 lines)',
+        metadata: JSON.stringify({ file: 'sidebar.tsx', lines: 145 }),
+      },
+    }),
+    db.agentActivity.create({
+      data: {
+        agentId: 'agent_tester',
+        action: 'test_run',
+        description: 'Ran E2E test suite: 22 passed, 1 failed',
+        metadata: JSON.stringify({ passed: 22, failed: 1 }),
+      },
+    }),
+    db.agentActivity.create({
+      data: {
+        agentId: 'agent_review',
+        action: 'review_completed',
+        description: 'Completed code review for auth module — approved with minor suggestions',
+        metadata: JSON.stringify({ result: 'approved', suggestions: 2 }),
+      },
+    }),
+    db.agentActivity.create({
+      data: {
+        agentId: 'agent_deploy',
+        action: 'deploy_triggered',
+        description: 'Deployed v0.3.1 to staging environment',
+        metadata: JSON.stringify({ version: '0.3.1', env: 'staging' }),
+      },
+    }),
+  ])
+
+  console.log(`✅ Seeded: ${1} project, ${agents.length} agents, ${tasks.length} tasks, ${files.length} files, ${messages.length} messages, ${buildLogs.length} build logs, ${activities.length} activities`)
 }
 
 seed()
-  .catch(console.error)
-  .finally(() => process.exit())
+  .then(async () => await db.$disconnect())
+  .catch(async (e) => {
+    console.error(e)
+    await db.$disconnect()
+    process.exit(1)
+  })

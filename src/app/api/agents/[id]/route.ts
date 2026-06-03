@@ -1,8 +1,8 @@
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { NextResponse } from 'next/server'
 
 export async function GET(
-  _request: Request,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -10,9 +10,14 @@ export async function GET(
     const agent = await db.agent.findUnique({
       where: { id },
       include: {
-        memories: { orderBy: { createdAt: 'desc' } },
-        events: { orderBy: { createdAt: 'desc' } },
-        experiments: { orderBy: { createdAt: 'desc' } },
+        activities: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
       },
     })
 
@@ -22,64 +27,55 @@ export async function GET(
 
     return NextResponse.json(agent)
   } catch (error) {
-    console.error('Agent GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch agent' },
-      { status: 500 }
-    )
+    console.error('Failed to fetch agent:', error)
+    return NextResponse.json({ error: 'Failed to fetch agent' }, { status: 500 })
   }
 }
 
 export async function PATCH(
-  request: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
-    const body = await request.json()
+    const body = await req.json()
 
-    // Check if agent exists
     const existing = await db.agent.findUnique({ where: { id } })
     if (!existing) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
     }
 
-    // Build update data
-    const updateData: Record<string, unknown> = {}
-    if (body.status !== undefined) updateData.status = body.status
-    if (body.name !== undefined) updateData.name = body.name
-    if (body.role !== undefined) updateData.role = body.role
-    if (body.description !== undefined) updateData.description = body.description
-    if (body.goals !== undefined) updateData.goals = JSON.stringify(body.goals)
-    if (body.tools !== undefined) updateData.tools = JSON.stringify(body.tools)
-    if (body.config !== undefined) updateData.config = JSON.stringify(body.config)
-    if (body.successRate !== undefined) updateData.successRate = body.successRate
-    if (body.tasksCompleted !== undefined) updateData.tasksCompleted = body.tasksCompleted
-    if (body.tokensUsed !== undefined) updateData.tokensUsed = body.tokensUsed
+    const data: Record<string, unknown> = {}
+    if (body.name !== undefined) data.name = body.name
+    if (body.role !== undefined) data.role = body.role
+    if (body.status !== undefined) data.status = body.status
+    if (body.avatar !== undefined) data.avatar = body.avatar
+    if (body.specialty !== undefined) data.specialty = body.specialty
+    if (body.currentTaskId !== undefined) data.currentTaskId = body.currentTaskId
+    if (body.tokensUsed !== undefined) data.tokensUsed = body.tokensUsed
+    if (body.tasksCompleted !== undefined) data.tasksCompleted = body.tasksCompleted
+    if (body.successRate !== undefined) data.successRate = body.successRate
+    if (body.lastActive !== undefined) data.lastActive = new Date(body.lastActive)
 
     const agent = await db.agent.update({
       where: { id },
-      data: updateData,
+      data,
     })
 
     return NextResponse.json(agent)
   } catch (error) {
-    console.error('Agent PATCH error:', error)
-    return NextResponse.json(
-      { error: 'Failed to update agent' },
-      { status: 500 }
-    )
+    console.error('Failed to update agent:', error)
+    return NextResponse.json({ error: 'Failed to update agent' }, { status: 500 })
   }
 }
 
 export async function DELETE(
-  _request: Request,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
 
-    // Check if agent exists
     const existing = await db.agent.findUnique({ where: { id } })
     if (!existing) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
@@ -87,12 +83,9 @@ export async function DELETE(
 
     await db.agent.delete({ where: { id } })
 
-    return NextResponse.json({ message: 'Agent deleted successfully' })
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Agent DELETE error:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete agent' },
-      { status: 500 }
-    )
+    console.error('Failed to delete agent:', error)
+    return NextResponse.json({ error: 'Failed to delete agent' }, { status: 500 })
   }
 }

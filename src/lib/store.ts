@@ -1,409 +1,195 @@
-// ============================================================================
-// Self-Evolving AI System — Zustand Store
-// ============================================================================
-
 import { create } from 'zustand'
-import type {
-  Agent,
-  Benchmark,
-  ChatConversation,
-  ChatMessage,
-  DashboardData,
-  EvolutionEvent,
-  Experiment,
-  KnowledgeEdge,
-  KnowledgeNode,
-  Memory,
-  SafetyEvent,
-  SystemLog,
-  SystemMetric,
-  SystemSettings,
-  Notification,
-  RecentPage,
-  Page,
-} from '@/lib/types'
-
-// Re-export Page for convenience
-export type { Page }
-
-// ---------------------------------------------------------------------------
-// Store interface
-// ---------------------------------------------------------------------------
+import type { Agent, Task, Message, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project } from '@/lib/types'
 
 interface AppState {
-  // Navigation
-  currentPage: Page
-  sidebarOpen: boolean
-  sidebarCollapsed: boolean
-
-  // Onboarding Tour
-  tourActive: boolean
-  tourStep: number
-  tourCompleted: boolean
+  // Current project
+  currentProject: Project | null
+  setCurrentProject: (project: Project | null) => void
 
   // Data
-  dashboardData: DashboardData | null
   agents: Agent[]
-  evolutionEvents: EvolutionEvent[]
-  memories: Memory[]
-  knowledgeNodes: KnowledgeNode[]
-  knowledgeEdges: KnowledgeEdge[]
-  benchmarks: Benchmark[]
-  safetyEvents: SafetyEvent[]
-  experiments: Experiment[]
-  metrics: SystemMetric[]
-  systemLogs: SystemLog[]
-  chatMessages: ChatMessage[]
-  chatConversations: ChatConversation[]
-  currentConversationId: string | null
-  settings: SystemSettings
-  notifications: Notification[]
-  unreadNotificationCount: number
+  tasks: Task[]
+  messages: Message[]
+  files: ProjectFile[]
+  buildLogs: BuildLog[]
+  activities: AgentActivity[]
 
-  // Command Palette
-  commandPaletteOpen: boolean
-
-  // Realtime
-  realtimeConnected: boolean
-
-  // Simulation
-  simulationEnabled: boolean
-  simulationSpeed: number
-  lastSimulationUpdate: Date | null
-
-  // Recent pages history
-  recentPages: RecentPage[]
-
-  // Loading state
-  isLoading: boolean
-
-  // Actions — Navigation
-  setCurrentPage: (page: Page) => void
-  setSidebarOpen: (open: boolean) => void
+  // IDE state
+  activePanel: IDEPanel
+  setActivePanel: (panel: IDEPanel) => void
+  activeBottomTab: IDEBottomTab
+  setActiveBottomTab: (tab: IDEBottomTab) => void
+  activeFileId: string | null
+  setActiveFileId: (id: string | null) => void
+  bottomPanelOpen: boolean
+  setBottomPanelOpen: (open: boolean) => void
+  sidebarCollapsed: boolean
   setSidebarCollapsed: (collapsed: boolean) => void
-  clearRecentPages: () => void
+  rightPanelOpen: boolean
+  setRightPanelOpen: (open: boolean) => void
+  terminalMinimized: boolean
+  setTerminalMinimized: (min: boolean) => void
 
-  // Actions — Data setters
-  setDashboardData: (data: DashboardData) => void
+  // Loading
+  loading: boolean
+  setLoading: (loading: boolean) => void
+
+  // Setters
   setAgents: (agents: Agent[]) => void
-  setEvolutionEvents: (events: EvolutionEvent[]) => void
-  setMemories: (memories: Memory[]) => void
-  setKnowledgeNodes: (nodes: KnowledgeNode[]) => void
-  setKnowledgeEdges: (edges: KnowledgeEdge[]) => void
-  setBenchmarks: (benchmarks: Benchmark[]) => void
-  setSafetyEvents: (events: SafetyEvent[]) => void
-  setExperiments: (experiments: Experiment[]) => void
-  setMetrics: (metrics: SystemMetric[]) => void
-  setSystemLogs: (logs: SystemLog[]) => void
-  setSettings: (settings: SystemSettings) => void
+  setTasks: (tasks: Task[]) => void
+  setMessages: (messages: Message[]) => void
+  setFiles: (files: ProjectFile[]) => void
+  setBuildLogs: (logs: BuildLog[]) => void
+  setActivities: (activities: AgentActivity[]) => void
 
-  // Actions — Chat
-  addChatMessage: (message: ChatMessage) => void
-  setChatMessages: (messages: ChatMessage[]) => void
-  setChatConversations: (conversations: ChatConversation[]) => void
-  setCurrentConversationId: (id: string | null) => void
-  createNewConversation: () => void
-  switchConversation: (id: string) => void
-  deleteConversation: (id: string) => void
-  updateMessageReaction: (messageId: string, reaction: 'thumbs-up' | 'thumbs-down' | null) => void
-  clearChatHistory: () => void
+  // Add message
+  addMessage: (message: Message) => void
+  addBuildLog: (log: BuildLog) => void
+  addActivity: (activity: AgentActivity) => void
+  updateAgent: (id: string, updates: Partial<Agent>) => void
+  updateTask: (id: string, updates: Partial<Task>) => void
 
-  // Actions — Notifications
-  addNotification: (notification: Notification) => void
-  markNotificationRead: (id: string) => void
-  markAllNotificationsRead: () => void
-  clearNotifications: () => void
-
-  // Actions — Command Palette
-  setCommandPaletteOpen: (open: boolean) => void
-  toggleCommandPalette: () => void
-
-  // Actions — Realtime
-  setRealtimeConnected: (connected: boolean) => void
-
-  // Actions — Simulation
-  toggleSimulation: () => void
-  setSimulationSpeed: (speed: number) => void
-  setLastSimulationUpdate: (date: Date) => void
-
-  // Actions — Loading
-  setIsLoading: (loading: boolean) => void
-
-  // Actions — Tour
-  startTour: () => void
-  nextTourStep: () => void
-  prevTourStep: () => void
-  endTour: () => void
-  completeTour: () => void
+  // Fetch helpers
+  fetchAgents: () => Promise<void>
+  fetchTasks: () => Promise<void>
+  fetchMessages: () => Promise<void>
+  fetchFiles: () => Promise<void>
+  fetchBuildLogs: () => Promise<void>
+  fetchActivities: () => Promise<void>
+  fetchAll: (projectId?: string) => Promise<void>
 }
 
-// ---------------------------------------------------------------------------
-// Store implementation
-// ---------------------------------------------------------------------------
+export const useAppStore = create<AppState>((set, get) => ({
+  // Current project
+  currentProject: null,
+  setCurrentProject: (project) => set({ currentProject: project }),
 
-export const useAppStore = create<AppState>((set) => ({
-  // Navigation defaults
-  currentPage: 'dashboard',
-  sidebarOpen: true,
-  sidebarCollapsed: false,
-
-  // Data defaults
-  dashboardData: null,
+  // Data
   agents: [],
-  evolutionEvents: [],
-  memories: [],
-  knowledgeNodes: [],
-  knowledgeEdges: [],
-  benchmarks: [],
-  safetyEvents: [],
-  experiments: [],
-  metrics: [],
-  systemLogs: [],
-  chatMessages: [],
-  chatConversations: [],
-  currentConversationId: null,
-  settings: {
-    autoEvolution: true,
-    maxConcurrentAgents: 10,
-    safetyStrictMode: true,
-    evolutionIntervalMinutes: 30,
-    memoryRetentionDays: 90,
-    maxRiskLevel: 'medium',
-    enableResearchLab: true,
-    logVerbosity: 'normal',
-  },
-  notifications: [],
-  unreadNotificationCount: 0,
+  tasks: [],
+  messages: [],
+  files: [],
+  buildLogs: [],
+  activities: [],
 
-  // Command Palette default
-  commandPaletteOpen: false,
-
-  // Realtime default
-  realtimeConnected: false,
-
-  // Simulation defaults
-  simulationEnabled: true,
-  simulationSpeed: 1,
-  lastSimulationUpdate: null,
-
-  // Loading default
-  isLoading: false,
-
-  // Recent pages default
-  recentPages: [],
-
-  // Tour defaults
-  tourActive: false,
-  tourStep: 0,
-  tourCompleted: (() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('evoai-tour-completed') === 'true'
-    }
-    return false
-  })(),
-
-  // Navigation actions
-  setCurrentPage: (page) =>
-    set((state) => {
-      const now = new Date().toISOString()
-      // Remove any existing entry for this page, then prepend
-      const filtered = state.recentPages.filter((r) => r.page !== page)
-      const updatedRecent = [{ page, visitedAt: now }, ...filtered].slice(0, 5)
-      return { currentPage: page, recentPages: updatedRecent }
-    }),
-  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  // IDE state
+  activePanel: 'chat',
+  setActivePanel: (panel) => set({ activePanel: panel }),
+  activeBottomTab: 'terminal',
+  setActiveBottomTab: (tab) => set({ activeBottomTab: tab }),
+  activeFileId: null,
+  setActiveFileId: (id) => set({ activeFileId: id }),
+  bottomPanelOpen: true,
+  setBottomPanelOpen: (open) => set({ bottomPanelOpen: open }),
+  sidebarCollapsed: false,
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-  clearRecentPages: () => set({ recentPages: [] }),
+  rightPanelOpen: true,
+  setRightPanelOpen: (open) => set({ rightPanelOpen: open }),
+  terminalMinimized: false,
+  setTerminalMinimized: (min) => set({ terminalMinimized: min }),
 
-  // Data setter actions
-  setDashboardData: (data) => set({ dashboardData: data }),
+  // Loading
+  loading: false,
+  setLoading: (loading) => set({ loading }),
+
+  // Setters
   setAgents: (agents) => set({ agents }),
-  setEvolutionEvents: (events) => set({ evolutionEvents: events }),
-  setMemories: (memories) => set({ memories }),
-  setKnowledgeNodes: (nodes) => set({ knowledgeNodes: nodes }),
-  setKnowledgeEdges: (edges) => set({ knowledgeEdges: edges }),
-  setBenchmarks: (benchmarks) => set({ benchmarks }),
-  setSafetyEvents: (events) => set({ safetyEvents: events }),
-  setExperiments: (experiments) => set({ experiments }),
-  setMetrics: (metrics) => set({ metrics }),
-  setSystemLogs: (logs) => set({ systemLogs: logs }),
-  setSettings: (settings) => set({ settings }),
+  setTasks: (tasks) => set({ tasks }),
+  setMessages: (messages) => set({ messages }),
+  setFiles: (files) => set({ files }),
+  setBuildLogs: (logs) => set({ buildLogs: logs }),
+  setActivities: (activities) => set({ activities }),
 
-  // Chat actions
-  addChatMessage: (message) =>
-    set((state) => {
-      const updatedMessages = [...state.chatMessages, message]
-      // Auto-update conversation title from first user message
-      const currentConv = state.chatConversations.find(
-        (c) => c.id === state.currentConversationId
-      )
-      let updatedConversations = state.chatConversations
-      if (currentConv && currentConv.title === 'New Conversation' && message.role === 'user') {
-        updatedConversations = state.chatConversations.map((c) =>
-          c.id === currentConv.id
-            ? { ...c, title: message.content.slice(0, 50), messages: updatedMessages, updatedAt: new Date().toISOString() }
-            : c
-        )
-      } else if (currentConv) {
-        updatedConversations = state.chatConversations.map((c) =>
-          c.id === currentConv.id
-            ? { ...c, messages: updatedMessages, updatedAt: new Date().toISOString() }
-            : c
-        )
-      }
-      return { chatMessages: updatedMessages, chatConversations: updatedConversations }
-    }),
+  // Add message
+  addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
+  addBuildLog: (log) => set((s) => ({ buildLogs: [log, ...s.buildLogs] })),
+  addActivity: (activity) => set((s) => ({ activities: [activity, ...s.activities] })),
+  updateAgent: (id, updates) => set((s) => ({
+    agents: s.agents.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+  })),
+  updateTask: (id, updates) => set((s) => ({
+    tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+  })),
 
-  setChatMessages: (messages) => set({ chatMessages: messages }),
-
-  setChatConversations: (conversations) => set({ chatConversations: conversations }),
-
-  setCurrentConversationId: (id) => set({ currentConversationId: id }),
-
-  createNewConversation: () =>
-    set((state) => {
-      // Save current conversation if it has messages
-      let updatedConversations = state.chatConversations
-      if (state.chatMessages.length > 0 && state.currentConversationId) {
-        updatedConversations = state.chatConversations.map((c) =>
-          c.id === state.currentConversationId
-            ? { ...c, messages: state.chatMessages, updatedAt: new Date().toISOString() }
-            : c
-        )
-      }
-      const newId = Date.now().toString()
-      const newConv: ChatConversation = {
-        id: newId,
-        title: 'New Conversation',
-        messages: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-      return {
-        chatMessages: [],
-        currentConversationId: newId,
-        chatConversations: [newConv, ...updatedConversations].slice(0, 10),
-      }
-    }),
-
-  switchConversation: (id) =>
-    set((state) => {
-      // Save current messages to current conversation
-      let updatedConversations = state.chatConversations
-      if (state.chatMessages.length > 0 && state.currentConversationId) {
-        updatedConversations = state.chatConversations.map((c) =>
-          c.id === state.currentConversationId
-            ? { ...c, messages: state.chatMessages, updatedAt: new Date().toISOString() }
-            : c
-        )
-      }
-      const targetConv = updatedConversations.find((c) => c.id === id)
-      return {
-        chatMessages: targetConv?.messages ?? [],
-        currentConversationId: id,
-        chatConversations: updatedConversations,
-      }
-    }),
-
-  deleteConversation: (id) =>
-    set((state) => {
-      const filtered = state.chatConversations.filter((c) => c.id !== id)
-      if (id === state.currentConversationId) {
-        const newId = filtered.length > 0 ? filtered[0].id : Date.now().toString()
-        const targetConv = filtered.find((c) => c.id === newId)
-        if (filtered.length === 0) {
-          const newConv: ChatConversation = {
-            id: newId,
-            title: 'New Conversation',
-            messages: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          }
-          return {
-            chatConversations: [newConv],
-            currentConversationId: newId,
-            chatMessages: [],
-          }
-        }
-        return {
-          chatConversations: filtered,
-          currentConversationId: newId,
-          chatMessages: targetConv?.messages ?? [],
-        }
-      }
-      return { chatConversations: filtered }
-    }),
-
-  updateMessageReaction: (messageId, reaction) =>
-    set((state) => {
-      const updatedMessages = state.chatMessages.map((m) =>
-        m.id === messageId ? { ...m, reaction } : m
-      )
-      const currentConvId = state.currentConversationId
-      const updatedConversations = state.chatConversations.map((c) =>
-        c.id === currentConvId ? { ...c, messages: updatedMessages } : c
-      )
-      return { chatMessages: updatedMessages, chatConversations: updatedConversations }
-    }),
-
-  clearChatHistory: () =>
-    set((state) => {
-      const currentConvId = state.currentConversationId
-      const updatedConversations = state.chatConversations.map((c) =>
-        c.id === currentConvId ? { ...c, messages: [], title: 'New Conversation', updatedAt: new Date().toISOString() } : c
-      )
-      return { chatMessages: [], chatConversations: updatedConversations }
-    }),
-
-  // Notification actions
-  addNotification: (notification) =>
-    set((state) => ({
-      notifications: [notification, ...state.notifications].slice(0, 50),
-      unreadNotificationCount: state.unreadNotificationCount + (notification.read ? 0 : 1),
-    })),
-  markNotificationRead: (id) =>
-    set((state) => ({
-      notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      ),
-      unreadNotificationCount: Math.max(0, state.unreadNotificationCount - 1),
-    })),
-  markAllNotificationsRead: () =>
-    set((state) => ({
-      notifications: state.notifications.map((n) => ({ ...n, read: true })),
-      unreadNotificationCount: 0,
-    })),
-  clearNotifications: () => set({ notifications: [], unreadNotificationCount: 0 }),
-
-  // Command Palette actions
-  setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
-  toggleCommandPalette: () => set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
-
-  // Realtime action
-  setRealtimeConnected: (connected) => set({ realtimeConnected: connected }),
-
-  // Simulation actions
-  toggleSimulation: () => set((s) => ({ simulationEnabled: !s.simulationEnabled })),
-  setSimulationSpeed: (speed) => set({ simulationSpeed: speed }),
-  setLastSimulationUpdate: (date) => set({ lastSimulationUpdate: date }),
-
-  // Loading action
-  setIsLoading: (loading) => set({ isLoading: loading }),
-
-  // Tour actions
-  startTour: () => set({ tourActive: true, tourStep: 0 }),
-  nextTourStep: () => set((state) => ({ tourStep: state.tourStep + 1 })),
-  prevTourStep: () => set((state) => ({ tourStep: Math.max(0, state.tourStep - 1) })),
-  endTour: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('evoai-tour-completed', 'true')
-    }
-    set({ tourActive: false, tourCompleted: true })
+  // Fetch helpers
+  fetchAgents: async () => {
+    try {
+      const res = await fetch('/api/agents')
+      if (res.ok) set({ agents: await res.json() })
+    } catch (e) { console.error('Failed to fetch agents:', e) }
   },
-  completeTour: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('evoai-tour-completed', 'true')
+  fetchTasks: async () => {
+    try {
+      const projectId = get().currentProject?.id
+      const url = projectId ? `/api/tasks?projectId=${projectId}` : '/api/tasks'
+      const res = await fetch(url)
+      if (res.ok) set({ tasks: await res.json() })
+    } catch (e) { console.error('Failed to fetch tasks:', e) }
+  },
+  fetchMessages: async () => {
+    try {
+      const projectId = get().currentProject?.id
+      const url = projectId ? `/api/messages?projectId=${projectId}` : '/api/messages'
+      const res = await fetch(url)
+      if (res.ok) set({ messages: await res.json() })
+    } catch (e) { console.error('Failed to fetch messages:', e) }
+  },
+  fetchFiles: async () => {
+    try {
+      const projectId = get().currentProject?.id
+      const url = projectId ? `/api/files?projectId=${projectId}` : '/api/files'
+      const res = await fetch(url)
+      if (res.ok) set({ files: await res.json() })
+    } catch (e) { console.error('Failed to fetch files:', e) }
+  },
+  fetchBuildLogs: async () => {
+    try {
+      const projectId = get().currentProject?.id
+      const url = projectId ? `/api/build-logs?projectId=${projectId}` : '/api/build-logs'
+      const res = await fetch(url)
+      if (res.ok) set({ buildLogs: await res.json() })
+    } catch (e) { console.error('Failed to fetch build logs:', e) }
+  },
+  fetchActivities: async () => {
+    try {
+      const res = await fetch('/api/activities')
+      if (res.ok) set({ activities: await res.json() })
+    } catch (e) { console.error('Failed to fetch activities:', e) }
+  },
+  fetchAll: async (projectId) => {
+    set({ loading: true })
+    try {
+      // Fetch project
+      if (projectId) {
+        const pRes = await fetch(`/api/projects/${projectId}`)
+        if (pRes.ok) set({ currentProject: await pRes.json() })
+      }
+
+      // Fetch all in parallel
+      const pid = projectId || get().currentProject?.id
+      const [agentsRes, tasksRes, messagesRes, filesRes, logsRes, activitiesRes] = await Promise.all([
+        fetch('/api/agents'),
+        fetch(pid ? `/api/tasks?projectId=${pid}` : '/api/tasks'),
+        fetch(pid ? `/api/messages?projectId=${pid}` : '/api/messages'),
+        fetch(pid ? `/api/files?projectId=${pid}` : '/api/files'),
+        fetch(pid ? `/api/build-logs?projectId=${pid}` : '/api/build-logs'),
+        fetch('/api/activities'),
+      ])
+
+      const [agents, tasks, messages, files, buildLogs, activities] = await Promise.all([
+        agentsRes.ok ? agentsRes.json() : [],
+        tasksRes.ok ? tasksRes.json() : [],
+        messagesRes.ok ? messagesRes.json() : [],
+        filesRes.ok ? filesRes.json() : [],
+        logsRes.ok ? logsRes.json() : [],
+        activitiesRes.ok ? activitiesRes.json() : [],
+      ])
+
+      set({ agents, tasks, messages, files, buildLogs, activities })
+    } catch (e) {
+      console.error('Failed to fetch all:', e)
+    } finally {
+      set({ loading: false })
     }
-    set({ tourActive: false, tourCompleted: true })
   },
 }))

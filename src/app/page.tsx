@@ -1,261 +1,165 @@
 'use client'
 
-import { useEffect } from 'react'
-import { DashboardSidebar } from '@/components/dashboard-sidebar'
-import { DashboardOverview } from '@/components/dashboard-overview'
-import { AgentsPanel } from '@/components/agents-panel'
-import { EvolutionPanel } from '@/components/evolution-panel'
-import { MemoryPanel } from '@/components/memory-panel'
-import { KnowledgePanel } from '@/components/knowledge-panel'
-import { ResearchPanel } from '@/components/research-panel'
-import { BenchmarksPanel } from '@/components/benchmarks-panel'
-import { SafetyPanel } from '@/components/safety-panel'
-import { ChatPanel } from '@/components/chat-panel'
-import { SettingsPanel } from '@/components/settings-panel'
-import { TopologyPanel } from '@/components/topology-panel'
-import { InsightsPanel } from '@/components/insights-panel'
-import { SystemLogPanel } from '@/components/system-log-panel'
-import { ActivityPanel } from '@/components/activity-panel'
-import { ErrorBoundary } from '@/components/error-boundary'
-import { PanelErrorFallback } from '@/components/panel-error-fallback'
-import { Toaster } from '@/components/ui/sonner'
-import { useAppStore, type Page } from '@/lib/store'
-import { useRealtimeService } from '@/hooks/use-realtime'
-import { CommandPalette, CommandPaletteBadge } from '@/components/command-palette'
-import { Cpu, Heart } from 'lucide-react'
-import { OnboardingTour, TourHelpButton } from '@/components/onboarding-tour'
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
-
-// Navigation shortcut mapping (Alt+1 through Alt+9)
-const SHORTCUT_PAGES: Page[] = [
-  'dashboard', 'agents', 'evolution', 'memory', 'knowledge',
-  'topology', 'research', 'benchmarks', 'safety',
-]
-
-// Page display names and section mapping for breadcrumbs
-const PAGE_NAMES: Record<Page, string> = {
-  dashboard: 'Dashboard',
-  agents: 'Agents',
-  evolution: 'Evolution',
-  memory: 'Memory',
-  knowledge: 'Knowledge',
-  topology: 'Topology',
-  insights: 'Insights',
-  research: 'Research',
-  benchmarks: 'Benchmarks',
-  safety: 'Safety',
-  chat: 'Chat',
-  activity: 'Activity',
-  settings: 'Settings',
-  'system-log': 'System Log',
-}
-
-const PAGE_SECTIONS: Record<Page, string> = {
-  dashboard: 'Overview',
-  agents: 'Core Systems',
-  evolution: 'Core Systems',
-  memory: 'Core Systems',
-  knowledge: 'Intelligence',
-  topology: 'Intelligence',
-  insights: 'Intelligence',
-  research: 'Intelligence',
-  benchmarks: 'Quality',
-  safety: 'Quality',
-  chat: 'Tools',
-  activity: 'Overview',
-  settings: 'Tools',
-  'system-log': 'Tools',
-}
-
-// Helper to wrap a panel with ErrorBoundary
-function withErrorBoundary(panel: React.ReactNode, name: string) {
-  return (
-    <ErrorBoundary
-      fallback={(props) => <PanelErrorFallback {...props} panelName={name} />}
-    >
-      {panel}
-    </ErrorBoundary>
-  )
-}
+import { useEffect, useCallback, useRef, useState } from 'react'
+import { IDETopBar } from '@/components/ide-top-bar'
+import { IDESidebar } from '@/components/ide-sidebar'
+import { IDEEditor } from '@/components/ide-editor'
+import { IDEChatPanel } from '@/components/ide-chat-panel'
+import { IDEBottomPanel } from '@/components/ide-bottom-panel'
+import { useAppStore } from '@/lib/store'
+import { useAgentSimulation } from '@/hooks/use-agent-simulation'
+import { Cpu, Clock, Zap, Heart, Activity, GitBranch } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 export default function Home() {
-  const currentPage = useAppStore((s) => s.currentPage)
-  const setCurrentPage = useAppStore((s) => s.setCurrentPage)
-  const toggleCommandPalette = useAppStore((s) => s.toggleCommandPalette)
+  const fetchAll = useAppStore((s) => s.fetchAll)
+  const fetchMessages = useAppStore((s) => s.fetchMessages)
+  const currentProject = useAppStore((s) => s.currentProject)
+  const agents = useAppStore((s) => s.agents)
+  const tasks = useAppStore((s) => s.tasks)
+  const messages = useAppStore((s) => s.messages)
+  const loading = useAppStore((s) => s.loading)
 
-  // Real-time service
-  const { isConnected, addListener } = useRealtimeService()
-  const addNotification = useAppStore((s) => s.addNotification)
-  const setRealtimeConnected = useAppStore((s) => s.setRealtimeConnected)
+  // Track uptime
+  const startTime = useRef(Date.now())
+  const [uptime, setUptime] = useState('0m')
 
-  // Sync connection status
+  // Start agent simulation
+  useAgentSimulation()
+
+  // Initial data load
   useEffect(() => {
-    setRealtimeConnected(isConnected)
-  }, [isConnected, setRealtimeConnected])
+    fetchAll('proj_01')
+  }, [fetchAll])
 
-  // Listen for notification events
+  // Update uptime every 30 seconds
   useEffect(() => {
-    const unsub = addListener('notification', (event) => {
-      addNotification({
-        id: event.id,
-        title: (event.payload.title as string) || 'System Notification',
-        message: (event.payload.message as string) || '',
-        severity: (event.payload.severity as 'info' | 'success' | 'warning' | 'error') || 'info',
-        timestamp: event.timestamp,
-        read: false,
-        source: event.type,
-      })
-    })
-    return unsub
-  }, [addListener, addNotification])
-
-  // Keyboard shortcuts: Cmd+K for command palette, Alt+1-9 for page navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept when typing in inputs
-      const target = e.target as HTMLElement
-      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
-
-      // Cmd+K / Ctrl+K for command palette
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        toggleCommandPalette()
-        return
-      }
-
-      // Alt+1-9 for page navigation (not in inputs)
-      if (!isInput && e.altKey && e.key >= '1' && e.key <= '9') {
-        e.preventDefault()
-        const idx = parseInt(e.key) - 1
-        if (idx < SHORTCUT_PAGES.length) {
-          setCurrentPage(SHORTCUT_PAGES[idx])
-        }
-      }
+    const updateUptime = () => {
+      const diff = Date.now() - startTime.current
+      const hours = Math.floor(diff / 3600000)
+      const mins = Math.floor((diff % 3600000) / 60000)
+      if (hours > 0) setUptime(`${hours}h ${mins}m`)
+      else setUptime(`${mins}m`)
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [toggleCommandPalette, setCurrentPage])
+    updateUptime()
+    const interval = setInterval(updateUptime, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return withErrorBoundary(<DashboardOverview />, 'Dashboard')
-      case 'agents':
-        return withErrorBoundary(<AgentsPanel />, 'Agents')
-      case 'evolution':
-        return withErrorBoundary(<EvolutionPanel />, 'Evolution')
-      case 'memory':
-        return withErrorBoundary(<MemoryPanel />, 'Memory')
-      case 'knowledge':
-        return withErrorBoundary(<KnowledgePanel />, 'Knowledge')
-      case 'research':
-        return withErrorBoundary(<ResearchPanel />, 'Research')
-      case 'benchmarks':
-        return withErrorBoundary(<BenchmarksPanel />, 'Benchmarks')
-      case 'safety':
-        return withErrorBoundary(<SafetyPanel />, 'Safety')
-      case 'chat':
-        return withErrorBoundary(<ChatPanel />, 'Chat')
-      case 'activity':
-        return withErrorBoundary(<ActivityPanel />, 'Activity')
-      case 'settings':
-        return withErrorBoundary(<SettingsPanel />, 'Settings')
-      case 'topology':
-        return withErrorBoundary(<TopologyPanel />, 'Topology')
-      case 'insights':
-        return withErrorBoundary(<InsightsPanel />, 'Insights')
-      case 'system-log':
-        return withErrorBoundary(<SystemLogPanel />, 'System Log')
-      default:
-        return withErrorBoundary(<DashboardOverview />, 'Dashboard')
-    }
+  // Calculate totals
+  const totalTokens = agents.reduce((sum, a) => sum + a.tokensUsed, 0)
+  const formatTokens = (n: number) => {
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}K`
+    return String(n)
   }
 
+  const activeAgents = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping').length
+  const completedTasks = tasks.filter((t) => t.status === 'done').length
+  const totalTasks = tasks.length
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <div className="flex flex-1">
-        <DashboardSidebar />
-        <div className="flex flex-col flex-1 min-w-0">
-          {/* Header with Breadcrumbs */}
-          <header className="flex items-center justify-between border-b bg-card/60 backdrop-blur-md px-3 sm:px-4 md:px-6 py-2.5 sticky top-0 z-10">
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink
-                    className="flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                    onClick={() => setCurrentPage('dashboard')}
-                  >
-                    <Cpu className="size-3.5 text-emerald-500" />
-                    <span className="font-medium">EvoAI</span>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink
-                    className="cursor-pointer hover:text-foreground transition-colors"
-                    onClick={() => {
-                      // Navigate to the first page in the same section
-                      const section = PAGE_SECTIONS[currentPage]
-                      const sectionFirstPage = (Object.entries(PAGE_SECTIONS) as [Page, string][])
-                        .find(([, s]) => s === section)?.[0]
-                      if (sectionFirstPage) setCurrentPage(sectionFirstPage)
-                    }}
-                  >
-                    {PAGE_SECTIONS[currentPage]}
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage className="font-medium">{PAGE_NAMES[currentPage]}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-            <div className="flex items-center gap-2">
-              <TourHelpButton />
-              <CommandPaletteBadge />
-            </div>
-          </header>
-          <main className="flex-1 overflow-auto overflow-x-hidden" data-tour="main-content">
-            <div className="p-3 sm:p-4 md:p-6 lg:p-8 max-w-full">
-              {renderPage()}
-            </div>
-          </main>
-          {/* Footer */}
-          <footer className="border-t bg-card/40 backdrop-blur-sm px-4 md:px-6 py-2.5 mt-auto">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Cpu className="size-3 text-emerald-500" />
-                <span className="font-semibold text-foreground/80">EvoAI</span>
-                <span className="text-border/50">|</span>
-                <span>Self-Evolving AI System v2.0</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1.5">
-                  <span className="relative flex size-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full size-1.5 bg-emerald-500" />
-                  </span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">All systems operational</span>
-                </span>
-                <span className="text-border/50">|</span>
-                <span className="flex items-center gap-0.5">
-                  Made with <Heart className="size-3 text-red-500 fill-red-500" /> for the future of AI
-                </span>
-              </div>
-            </div>
-          </footer>
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Top Bar */}
+      <IDETopBar />
+
+      {/* Main Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <IDESidebar />
+
+        {/* Editor + Chat */}
+        <div className="flex flex-1 overflow-hidden">
+          <IDEEditor />
+          <IDEChatPanel />
         </div>
       </div>
-      <CommandPalette />
-      <OnboardingTour />
-      <Toaster position="bottom-right" richColors />
+
+      {/* Bottom Panel */}
+      <IDEBottomPanel />
+
+      {/* Footer Status Bar */}
+      <motion.footer
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="flex items-center h-6 px-3 border-t bg-card/80 backdrop-blur-sm shrink-0 text-[10px] text-muted-foreground gap-3"
+      >
+        {/* Left side - Connection */}
+        <div className="flex items-center gap-1.5">
+          <span className="relative flex size-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full size-1.5 bg-emerald-500" />
+          </span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-medium">Live</span>
+        </div>
+
+        <span className="text-border">|</span>
+
+        {/* Agents */}
+        <div className="flex items-center gap-1">
+          <Cpu className="size-2.5" />
+          <span>{activeAgents}/{agents.length} agents</span>
+        </div>
+
+        <span className="text-border">|</span>
+
+        {/* Tasks progress */}
+        <div className="flex items-center gap-1">
+          <Activity className="size-2.5 text-emerald-500" />
+          <span>{completedTasks}/{totalTasks} done</span>
+        </div>
+
+        <span className="text-border">|</span>
+
+        {/* Tokens */}
+        <div className="flex items-center gap-1">
+          <Zap className="size-2.5 text-amber-500" />
+          <span>{formatTokens(totalTokens)} tokens</span>
+        </div>
+
+        <span className="text-border">|</span>
+
+        {/* Uptime */}
+        <div className="flex items-center gap-1">
+          <Clock className="size-2.5" />
+          <span>{uptime}</span>
+        </div>
+
+        <span className="text-border">|</span>
+
+        {/* Branch */}
+        <div className="flex items-center gap-1">
+          <GitBranch className="size-2.5" />
+          <span>main</span>
+        </div>
+
+        {/* Right side */}
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="font-medium text-foreground/70">TeamForge IDE</span>
+          <span className="text-border">|</span>
+          <span>v0.4.0</span>
+          <span className="text-border">|</span>
+          <span className="flex items-center gap-0.5">
+            Made with <Heart className="size-2.5 text-red-500 fill-red-500" />
+          </span>
+        </div>
+      </motion.footer>
+
+      {/* Loading overlay */}
+      {loading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50"
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div className="size-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-muted-foreground">Loading project data...</span>
+          </div>
+        </motion.div>
+      )}
     </div>
   )
 }

@@ -15,24 +15,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EvoAI — Self-Evolving AI System",
-  description: "A production-grade self-evolving AI platform that autonomously improves its capabilities through validated experimentation.",
-  keywords: ["EvoAI", "Self-Evolving AI", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI agents", "Evolution Engine"],
-  authors: [{ name: "EvoAI Team" }],
+  title: "TeamForge IDE — Autonomous AI Development",
+  description: "An autonomous IDE where AI agents collaborate to build software 24/7.",
+  keywords: ["TeamForge", "IDE", "AI Agents", "Next.js", "TypeScript", "Autonomous Development"],
+  authors: [{ name: "TeamForge" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "EvoAI — Self-Evolving AI System",
-    description: "A self-evolving AI platform that autonomously improves its capabilities",
+    title: "TeamForge IDE — Autonomous AI Development",
+    description: "An autonomous IDE where AI agents collaborate to build software 24/7",
     url: "https://chat.z.ai",
-    siteName: "EvoAI",
+    siteName: "TeamForge IDE",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "EvoAI — Self-Evolving AI System",
-    description: "A self-evolving AI platform that autonomously improves its capabilities",
+    title: "TeamForge IDE — Autonomous AI Development",
+    description: "An autonomous IDE where AI agents collaborate to build software 24/7",
   },
 };
 

@@ -1,54 +1,47 @@
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
     const agents = await db.agent.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { lastActive: 'desc' },
       include: {
-        _count: {
-          select: { memories: true, events: true, experiments: true },
+        activities: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
         },
       },
     })
+
     return NextResponse.json(agents)
   } catch (error) {
-    console.error('Agents GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch agents' },
-      { status: 500 }
-    )
+    console.error('Failed to fetch agents:', error)
+    return NextResponse.json({ error: 'Failed to fetch agents' }, { status: 500 })
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json()
-    const { name, role, description, goals, tools } = body
+    const body = await req.json()
+    const { name, role, avatar, specialty, status } = body
 
-    if (!name || !role || !description) {
-      return NextResponse.json(
-        { error: 'name, role, and description are required' },
-        { status: 400 }
-      )
+    if (!name || !role) {
+      return NextResponse.json({ error: 'Agent name and role are required' }, { status: 400 })
     }
 
     const agent = await db.agent.create({
       data: {
         name,
         role,
-        description,
-        goals: JSON.stringify(goals ?? []),
-        tools: JSON.stringify(tools ?? []),
+        avatar: avatar || '',
+        specialty: specialty || '',
+        status: status || 'idle',
       },
     })
 
     return NextResponse.json(agent, { status: 201 })
   } catch (error) {
-    console.error('Agents POST error:', error)
-    return NextResponse.json(
-      { error: 'Failed to create agent' },
-      { status: 500 }
-    )
+    console.error('Failed to create agent:', error)
+    return NextResponse.json({ error: 'Failed to create agent' }, { status: 500 })
   }
 }
