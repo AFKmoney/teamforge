@@ -25,6 +25,7 @@ import {
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import type { KnowledgeNode, KnowledgeEdge } from '@/lib/types'
+import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
 // Colour maps
@@ -255,19 +256,12 @@ export function KnowledgePanel() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-500/10">
-            <Network className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">Knowledge Graph</h2>
-            <p className="text-sm text-muted-foreground">
-              {nodes.length} nodes &middot; {edges.length} edges
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={Network}
+        iconColor="teal"
+        title="Knowledge Graph"
+        description={`${nodes.length} nodes \u00b7 ${edges.length} edges`}
+      />
 
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Graph SVG */}

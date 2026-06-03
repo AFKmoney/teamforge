@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Activity,
   Info,
@@ -18,26 +18,32 @@ import {
   Timer,
   AlertTriangle,
   ArrowUpRight,
+  Calendar,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  List,
+  AlignJustify,
+  Sparkles,
 } from 'lucide-react'
 import {
   LineChart,
   Line,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  Legend,
 } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -46,9 +52,31 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from '@/components/ui/pagination'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Calendar as CalendarComponent } from '@/components/ui/calendar'
+import {
+  Tooltip as TooltipUI,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
 import type { ActivityLog, SystemMetric } from '@/lib/types'
+import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
 // Constants & Config
@@ -124,6 +152,18 @@ const TYPE_CONFIG: Record<
   },
 }
 
+type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d'
+
+const TIME_RANGE_CONFIG: Record<TimeRange, { label: string; hours: number }> = {
+  '1h': { label: 'Last 1h', hours: 1 },
+  '6h': { label: 'Last 6h', hours: 6 },
+  '24h': { label: 'Last 24h', hours: 24 },
+  '7d': { label: 'Last 7d', hours: 168 },
+  '30d': { label: 'Last 30d', hours: 720 },
+}
+
+const ITEMS_PER_PAGE = 10
+
 // ---------------------------------------------------------------------------
 // Mock Activity Data
 // ---------------------------------------------------------------------------
@@ -174,14 +214,15 @@ interface MetricLineConfig {
   key: string
   label: string
   color: string
+  gradientId: string
   active: boolean
 }
 
 const DEFAULT_METRIC_LINES: MetricLineConfig[] = [
-  { key: 'cpu_usage', label: 'CPU Usage', color: '#f43f5e', active: true },
-  { key: 'memory_usage', label: 'Memory Usage', color: '#8b5cf6', active: true },
-  { key: 'task_success_rate', label: 'Success Rate', color: '#10b981', active: true },
-  { key: 'cost', label: 'Cost (USD)', color: '#f59e0b', active: false },
+  { key: 'cpu_usage', label: 'CPU Usage', color: '#f43f5e', gradientId: 'cpuGrad', active: true },
+  { key: 'memory_usage', label: 'Memory Usage', color: '#8b5cf6', gradientId: 'memGrad', active: true },
+  { key: 'task_success_rate', label: 'Success Rate', color: '#10b981', gradientId: 'successGrad', active: true },
+  { key: 'cost', label: 'Cost (USD)', color: '#f59e0b', gradientId: 'costGrad', active: false },
 ]
 
 // ---------------------------------------------------------------------------
@@ -194,29 +235,102 @@ function ChartTooltip({
   label,
 }: {
   active?: boolean
+  payload?: Array<{ name: string; value: number; color: string; dataKey: string }>
+  label?: string
+}) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-lg border border-border bg-popover px-4 py-3 shadow-lg">
+      <p className="text-xs font-semibold text-foreground mb-2">{label}</p>
+      <div className="space-y-1.5">
+        {payload.map((entry) => (
+          <div key={entry.name} className="flex items-center gap-2 text-xs">
+            <span
+              className="size-2.5 rounded-full shrink-0 ring-1 ring-white/20"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-muted-foreground min-w-[80px]">{entry.name}:</span>
+            <span className="font-semibold text-foreground tabular-nums">
+              {typeof entry.value === 'number'
+                ? entry.value >= 100
+                  ? entry.value.toFixed(0)
+                  : entry.value.toFixed(2)
+                : entry.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Bar Chart Tooltip
+// ---------------------------------------------------------------------------
+
+function BarChartTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean
   payload?: Array<{ name: string; value: number; color: string }>
   label?: string
 }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-md">
-      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-      {payload.map((entry) => (
-        <div key={entry.name} className="flex items-center gap-2 text-xs">
-          <span
-            className="size-2 rounded-full shrink-0"
-            style={{ backgroundColor: entry.color }}
-          />
-          <span className="text-muted-foreground">{entry.name}:</span>
-          <span className="font-medium text-foreground">
-            {typeof entry.value === 'number'
-              ? entry.value >= 100
-                ? entry.value.toFixed(0)
-                : entry.value.toFixed(2)
-              : entry.value}
-          </span>
-        </div>
-      ))}
+    <div className="rounded-lg border border-border bg-popover px-4 py-3 shadow-lg">
+      <p className="text-xs font-semibold text-foreground mb-1">{label}</p>
+      <div className="flex items-center gap-2 text-xs">
+        <span
+          className="size-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: payload[0].color }}
+        />
+        <span className="text-muted-foreground">Count:</span>
+        <span className="font-semibold text-foreground">{payload[0].value}</span>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Custom Legend
+// ---------------------------------------------------------------------------
+
+function CustomLegend({
+  payload,
+  onToggle,
+  metricLines,
+}: {
+  payload?: Array<{ value: string; color: string; dataKey: string }>
+  onToggle: (key: string) => void
+  metricLines: MetricLineConfig[]
+}) {
+  if (!payload?.length) return null
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+      {payload.map((entry) => {
+        const line = metricLines.find((l) => l.key === entry.dataKey)
+        const isActive = line?.active ?? true
+        return (
+          <button
+            key={entry.dataKey}
+            onClick={() => onToggle(entry.dataKey)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all',
+              isActive
+                ? 'bg-muted text-foreground shadow-sm'
+                : 'bg-transparent text-muted-foreground opacity-40 hover:opacity-70 line-through'
+            )}
+          >
+            <span
+              className="size-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: entry.color }}
+            />
+            {entry.value}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -226,17 +340,48 @@ function ChartTooltip({
 // ---------------------------------------------------------------------------
 
 export function ActivityPanel() {
-  const [severityFilter, setSeverityFilter] = useState<string>('all')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
+  // Time range state
+  const [timeRange, setTimeRange] = useState<TimeRange>('24h')
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  })
+  const [customRangeActive, setCustomRangeActive] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+
+  // Filter state
+  const [activeSeverities, setActiveSeverities] = useState<Set<string>>(
+    new Set(['info', 'success', 'warning', 'error'])
+  )
+  const [activeTypes, setActiveTypes] = useState<Set<string>>(
+    new Set(['agent', 'evolution', 'safety', 'memory', 'benchmark', 'system'])
+  )
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [readIds, setReadIds] = useState<Set<string>>(new Set())
+
+  // Chart state
   const [metricLines, setMetricLines] = useState<MetricLineConfig[]>(DEFAULT_METRIC_LINES)
   const [metricsData, setMetricsData] = useState<SystemMetric[]>([])
+  const [chartAnimated, setChartAnimated] = useState(false)
+
+  // Pagination / scroll state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [feedMode, setFeedMode] = useState<'pagination' | 'infinite'>('pagination')
+  const [infiniteCount, setInfiniteCount] = useState(ITEMS_PER_PAGE)
+
+  // Real-time state
+  const [newActivityCount, setNewActivityCount] = useState(0)
+  const [autoRefresh, setAutoRefresh] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [allActivities, setAllActivities] = useState<ActivityLog[]>(MOCK_ACTIVITIES)
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const simulationRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Fetch metrics from API
   useEffect(() => {
     async function fetchMetrics() {
       try {
-        const res = await fetch('/api/metrics?hours=24')
+        const res = await fetch(`/api/metrics?hours=${TIME_RANGE_CONFIG[timeRange].hours}`)
         if (res.ok) {
           const data: SystemMetric[] = await res.json()
           setMetricsData(data)
@@ -246,13 +391,65 @@ export function ActivityPanel() {
       }
     }
     fetchMetrics()
+  }, [timeRange])
+
+  // Chart animation trigger
+  useEffect(() => {
+    const timer = setTimeout(() => setChartAnimated(true), 100)
+    return () => clearTimeout(timer)
+  }, [metricsData])
+
+  // Auto-refresh toggle
+  useEffect(() => {
+    if (autoRefresh) {
+      autoRefreshRef.current = setInterval(() => {
+        setIsRefreshing(true)
+        fetch('/api/metrics?hours=' + TIME_RANGE_CONFIG[timeRange].hours)
+          .then((res) => res.ok ? res.json() : [])
+          .then((data: SystemMetric[]) => {
+            if (data.length > 0) setMetricsData(data)
+          })
+          .catch(() => {})
+          .finally(() => setIsRefreshing(false))
+      }, 30000)
+    }
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current)
+    }
+  }, [autoRefresh, timeRange])
+
+  // Simulation: add new activities periodically
+  useEffect(() => {
+    simulationRef.current = setInterval(() => {
+      const types = ['agent', 'evolution', 'safety', 'memory', 'benchmark', 'system'] as const
+      const severities = ['info', 'success', 'warning', 'error'] as const
+      const messages = [
+        'Agent process heartbeat — all systems nominal',
+        'Evolution proposal generated — pending validation',
+        'Safety scan completed — no anomalies detected',
+        'Memory cache refreshed — 12 entries updated',
+        'Benchmark regression test queued',
+        'System health check passed',
+      ]
+      const newActivity: ActivityLog = {
+        id: `sim-${Date.now()}`,
+        type: types[Math.floor(Math.random() * types.length)],
+        message: messages[Math.floor(Math.random() * messages.length)],
+        timestamp: 'Just now',
+        severity: severities[Math.floor(Math.random() * severities.length)],
+      }
+      setNewActivityCount((prev) => prev + 1)
+      setAllActivities((prev) => [newActivity, ...prev])
+    }, 15000)
+    return () => {
+      if (simulationRef.current) clearInterval(simulationRef.current)
+    }
   }, [])
 
   // Process metrics data into chart format
   const chartData = useMemo(() => {
     if (metricsData.length === 0) return []
 
-    // Group by timestamp (rounded to nearest hour)
     const grouped = new Map<string, Record<string, number>>()
 
     for (const m of metricsData) {
@@ -263,7 +460,6 @@ export function ActivityPanel() {
         grouped.set(hourKey, {})
       }
       const entry = grouped.get(hourKey)!
-      // Average values for same metric in same hour
       if (entry[m.metric] !== undefined) {
         entry[m.metric] = (entry[m.metric] + m.value) / 2
       } else {
@@ -276,26 +472,86 @@ export function ActivityPanel() {
       .sort((a, b) => a.time.localeCompare(b.time))
   }, [metricsData])
 
-  // Filter activities
+  // Event counts by type for bar chart
+  const eventCountsByType = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const typeKey of Object.keys(TYPE_CONFIG)) {
+      counts[typeKey] = allActivities.filter(
+        (a) => a.type === typeKey && activeSeverities.has(a.severity || 'info')
+      ).length
+    }
+    return Object.entries(counts).map(([type, count]) => ({
+      type: TYPE_CONFIG[type]?.label || type,
+      count,
+      fill: type === 'agent' ? '#8b5cf6'
+        : type === 'evolution' ? '#10b981'
+        : type === 'safety' ? '#f59e0b'
+        : type === 'memory' ? '#0ea5e9'
+        : type === 'benchmark' ? '#14b8a6'
+        : '#6b7280',
+    }))
+  }, [allActivities, activeSeverities])
+
+  // Filter activities based on time range, severity, and type
   const filteredActivities = useMemo(() => {
-    return MOCK_ACTIVITIES.filter((a) => {
-      if (severityFilter !== 'all' && a.severity !== severityFilter) return false
-      if (typeFilter !== 'all' && a.type !== typeFilter) return false
+    return allActivities.filter((a) => {
+      if (!activeSeverities.has(a.severity || 'info')) return false
+      if (!activeTypes.has(a.type)) return false
       return true
     })
-  }, [severityFilter, typeFilter])
+  }, [allActivities, activeSeverities, activeTypes])
 
   // Summary metrics
   const summaryMetrics = useMemo(() => {
-    const total24h = MOCK_ACTIVITIES.length
-    const avgResponseTime = 234 // ms mock
+    const total = filteredActivities.length
+    const avgResponseTime = 234
     const errorRate =
-      MOCK_ACTIVITIES.filter((a) => a.severity === 'error').length /
-      MOCK_ACTIVITIES.length *
+      filteredActivities.filter((a) => a.severity === 'error').length /
+      Math.max(filteredActivities.length, 1) *
       100
     const uptime = 99.97
-    return { total24h, avgResponseTime, errorRate, uptime }
-  }, [])
+    return { total, avgResponseTime, errorRate, uptime }
+  }, [filteredActivities])
+
+  // Pagination helpers
+  const totalPages = Math.ceil(filteredActivities.length / ITEMS_PER_PAGE)
+  const paginatedActivities = useMemo(() => {
+    if (feedMode === 'pagination') {
+      const start = (currentPage - 1) * ITEMS_PER_PAGE
+      return filteredActivities.slice(start, start + ITEMS_PER_PAGE)
+    }
+    return filteredActivities.slice(0, infiniteCount)
+  }, [filteredActivities, currentPage, feedMode, infiniteCount])
+
+  const pageStart = feedMode === 'pagination'
+    ? (currentPage - 1) * ITEMS_PER_PAGE + 1
+    : 1
+  const pageEnd = feedMode === 'pagination'
+    ? Math.min(currentPage * ITEMS_PER_PAGE, filteredActivities.length)
+    : Math.min(infiniteCount, filteredActivities.length)
+
+  // Generate page numbers for pagination
+  const getPageNumbers = useCallback(() => {
+    const pages: (number | 'ellipsis')[] = []
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
+    } else {
+      pages.push(1)
+      if (currentPage > 3) pages.push('ellipsis')
+      const start = Math.max(2, currentPage - 1)
+      const end = Math.min(totalPages - 1, currentPage + 1)
+      for (let i = start; i <= end; i++) pages.push(i)
+      if (currentPage < totalPages - 2) pages.push('ellipsis')
+      pages.push(totalPages)
+    }
+    return pages
+  }, [currentPage, totalPages])
+
+  // Helper to reset pagination when filters change
+  const resetPagination = () => {
+    setCurrentPage(1)
+    setInfiniteCount(ITEMS_PER_PAGE)
+  }
 
   // Toggle expanded item
   const toggleExpand = (id: string) => {
@@ -317,27 +573,105 @@ export function ActivityPanel() {
     )
   }
 
+  // Toggle severity filter
+  const toggleSeverity = (severity: string) => {
+    setActiveSeverities((prev) => {
+      const next = new Set(prev)
+      if (next.has(severity)) {
+        if (next.size > 1) next.delete(severity)
+      } else {
+        next.add(severity)
+      }
+      return next
+    })
+    resetPagination()
+  }
+
+  // Toggle type filter
+  const toggleType = (type: string) => {
+    setActiveTypes((prev) => {
+      const next = new Set(prev)
+      if (next.has(type)) {
+        if (next.size > 1) next.delete(type)
+      } else {
+        next.add(type)
+      }
+      return next
+    })
+    resetPagination()
+  }
+
+  // Toggle read/unread
+  const toggleRead = (id: string) => {
+    setReadIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  // Handle new activities
+  const handleShowNewActivities = () => {
+    setNewActivityCount(0)
+    setCurrentPage(1)
+  }
+
+  // Load more for infinite scroll
+  const handleLoadMore = () => {
+    setInfiniteCount((prev) => Math.min(prev + ITEMS_PER_PAGE, filteredActivities.length))
+  }
+
+  // Date range handler
+  const handleDateRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
+    if (range?.from) {
+      setDateRange({ from: range.from, to: range.to ?? range.from })
+      if (range.to || range.from) {
+        setCustomRangeActive(true)
+      }
+    } else {
+      setDateRange({ from: undefined, to: undefined })
+      setCustomRangeActive(false)
+    }
+  }
+
+  // Format date range for display
+  const formatDateRange = () => {
+    if (!dateRange.from) return 'Custom range'
+    const fromStr = dateRange.from.toLocaleDateString()
+    if (!dateRange.to) return fromStr
+    const toStr = dateRange.to.toLocaleDateString()
+    return fromStr === toStr ? fromStr : `${fromStr} — ${toStr}`
+  }
+
   // Export handlers
   const handleExportCSV = () => {
+    const rangeLabel = customRangeActive ? formatDateRange().replace(/\s*—\s*/g, '_to_') : timeRange
     const data = filteredActivities.map((a) => ({
       ID: a.id,
       Type: a.type,
       Message: a.message,
       Timestamp: a.timestamp,
       Severity: a.severity || 'info',
+      Read: readIds.has(a.id) ? 'Yes' : 'No',
     }))
-    exportToCSV(data, 'activity-log')
+    exportToCSV(data, `activity-log_${rangeLabel}`)
   }
 
   const handleExportJSON = () => {
+    const rangeLabel = customRangeActive ? formatDateRange().replace(/\s*—\s*/g, '_to_') : timeRange
     const data = filteredActivities.map((a) => ({
       id: a.id,
       type: a.type,
       message: a.message,
       timestamp: a.timestamp,
       severity: a.severity || 'info',
+      read: readIds.has(a.id),
     }))
-    exportToJSON(data, 'activity-log')
+    exportToJSON(data, `activity-log_${rangeLabel}`)
   }
 
   // Animation variants
@@ -368,6 +702,17 @@ export function ActivityPanel() {
     },
   }
 
+  const newItemVariants = {
+    initial: { opacity: 0, y: -20, scale: 0.95 },
+    animate: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: { type: 'spring', stiffness: 400, damping: 25 },
+    },
+    exit: { opacity: 0, y: -10, scale: 0.95 },
+  }
+
   return (
     <motion.div
       variants={containerVariants}
@@ -376,70 +721,147 @@ export function ActivityPanel() {
       className="space-y-6"
     >
       {/* Header */}
-      <motion.div variants={cardVariants} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center size-10 rounded-lg bg-rose-500/10">
-            <Activity className="size-5 text-rose-600 dark:text-rose-400" />
-          </div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-foreground">Activity Log</h2>
-            <Badge variant="secondary" className="text-xs">
-              {filteredActivities.length}
-            </Badge>
-          </div>
-        </div>
+      <PageHeader
+        icon={Activity}
+        iconColor="rose"
+        title="Activity Log"
+        badge={<Badge variant="secondary" className="text-xs">{filteredActivities.length}</Badge>}
+        actions={
+          <>
+            {/* Auto-refresh toggle */}
+            <Button
+              variant={autoRefresh ? 'default' : 'outline'}
+              size="sm"
+              className={cn('h-9 gap-1.5 text-xs', autoRefresh && 'bg-emerald-600 hover:bg-emerald-700 text-white')}
+              onClick={() => setAutoRefresh((prev) => !prev)}
+            >
+              <RefreshCw className={cn('size-3.5', isRefreshing && 'animate-spin')} />
+              Auto
+            </Button>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Severity filter */}
-          <Select value={severityFilter} onValueChange={setSeverityFilter}>
-            <SelectTrigger className="w-[140px] h-9 text-xs">
-              <SelectValue placeholder="Severity" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Severities</SelectItem>
-              <SelectItem value="info">Info</SelectItem>
-              <SelectItem value="success">Success</SelectItem>
-              <SelectItem value="warning">Warning</SelectItem>
-              <SelectItem value="error">Error</SelectItem>
-            </SelectContent>
-          </Select>
+            {/* Feed mode toggle */}
+            <ToggleGroup
+              type="single"
+              value={feedMode}
+              onValueChange={(v) => { if (v) setFeedMode(v as 'pagination' | 'infinite') }}
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="pagination" className="h-9 px-2.5 text-xs gap-1">
+                <List className="size-3.5" />
+                Pages
+              </ToggleGroupItem>
+              <ToggleGroupItem value="infinite" className="h-9 px-2.5 text-xs gap-1">
+                <AlignJustify className="size-3.5" />
+                Scroll
+              </ToggleGroupItem>
+            </ToggleGroup>
 
-          {/* Type filter */}
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[140px] h-9 text-xs">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="agent">Agent</SelectItem>
-              <SelectItem value="evolution">Evolution</SelectItem>
-              <SelectItem value="safety">Safety</SelectItem>
-              <SelectItem value="memory">Memory</SelectItem>
-              <SelectItem value="benchmark">Benchmark</SelectItem>
-              <SelectItem value="system">System</SelectItem>
-            </SelectContent>
-          </Select>
+            {/* Export dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs">
+                  <Download className="size-3.5" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileSpreadsheet className="mr-2 size-4" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportJSON}>
+                  <FileJson className="mr-2 size-4" />
+                  Export as JSON
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
 
-          {/* Export dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs">
-                <Download className="size-3.5" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportCSV}>
-                <FileSpreadsheet className="mr-2 size-4" />
-                Export as CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportJSON}>
-                <FileJson className="mr-2 size-4" />
-                Export as JSON
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      {/* Time Range Selector */}
+      <motion.div variants={cardVariants}>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground shrink-0">
+                <Clock className="size-4 text-muted-foreground" />
+                Time Range
+              </div>
+              <ToggleGroup
+                type="single"
+                value={customRangeActive ? 'custom' : timeRange}
+                onValueChange={(v) => {
+                  if (!v) return
+                  if (v === 'custom') return
+                  setCustomRangeActive(false)
+                  setTimeRange(v as TimeRange)
+                  resetPagination()
+                }}
+                variant="outline"
+                className="flex-wrap"
+              >
+                {Object.entries(TIME_RANGE_CONFIG).map(([key, cfg]) => (
+                  <ToggleGroupItem key={key} value={key} className="text-xs px-3 h-8">
+                    {cfg.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+
+              <Separator orientation="vertical" className="hidden sm:block h-6" />
+
+              {/* Date Range Picker */}
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={customRangeActive ? 'default' : 'outline'}
+                    size="sm"
+                    className={cn(
+                      'h-8 gap-1.5 text-xs',
+                      customRangeActive && 'bg-rose-600 hover:bg-rose-700 text-white'
+                    )}
+                  >
+                    <Calendar className="size-3.5" />
+                    {customRangeActive ? formatDateRange() : 'Custom Range'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="range"
+                    selected={{ from: dateRange.from, to: dateRange.to }}
+                    onSelect={handleDateRangeSelect as never}
+                    numberOfMonths={2}
+                  />
+                  <div className="flex items-center justify-between p-3 border-t border-border">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        setDateRange({ from: undefined, to: undefined })
+                        setCustomRangeActive(false)
+                        setCalendarOpen(false)
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        setCustomRangeActive(true)
+                        setCalendarOpen(false)
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Summary Metrics Row */}
@@ -449,8 +871,8 @@ export function ActivityPanel() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Total Events (24h)</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{summaryMetrics.total24h}</p>
+                  <p className="text-xs font-medium text-muted-foreground">Total Events</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">{summaryMetrics.total}</p>
                 </div>
                 <div className="size-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
                   <Zap className="size-4 text-blue-600 dark:text-blue-400" />
@@ -509,80 +931,196 @@ export function ActivityPanel() {
         </motion.div>
       </motion.div>
 
-      {/* Real-time Metrics Chart */}
-      <motion.div variants={cardVariants}>
-        <Card>
-          <CardContent className="p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <h3 className="text-sm font-semibold text-foreground">System Metrics (24h)</h3>
-              <div className="flex flex-wrap gap-2">
-                {metricLines.map((line) => (
-                  <button
-                    key={line.key}
-                    onClick={() => toggleMetricLine(line.key)}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all',
-                      line.active
-                        ? 'bg-muted text-foreground shadow-sm'
-                        : 'bg-transparent text-muted-foreground opacity-50 hover:opacity-80'
-                    )}
-                  >
-                    <span
-                      className="size-2 rounded-full shrink-0"
-                      style={{ backgroundColor: line.color }}
-                    />
-                    {line.label}
-                  </button>
-                ))}
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Performance Trends — Area Chart */}
+        <motion.div variants={cardVariants} className="lg:col-span-2">
+          <Card>
+            <CardContent className="p-4 md:p-6">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-foreground">Performance Trends ({TIME_RANGE_CONFIG[timeRange].label})</h3>
               </div>
-            </div>
-            <div className="h-64 md:h-72">
-              {chartData.length > 0 ? (
+              <div className="h-[300px]">
+                {chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} animationDuration={chartAnimated ? 1200 : 0}>
+                      <defs>
+                        {metricLines.map((line) => (
+                          <linearGradient key={line.gradientId} id={line.gradientId} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={line.color} stopOpacity={0.3} />
+                            <stop offset="95%" stopColor={line.color} stopOpacity={0.02} />
+                          </linearGradient>
+                        ))}
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                      <XAxis
+                        dataKey="time"
+                        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                        tickLine={false}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                        tickLine={false}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                        width={45}
+                      />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Legend
+                        content={({ payload }) => (
+                          <CustomLegend
+                            payload={payload}
+                            onToggle={toggleMetricLine}
+                            metricLines={metricLines}
+                          />
+                        )}
+                      />
+                      {metricLines
+                        .filter((l) => l.active)
+                        .map((line) => (
+                          <Area
+                            key={line.key}
+                            type="monotone"
+                            dataKey={line.key}
+                            name={line.label}
+                            stroke={line.color}
+                            strokeWidth={3}
+                            fill={`url(#${line.gradientId})`}
+                            dot={false}
+                            activeDot={{ r: 5, strokeWidth: 2, stroke: line.color, fill: 'hsl(var(--popover))' }}
+                            animationDuration={1200}
+                            animationEasing="ease-out"
+                          />
+                        ))}
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    <div className="flex flex-col items-center gap-2">
+                      <Activity className="size-8 opacity-30" />
+                      <span>No metrics data available</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Event Counts by Type — Bar Chart */}
+        <motion.div variants={cardVariants}>
+          <Card className="h-full">
+            <CardContent className="p-4 md:p-6">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Events by Type</h3>
+              <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <BarChart
+                    data={eventCountsByType}
+                    animationDuration={chartAnimated ? 1000 : 0}
+                    animationEasing="ease-out"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
                     <XAxis
-                      dataKey="time"
-                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      dataKey="type"
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                       tickLine={false}
                       axisLine={{ stroke: 'hsl(var(--border))' }}
-                      interval="preserveStartEnd"
                     />
                     <YAxis
                       tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                       tickLine={false}
                       axisLine={{ stroke: 'hsl(var(--border))' }}
-                      width={45}
+                      width={35}
+                      allowDecimals={false}
                     />
-                    <Tooltip content={<ChartTooltip />} />
-                    {metricLines
-                      .filter((l) => l.active)
-                      .map((line) => (
-                        <Line
-                          key={line.key}
-                          type="monotone"
-                          dataKey={line.key}
-                          name={line.label}
-                          stroke={line.color}
-                          strokeWidth={2}
-                          dot={false}
-                          activeDot={{ r: 4, strokeWidth: 0 }}
-                        />
+                    <Tooltip content={<BarChartTooltip />} />
+                    <Bar
+                      dataKey="count"
+                      radius={[6, 6, 0, 0]}
+                      animationDuration={1000}
+                    >
+                      {eventCountsByType.map((entry, index) => (
+                        <Cell key={index} fill={entry.fill} />
                       ))}
-                  </LineChart>
+                    </Bar>
+                  </BarChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  <div className="flex flex-col items-center gap-2">
-                    <Activity className="size-8 opacity-30" />
-                    <span>No metrics data available</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Filter Badges */}
+      <motion.div variants={cardVariants} className="space-y-3">
+        {/* Severity Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground shrink-0">Severity:</span>
+          {Object.entries(SEVERITY_CONFIG).map(([key, cfg]) => {
+            const Icon = cfg.icon
+            const isActive = activeSeverities.has(key)
+            return (
+              <button
+                key={key}
+                onClick={() => toggleSeverity(key)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all border',
+                  isActive
+                    ? cn(cfg.bg, cfg.color, 'border-transparent shadow-sm')
+                    : 'bg-transparent text-muted-foreground border-border opacity-50 hover:opacity-80'
+                )}
+              >
+                <Icon className="size-3" />
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Type Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground shrink-0">Type:</span>
+          {Object.entries(TYPE_CONFIG).map(([key, cfg]) => {
+            const isActive = activeTypes.has(key)
+            return (
+              <button
+                key={key}
+                onClick={() => toggleType(key)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all border',
+                  isActive
+                    ? cn(cfg.bg, cfg.color, 'border-transparent shadow-sm')
+                    : 'bg-transparent text-muted-foreground border-border opacity-50 hover:opacity-80'
+                )}
+              >
+                {cfg.label}
+              </button>
+            )
+          })}
+        </div>
       </motion.div>
+
+      {/* New Activity Badge */}
+      <AnimatePresence>
+        {newActivityCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex justify-center"
+          >
+            <button
+              onClick={handleShowNewActivities}
+              className="inline-flex items-center gap-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-xs font-medium shadow-lg transition-colors"
+            >
+              <Sparkles className="size-3.5" />
+              {newActivityCount} new {newActivityCount === 1 ? 'activity' : 'activities'}
+              <ChevronDown className="size-3" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Activity Feed */}
       <motion.div variants={cardVariants}>
@@ -594,105 +1132,158 @@ export function ActivityPanel() {
               <Badge variant="outline" className="text-[10px] h-5">
                 {filteredActivities.length} items
               </Badge>
+              <span className="ml-auto text-xs text-muted-foreground">
+                Showing {pageStart}–{pageEnd} of {filteredActivities.length}
+              </span>
             </div>
             <Separator className="mx-4 md:mx-6" />
-            <ScrollArea className="max-h-[calc(100vh-16rem)]">
+            <ScrollArea className="max-h-[calc(100vh-20rem)]">
               <div className="divide-y divide-border">
-                {filteredActivities.map((activity, index) => {
-                  const severity = activity.severity || 'info'
-                  const sevCfg = SEVERITY_CONFIG[severity]
-                  const typeCfg = TYPE_CONFIG[activity.type]
-                  const SevIcon = sevCfg.icon
-                  const isExpanded = expandedIds.has(activity.id)
+                <AnimatePresence mode="popLayout">
+                  {paginatedActivities.map((activity, index) => {
+                    const severity = activity.severity || 'info'
+                    const sevCfg = SEVERITY_CONFIG[severity]
+                    const typeCfg = TYPE_CONFIG[activity.type]
+                    const SevIcon = sevCfg.icon
+                    const isExpanded = expandedIds.has(activity.id)
+                    const isRead = readIds.has(activity.id)
 
-                  return (
-                    <motion.div
-                      key={activity.id}
-                      variants={itemVariants}
-                      custom={index}
-                      className={cn(
-                        'group border-l-4 transition-colors hover:bg-muted/40',
-                        sevCfg.border
-                      )}
-                    >
-                      <button
-                        onClick={() => toggleExpand(activity.id)}
-                        className="w-full flex items-start gap-3 px-4 md:px-6 py-3 text-left"
+                    return (
+                      <motion.div
+                        key={activity.id}
+                        variants={index < 3 && activity.timestamp === 'Just now' ? newItemVariants : itemVariants}
+                        initial={index < 3 && activity.timestamp === 'Just now' ? 'initial' : 'hidden'}
+                        animate={index < 3 && activity.timestamp === 'Just now' ? 'animate' : 'visible'}
+                        exit="exit"
+                        layout
+                        className={cn(
+                          'group border-l-4 transition-colors hover:bg-muted/40',
+                          sevCfg.border,
+                          isRead && 'opacity-60'
+                        )}
                       >
-                        {/* Severity dot */}
-                        <div className="flex items-center gap-2 pt-0.5 shrink-0">
-                          <span className={cn('size-2 rounded-full shrink-0', sevCfg.dot)} />
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <Badge
-                              variant="secondary"
-                              className={cn('text-[10px] h-5 px-1.5', typeCfg.bg, typeCfg.color)}
-                            >
-                              {typeCfg.label}
-                            </Badge>
-                            <Badge
-                              variant="secondary"
-                              className={cn('text-[10px] h-5 px-1.5 gap-0.5', sevCfg.bg, sevCfg.color)}
-                            >
-                              <SevIcon className="size-2.5" />
-                              {severity}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-foreground leading-snug line-clamp-2">
-                            {activity.message}
-                          </p>
-                          <span className="text-xs text-muted-foreground mt-0.5 block">
-                            {activity.timestamp}
-                          </span>
-                        </div>
-
-                        {/* Expand chevron */}
-                        <div className="shrink-0 pt-1 text-muted-foreground">
-                          {isExpanded ? (
-                            <ChevronDown className="size-4" />
-                          ) : (
-                            <ChevronRight className="size-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Expanded detail */}
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="px-4 md:px-6 pb-3 pl-12"
+                        <button
+                          onClick={() => toggleExpand(activity.id)}
+                          className="w-full flex items-start gap-3 px-4 md:px-6 py-3 text-left"
                         >
-                          <div className="rounded-lg bg-muted/50 border border-border p-3 text-xs text-muted-foreground space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-foreground">ID:</span>
-                              <span>{activity.id}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-foreground">Type:</span>
-                              <span className={typeCfg.color}>{typeCfg.label}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-foreground">Severity:</span>
-                              <span className={sevCfg.color}>{severity}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-foreground">Timestamp:</span>
-                              <span>{activity.timestamp}</span>
-                            </div>
-                            <Separator className="my-1.5" />
-                            <p className="text-foreground/80 leading-relaxed">{activity.message}</p>
+                          {/* Severity dot */}
+                          <div className="flex items-center gap-2 pt-0.5 shrink-0">
+                            <span className={cn('size-2 rounded-full shrink-0', sevCfg.dot)} />
                           </div>
-                        </motion.div>
-                      )}
-                    </motion.div>
-                  )
-                })}
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                              <Badge
+                                variant="secondary"
+                                className={cn('text-[10px] h-5 px-1.5', typeCfg.bg, typeCfg.color)}
+                              >
+                                {typeCfg.label}
+                              </Badge>
+                              <Badge
+                                variant="secondary"
+                                className={cn('text-[10px] h-5 px-1.5 gap-0.5', sevCfg.bg, sevCfg.color)}
+                              >
+                                <SevIcon className="size-2.5" />
+                                {severity}
+                              </Badge>
+                            </div>
+                            <p className={cn(
+                              'text-sm text-foreground leading-snug line-clamp-2',
+                              isRead && 'text-muted-foreground'
+                            )}>
+                              {activity.message}
+                            </p>
+                            <div className="flex items-center gap-3 mt-0.5">
+                              <TooltipUI>
+                                <TooltipTrigger asChild>
+                                  <span className="text-xs text-muted-foreground cursor-default">
+                                    {activity.timestamp}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</p>
+                                </TooltipContent>
+                              </TooltipUI>
+                            </div>
+                          </div>
+
+                          {/* Action buttons */}
+                          <div className="shrink-0 flex items-center gap-1 pt-1">
+                            {/* Mark as read/unread */}
+                            <TooltipUI>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleRead(activity.id)
+                                  }}
+                                  className="size-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                                >
+                                  {isRead ? (
+                                    <EyeOff className="size-3" />
+                                  ) : (
+                                    <Eye className="size-3" />
+                                  )}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {isRead ? 'Mark as Unread' : 'Mark as Read'}
+                              </TooltipContent>
+                            </TooltipUI>
+
+                            {/* Expand chevron */}
+                            <div className="text-muted-foreground">
+                              {isExpanded ? (
+                                <ChevronDown className="size-4" />
+                              ) : (
+                                <ChevronRight className="size-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              )}
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* Expanded detail */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="px-4 md:px-6 pb-3 pl-12"
+                            >
+                              <div className="rounded-lg bg-muted/50 border border-border p-3 text-xs text-muted-foreground space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-foreground">ID:</span>
+                                  <span className="font-mono">{activity.id}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-foreground">Type:</span>
+                                  <span className={typeCfg.color}>{typeCfg.label}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-foreground">Severity:</span>
+                                  <span className={sevCfg.color}>{severity}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-foreground">Timestamp:</span>
+                                  <span>{activity.timestamp}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-foreground">Status:</span>
+                                  <span>{isRead ? 'Read' : 'Unread'}</span>
+                                </div>
+                                <Separator className="my-1.5" />
+                                <p className="text-foreground/80 leading-relaxed">{activity.message}</p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    )
+                  })}
+                </AnimatePresence>
 
                 {filteredActivities.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -703,6 +1294,71 @@ export function ActivityPanel() {
                 )}
               </div>
             </ScrollArea>
+
+            {/* Pagination Controls */}
+            {filteredActivities.length > 0 && (
+              <div className="border-t border-border">
+                {feedMode === 'pagination' ? (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 md:px-6 py-3">
+                    <span className="text-xs text-muted-foreground">
+                      Showing {pageStart}–{pageEnd} of {filteredActivities.length} items
+                    </span>
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            className={cn(
+                              currentPage === 1 && 'pointer-events-none opacity-50'
+                            )}
+                          />
+                        </PaginationItem>
+                        {getPageNumbers().map((page, i) =>
+                          page === 'ellipsis' ? (
+                            <PaginationItem key={`ellipsis-${i}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          ) : (
+                            <PaginationItem key={page}>
+                              <PaginationLink
+                                onClick={() => setCurrentPage(page)}
+                                isActive={currentPage === page}
+                              >
+                                {page}
+                              </PaginationLink>
+                            </PaginationItem>
+                          )
+                        )}
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            className={cn(
+                              currentPage === totalPages && 'pointer-events-none opacity-50'
+                            )}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 md:px-6 py-3">
+                    <span className="text-xs text-muted-foreground">
+                      Showing {pageEnd} of {filteredActivities.length} items
+                    </span>
+                    {infiniteCount < filteredActivities.length && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={handleLoadMore}
+                      >
+                        Load More ({filteredActivities.length - infiniteCount} remaining)
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>

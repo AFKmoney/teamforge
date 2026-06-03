@@ -12,6 +12,8 @@ import {
   Loader2,
   ChevronDown,
   ChevronRight,
+  GitCompareArrows,
+  Clock,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -47,8 +49,11 @@ import {
   CollapsibleContent,
 } from '@/components/ui/collapsible'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
+import { PageHeader } from '@/components/page-header'
 import type { EvolutionEvent, EvolutionType, EvolutionStatus, RiskLevel } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -112,6 +117,374 @@ const STATUS_BORDER: Record<EvolutionStatus, string> = {
 }
 
 const EVOLUTION_PHASES = ['Observe', 'Analyze', 'Hypothesize', 'Implement', 'Evaluate', 'Deploy'] as const
+
+// ---------------------------------------------------------------------------
+// Diff generation helpers (for side-by-side dialog view)
+// ---------------------------------------------------------------------------
+
+interface DiffLine {
+  content: string
+  type: DiffType
+}
+
+interface DiffLinePair {
+  before: DiffLine | null
+  after: DiffLine | null
+}
+
+/** Format a key-value pair as JSON lines for diff display */
+function formatValueLines(key: string, val: unknown): string[] {
+  const lines: string[] = []
+  if (val === undefined || val === null) {
+    lines.push(`"${key}": null`)
+  } else if (typeof val === 'object') {
+    try {
+      const formatted = JSON.stringify(val, null, 2)
+      const split = formatted.split('\n')
+      lines.push(`"${key}": ${split[0]}`)
+      for (let i = 1; i < split.length; i++) {
+        lines.push(split[i])
+      }
+    } catch {
+      lines.push(`"${key}": ${String(val)}`)
+    }
+  } else if (typeof val === 'string') {
+    lines.push(`"${key}": "${val}"`)
+  } else {
+    lines.push(`"${key}": ${String(val)}`)
+  }
+  return lines
+}
+
+/** Generate side-by-side diff line pairs from before/after objects */
+function generateDiff(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>
+): DiffLinePair[] {
+  const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).sort()
+  const pairs: DiffLinePair[] = []
+
+  // Opening brace
+  pairs.push({
+    before: { content: '{', type: 'unchanged' },
+    after: { content: '{', type: 'unchanged' },
+  })
+
+  for (const key of allKeys) {
+    const inBefore = key in before
+    const inAfter = key in after
+    const beforeVal = before[key]
+    const afterVal = after[key]
+
+    if (!inBefore) {
+      // Added key
+      const afterLines = formatValueLines(key, afterVal)
+      for (let i = 0; i < afterLines.length; i++) {
+        const isLast = i === afterLines.length - 1
+        pairs.push({
+          before: null,
+          after: {
+            content: isLast && allKeys.indexOf(key) < allKeys.length - 1 ? `${afterLines[i]},` : afterLines[i],
+            type: 'added',
+          },
+        })
+      }
+    } else if (!inAfter) {
+      // Removed key
+      const beforeLines = formatValueLines(key, beforeVal)
+      for (let i = 0; i < beforeLines.length; i++) {
+        const isLast = i === beforeLines.length - 1
+        pairs.push({
+          before: {
+            content: isLast && allKeys.indexOf(key) < allKeys.length - 1 ? `${beforeLines[i]},` : beforeLines[i],
+            type: 'removed',
+          },
+          after: null,
+        })
+      }
+    } else if (JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
+      // Changed key — show old value in before, new value in after
+      const beforeLines = formatValueLines(key, beforeVal)
+      const afterLines = formatValueLines(key, afterVal)
+      const maxLines = Math.max(beforeLines.length, afterLines.length)
+
+      for (let i = 0; i < maxLines; i++) {
+        const bLine = i < beforeLines.length ? beforeLines[i] : undefined
+        const aLine = i < afterLines.length ? afterLines[i] : undefined
+        const isLast = i === maxLines - 1
+        const commaSuffix = isLast && allKeys.indexOf(key) < allKeys.length - 1 ? ',' : ''
+        pairs.push({
+          before: bLine !== undefined
+            ? { content: `${bLine}${isLast ? commaSuffix : ''}`, type: 'changed' }
+            : null,
+          after: aLine !== undefined
+            ? { content: `${aLine}${isLast ? commaSuffix : ''}`, type: 'changed' }
+            : null,
+        })
+      }
+    } else {
+      // Unchanged key
+      const lines = formatValueLines(key, afterVal)
+      for (let i = 0; i < lines.length; i++) {
+        const isLast = i === lines.length - 1
+        const commaSuffix = isLast && allKeys.indexOf(key) < allKeys.length - 1 ? ',' : ''
+        pairs.push({
+          before: { content: `${lines[i]}${isLast ? commaSuffix : ''}`, type: 'unchanged' },
+          after: { content: `${lines[i]}${isLast ? commaSuffix : ''}`, type: 'unchanged' },
+        })
+      }
+    }
+  }
+
+  // Closing brace
+  pairs.push({
+    before: { content: '}', type: 'unchanged' },
+    after: { content: '}', type: 'unchanged' },
+  })
+
+  return pairs
+}
+
+// ---------------------------------------------------------------------------
+// SideBySideDiffPanel sub-component
+// ---------------------------------------------------------------------------
+
+function SideBySideDiffPanel({
+  before,
+  after,
+}: {
+  before: Record<string, unknown>
+  after: Record<string, unknown>
+}) {
+  const diffPairs = useMemo(() => generateDiff(before, after), [before, after])
+
+  const stats = useMemo(() => {
+    let added = 0
+    let removed = 0
+    let changed = 0
+    for (const pair of diffPairs) {
+      if (pair.before?.type === 'added' || pair.after?.type === 'added') added++
+      else if (pair.before?.type === 'removed' || pair.after?.type === 'removed') removed++
+      else if (pair.before?.type === 'changed' || pair.after?.type === 'changed') changed++
+    }
+    return { added, removed, changed }
+  }, [diffPairs])
+
+  // Compute line numbers for each side
+  const { beforeLines, afterLines } = useMemo(() => {
+    let bNum = 0
+    let aNum = 0
+    const result = diffPairs.map((pair) => ({
+      beforeLineNum: pair.before ? ++bNum : null,
+      afterLineNum: pair.after ? ++aNum : null,
+      pair,
+    }))
+    return { beforeLines: result, afterLines: result }
+  }, [diffPairs])
+
+  const lineBg = (type: DiffType) =>
+    cn(
+      type === 'added' && 'bg-emerald-500/10 border-l-2 border-emerald-500',
+      type === 'removed' && 'bg-red-500/10 border-l-2 border-red-500',
+      type === 'changed' && 'bg-amber-500/10 border-l-2 border-amber-500',
+      type === 'unchanged' && ''
+    )
+
+  const lineText = (type: DiffType) =>
+    cn(
+      type === 'added' && 'text-emerald-700 dark:text-emerald-300',
+      type === 'removed' && 'text-red-700 dark:text-red-300 line-through',
+      type === 'changed' && 'text-amber-700 dark:text-amber-300',
+      type === 'unchanged' && 'text-foreground'
+    )
+
+  return (
+    <div className="space-y-3">
+      {/* Summary bar */}
+      <div className="flex items-center gap-4 text-xs font-medium px-1">
+        {stats.added > 0 && (
+          <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+            <span className="inline-block size-2.5 rounded-full bg-emerald-500" />
+            +{stats.added} addition{stats.added !== 1 ? 's' : ''}
+          </span>
+        )}
+        {stats.removed > 0 && (
+          <span className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+            <span className="inline-block size-2.5 rounded-full bg-red-500" />
+            -{stats.removed} deletion{stats.removed !== 1 ? 's' : ''}
+          </span>
+        )}
+        {stats.changed > 0 && (
+          <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+            <span className="inline-block size-2.5 rounded-full bg-amber-500" />
+            ~{stats.changed} modification{stats.changed !== 1 ? 's' : ''}
+          </span>
+        )}
+        {(stats.added + stats.removed + stats.changed === 0) && (
+          <span className="text-muted-foreground">No changes detected</span>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Side-by-side diff panels */}
+      <div className="grid grid-cols-2 gap-0 rounded-lg border border-border overflow-hidden">
+        {/* Before panel */}
+        <div className="border-r border-border">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/5 border-b border-border">
+            <span className="inline-block size-2 rounded bg-red-500/30" />
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Before</span>
+          </div>
+          <ScrollArea className="max-h-[400px]">
+            <div className="font-mono text-xs">
+              {beforeLines.map((item, idx) => {
+                if (!item.pair.before) {
+                  // Empty line on before side (after has content)
+                  return (
+                    <div key={idx} className="flex min-h-[20px]">
+                      <span className="inline-block w-8 shrink-0 text-right pr-2 text-muted-foreground/30 select-none border-r border-border bg-muted/20"> </span>
+                      <span className="px-2 py-px text-muted-foreground/10 select-none">·</span>
+                    </div>
+                  )
+                }
+                return (
+                  <div key={idx} className={cn('flex min-h-[20px]', lineBg(item.pair.before.type))}>
+                    <span className="inline-block w-8 shrink-0 text-right pr-2 text-muted-foreground/50 select-none border-r border-border">
+                      {item.beforeLineNum}
+                    </span>
+                    <span className={cn('px-2 py-px whitespace-pre', lineText(item.pair.before.type))}>
+                      {item.pair.before.content}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* After panel */}
+        <div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/5 border-b border-border">
+            <span className="inline-block size-2 rounded bg-emerald-500/30" />
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">After</span>
+          </div>
+          <ScrollArea className="max-h-[400px]">
+            <div className="font-mono text-xs">
+              {afterLines.map((item, idx) => {
+                if (!item.pair.after) {
+                  // Empty line on after side (before has content)
+                  return (
+                    <div key={idx} className="flex min-h-[20px]">
+                      <span className="inline-block w-8 shrink-0 text-right pr-2 text-muted-foreground/30 select-none border-r border-border bg-muted/20"> </span>
+                      <span className="px-2 py-px text-muted-foreground/10 select-none">·</span>
+                    </div>
+                  )
+                }
+                return (
+                  <div key={idx} className={cn('flex min-h-[20px]', lineBg(item.pair.after.type))}>
+                    <span className="inline-block w-8 shrink-0 text-right pr-2 text-muted-foreground/50 select-none border-r border-border">
+                      {item.afterLineNum}
+                    </span>
+                    <span className={cn('px-2 py-px whitespace-pre', lineText(item.pair.after.type))}>
+                      {item.pair.after.content}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// DiffViewerDialog sub-component
+// ---------------------------------------------------------------------------
+
+function DiffViewerDialog({
+  event,
+  open,
+  onOpenChange,
+}: {
+  event: EvolutionEvent | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  if (!event) return null
+
+  const typeCfg = TYPE_BADGE[event.type] ?? TYPE_BADGE.prompt
+  const riskCfg = RISK_BADGE[event.riskLevel] ?? RISK_BADGE.low
+
+  const formatTimestamp = (ts: string | null, label: string) => {
+    if (!ts) return null
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Clock className="size-3" />
+        <span className="font-medium">{label}:</span>
+        <span>{new Date(ts).toLocaleString()}</span>
+      </div>
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <div className="flex items-center gap-2 flex-wrap">
+            <DialogTitle className="text-lg">{event.title}</DialogTitle>
+            <Badge variant="outline" className={cn('text-xs', typeCfg.bg)}>
+              {typeCfg.label}
+            </Badge>
+            <Badge variant="outline" className={cn('text-xs', riskCfg.bg)}>
+              {riskCfg.label} Risk
+            </Badge>
+            {event.improvementPercent !== 0 && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-xs',
+                  event.improvementPercent > 0
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                    : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                )}
+              >
+                {event.improvementPercent > 0 ? (
+                  <><ArrowUp className="size-3 mr-0.5" />+{event.improvementPercent.toFixed(0)}%</>
+                ) : (
+                  <><ArrowDown className="size-3 mr-0.5" />{event.improvementPercent.toFixed(0)}%</>
+                )}
+              </Badge>
+            )}
+          </div>
+          <DialogDescription className="text-sm text-muted-foreground mt-1">
+            {event.description}
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Timestamps row */}
+        <div className="flex flex-wrap gap-4 py-1">
+          {formatTimestamp(event.createdAt, 'Created')}
+          {formatTimestamp(event.validatedAt, 'Validated')}
+          {formatTimestamp(event.deployedAt, 'Deployed')}
+        </div>
+
+        <Separator />
+
+        {/* Diff viewer */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="flex-1 overflow-hidden"
+        >
+          <SideBySideDiffPanel before={event.beforeState} after={event.afterState} />
+        </motion.div>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -506,6 +879,7 @@ export function EvolutionPanel() {
   const [submitting, setSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState('all')
   const [expandedEvents, setExpandedEvents] = useState<Record<string, boolean>>({})
+  const [diffDialogEvent, setDiffDialogEvent] = useState<EvolutionEvent | null>(null)
 
   // Form state
   const [formType, setFormType] = useState<EvolutionType>('prompt')
@@ -643,19 +1017,18 @@ export function EvolutionPanel() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center size-10 rounded-lg bg-emerald-500/10">
-            <Dna className="size-5 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Evolution Engine</h2>
-          <Badge variant="secondary" className="text-sm">{evolutionEvents.length}</Badge>
-        </div>
-        <Button size="sm" onClick={() => setProposeOpen(true)}>
-          <Plus className="size-4 mr-1" />
-          Propose Improvement
-        </Button>
-      </div>
+      <PageHeader
+        icon={Dna}
+        iconColor="emerald"
+        title="Evolution Engine"
+        badge={<Badge variant="secondary" className="text-sm">{evolutionEvents.length}</Badge>}
+        actions={
+          <Button size="sm" onClick={() => setProposeOpen(true)}>
+            <Plus className="size-4 mr-1" />
+            Propose Improvement
+          </Button>
+        }
+      />
 
       {/* Evolution Loop Visualization */}
       <div className="flex items-center gap-1 overflow-x-auto pb-2">
@@ -768,22 +1141,33 @@ export function EvolutionPanel() {
                         </div>
                       )}
 
-                      {/* Collapsible Before/After */}
-                      <Collapsible open={isExpanded} onOpenChange={() => toggleExpand(event.id)}>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
-                            {isExpanded ? (
-                              <ChevronDown className="size-3" />
-                            ) : (
-                              <ChevronRight className="size-3" />
-                            )}
-                            Before / After
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <DiffViewer before={event.beforeState} after={event.afterState} />
-                        </CollapsibleContent>
-                      </Collapsible>
+                      {/* Before/After: inline diff + View Changes button */}
+                      <div className="flex items-center gap-2">
+                        <Collapsible open={isExpanded} onOpenChange={() => toggleExpand(event.id)}>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
+                              {isExpanded ? (
+                                <ChevronDown className="size-3" />
+                              ) : (
+                                <ChevronRight className="size-3" />
+                              )}
+                              Before / After
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <DiffViewer before={event.beforeState} after={event.afterState} />
+                          </CollapsibleContent>
+                        </Collapsible>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs"
+                          onClick={() => setDiffDialogEvent(event)}
+                        >
+                          <GitCompareArrows className="size-3.5" />
+                          View Changes
+                        </Button>
+                      </div>
 
                       {/* Action buttons */}
                       <div className="flex flex-wrap gap-2 pt-1">
@@ -847,6 +1231,13 @@ export function EvolutionPanel() {
           </AnimatePresence>
         </TabsContent>
       </Tabs>
+
+      {/* Diff Viewer Dialog */}
+      <DiffViewerDialog
+        event={diffDialogEvent}
+        open={diffDialogEvent !== null}
+        onOpenChange={(open) => { if (!open) setDiffDialogEvent(null) }}
+      />
 
       {/* Propose Improvement Dialog */}
       <Dialog open={proposeOpen} onOpenChange={setProposeOpen}>

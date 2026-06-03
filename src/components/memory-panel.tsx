@@ -53,6 +53,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
+import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -368,72 +369,65 @@ export function MemoryPanel() {
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center size-10 rounded-lg bg-violet-500/10">
-            <Database className="size-5 text-violet-600 dark:text-violet-400" />
-          </div>
-          <h2 className="text-xl font-semibold text-foreground">Memory System</h2>
-          <Badge variant="secondary" className="ml-1">
-            {typeCounts.all}
-          </Badge>
-        </div>
-
-        {/* Export & Add Memory */}
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="size-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => {
-                const data = parsedMemories.map((m) => ({
-                  ID: m.id,
-                  Type: m.type,
-                  Category: m.category || '',
-                  Content: m.content,
-                  Importance: m.importance,
-                  'Access Count': m.accessCount,
-                  'Agent Name': m.agent?.name ?? '',
-                  'Created At': m.createdAt,
-                  'Updated At': m.updatedAt,
-                }))
-                exportToCSV(data, 'memories')
-              }}>
-                <FileSpreadsheet className="mr-2 size-4" />
-                Export as CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                const data = parsedMemories.map((m) => ({
-                  id: m.id,
-                  type: m.type,
-                  category: m.category,
-                  content: m.content,
-                  importance: m.importance,
-                  accessCount: m.accessCount,
-                  metadata: m.metadata,
-                  agent: m.agent?.name ?? null,
-                  createdAt: m.createdAt,
-                  updatedAt: m.updatedAt,
-                }))
-                exportToJSON(data, 'memories')
-              }}>
-                <FileJson className="mr-2 size-4" />
-                Export as JSON
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="size-4 mr-1" />
-              Add Memory
-            </Button>
-          </DialogTrigger>
+      <PageHeader
+        icon={Database}
+        iconColor="violet"
+        title="Memory System"
+        badge={<Badge variant="secondary" className="ml-1">{typeCounts.all}</Badge>}
+        actions={
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Download className="size-4" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => {
+                  const data = parsedMemories.map((m) => ({
+                    ID: m.id,
+                    Type: m.type,
+                    Category: m.category || '',
+                    Content: m.content,
+                    Importance: m.importance,
+                    'Access Count': m.accessCount,
+                    'Agent Name': m.agent?.name ?? '',
+                    'Created At': m.createdAt,
+                    'Updated At': m.updatedAt,
+                  }))
+                  exportToCSV(data, 'memories')
+                }}>
+                  <FileSpreadsheet className="mr-2 size-4" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const data = parsedMemories.map((m) => ({
+                    id: m.id,
+                    type: m.type,
+                    category: m.category,
+                    content: m.content,
+                    importance: m.importance,
+                    accessCount: m.accessCount,
+                    metadata: m.metadata,
+                    agent: m.agent?.name ?? null,
+                    createdAt: m.createdAt,
+                    updatedAt: m.updatedAt,
+                  }))
+                  exportToJSON(data, 'memories')
+                }}>
+                  <FileJson className="mr-2 size-4" />
+                  Export as JSON
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="size-4 mr-1" />
+                  Add Memory
+                </Button>
+              </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add Memory</DialogTitle>
@@ -498,8 +492,9 @@ export function MemoryPanel() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Memory Type Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>

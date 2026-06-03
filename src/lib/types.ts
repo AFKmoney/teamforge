@@ -220,6 +220,19 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
+  reaction?: 'thumbs-up' | 'thumbs-down' | null
+}
+
+// ---------------------------------------------------------------------------
+// Chat Conversation
+// ---------------------------------------------------------------------------
+
+export interface ChatConversation {
+  id: string
+  title: string
+  messages: ChatMessage[]
+  createdAt: string
+  updatedAt: string
 }
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
+import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion'
 import {
   Users,
   Database,
@@ -24,6 +24,7 @@ import {
   AlertCircle,
   XCircle,
   ChevronRight,
+  Gauge,
 } from 'lucide-react'
 import {
   Card,
@@ -36,9 +37,17 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
+import { PageHeader } from '@/components/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   ChartContainer,
   ChartTooltip,
@@ -49,6 +58,7 @@ import {
 } from '@/components/ui/chart'
 import { Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useAppStore } from '@/lib/store'
+import { useSimulation } from '@/hooks/use-simulation'
 import type { EvolutionEvent, SystemMetric, ActivityLog } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -70,6 +80,13 @@ const itemVariants = {
     y: 0,
     transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
   },
+}
+
+// Activity feed item animation variants (for sliding in from left)
+const activityItemVariants = {
+  initial: { opacity: 0, x: -20 },
+  animate: { opacity: 1, x: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 24 } },
+  exit: { opacity: 0, x: -20, transition: { duration: 0.2 } },
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +221,7 @@ function MiniSparkline({ data, color = 'emerald', width = 60, height = 24 }: {
 }
 
 // ---------------------------------------------------------------------------
-// Animated Count-Up Component
+// Animated Count-Up Component (with value-change flash)
 // ---------------------------------------------------------------------------
 
 function CountUp({ target, duration = 1.2, className }: {
@@ -232,7 +249,17 @@ function CountUp({ target, duration = 1.2, className }: {
     return unsubscribe
   }, [rounded])
 
-  return <span className={className}>{display}</span>
+  return (
+    <span
+      key={target}
+      className={cn(
+        className,
+        'animate-[flash-fade_500ms_ease-out_forwards]'
+      )}
+    >
+      {display}
+    </span>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -423,6 +450,37 @@ function MetricCardSkeleton() {
 }
 
 // ---------------------------------------------------------------------------
+// LIVE Indicator Component
+// ---------------------------------------------------------------------------
+
+function LiveIndicator({ isLive, onClick }: { isLive: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-all',
+        isLive
+          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+      )}
+    >
+      <span className="relative flex size-2">
+        {isLive && (
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+        )}
+        <span
+          className={cn(
+            'relative inline-flex rounded-full size-2',
+            isLive ? 'bg-emerald-500' : 'bg-muted-foreground/50'
+          )}
+        />
+      </span>
+      <span>LIVE</span>
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
@@ -435,10 +493,15 @@ export function DashboardOverview() {
   const setBenchmarks = useAppStore((s) => s.setBenchmarks)
   const isLoading = useAppStore((s) => s.isLoading)
   const setIsLoading = useAppStore((s) => s.setIsLoading)
+  const setSimulationSpeed = useAppStore((s) => s.setSimulationSpeed)
+  const simulationSpeed = useAppStore((s) => s.simulationSpeed)
 
   const [chartData, setChartData] = useState<Array<Record<string, unknown>>>([])
   const [latestEvents, setLatestEvents] = useState<EvolutionEvent[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Simulation hook
+  const sim = useSimulation(true)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -553,8 +616,12 @@ export function DashboardOverview() {
 
   const statusBreakdown = data?.evolutionStatusBreakdown ?? {}
 
-  // Gauge values (stable per session using useMemo)
+  // Use simulation-driven gauge values when simulating, fallback to static
   const gaugeValues = useMemo(() => {
+    if (sim.isSimulating) {
+      return sim.gaugeValues
+    }
+    // Static fallback
     const seed = data?.agentCount ?? 1
     const pseudoRandom = (base: number, min: number, max: number) => {
       const x = Math.sin(base * 9301 + 49297) * 233280
@@ -569,21 +636,40 @@ export function DashboardOverview() {
       network: pseudoRandom(seed + 19, 20, 60),
       agentLoad,
     }
-  }, [data?.agentCount, data?.activeAgentCount])
+  }, [sim.isSimulating, sim.gaugeValues, data?.agentCount, data?.activeAgentCount])
 
-  // Activity feed items
-  const activityItems = useMemo(
+  // Merge static activity items with simulation items
+  const staticActivityItems = useMemo(
     () => generateActivityItems(data?.agentCount ?? 0, data?.activeAgentCount ?? 0),
     [data?.agentCount, data?.activeAgentCount]
   )
 
-  // Sparkline mock data (deterministic per metric)
-  const sparklineData = useMemo(() => ({
-    agents: [3, 4, 5, 4, 6, 5, 7, data?.activeAgentCount ?? 0],
-    memories: [120, 135, 128, 142, 150, 148, 155, data?.memoryCount ?? 0],
-    evolution: [1, 2, 3, 2, 4, 5, 3, data?.evolutionEventCount ?? 0],
-    safety: [98, 95, 97, 92, 94, 96, 98, safetyScore],
-  }), [data?.activeAgentCount, data?.memoryCount, data?.evolutionEventCount, safetyScore])
+  const activityItems = useMemo(() => {
+    if (sim.isSimulating && sim.activityItems.length > 0) {
+      // Combine simulation items (newest first) with static items
+      return [...sim.activityItems, ...staticActivityItems].slice(0, 20)
+    }
+    return staticActivityItems
+  }, [sim.isSimulating, sim.activityItems, staticActivityItems])
+
+  // Use simulation-driven sparkline data when simulating
+  const sparklineData = useMemo(() => {
+    if (sim.isSimulating) {
+      return sim.sparklineData
+    }
+    return {
+      agents: [3, 4, 5, 4, 6, 5, 7, data?.activeAgentCount ?? 0],
+      memories: [120, 135, 128, 142, 150, 148, 155, data?.memoryCount ?? 0],
+      evolution: [1, 2, 3, 2, 4, 5, 3, data?.evolutionEventCount ?? 0],
+      safety: [98, 95, 97, 92, 94, 96, 98, safetyScore],
+    }
+  }, [sim.isSimulating, sim.sparklineData, data?.activeAgentCount, data?.memoryCount, data?.evolutionEventCount, safetyScore])
+
+  // Simulation-adjusted metric values
+  const simAdjustedActiveAgents = (data?.activeAgentCount ?? 0) + (sim.isSimulating ? sim.metricDeltas.activeAgentDelta : 0)
+  const simAdjustedMemories = (data?.memoryCount ?? 0) + (sim.isSimulating ? sim.metricDeltas.memoryDelta : 0)
+  const simAdjustedEvolution = (data?.evolutionEventCount ?? 0) + (sim.isSimulating ? sim.metricDeltas.evolutionDelta : 0)
+  const simAdjustedSafety = Math.max(0, Math.min(100, safetyScore + (sim.isSimulating ? sim.metricDeltas.safetyDelta : 0)))
 
   return (
     <motion.div
@@ -593,24 +679,46 @@ export function DashboardOverview() {
       animate="visible"
     >
       {/* Header */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
-            Overview of your Self-Evolving AI System
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchData}
-          disabled={loading}
-          className="gap-2"
-        >
-          <RefreshCw className={cn('size-4', loading && 'animate-spin')} />
-          Refresh
-        </Button>
-      </motion.div>
+      <PageHeader
+        icon={Gauge}
+        iconColor="emerald"
+        title="Dashboard"
+        description="Overview of your Self-Evolving AI System"
+        actions={
+          <>
+            {/* LIVE indicator */}
+            <LiveIndicator
+              isLive={sim.isSimulating}
+              onClick={sim.toggleSimulation}
+            />
+            {/* Speed control */}
+            <Select
+              value={String(simulationSpeed)}
+              onValueChange={(val) => setSimulationSpeed(Number(val))}
+            >
+              <SelectTrigger className="w-16 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0.5">0.5x</SelectItem>
+                <SelectItem value="1">1x</SelectItem>
+                <SelectItem value="2">2x</SelectItem>
+                <SelectItem value="5">5x</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchData}
+              disabled={loading}
+              className="gap-2"
+            >
+              <RefreshCw className={cn('size-4', loading && 'animate-spin')} />
+              Refresh
+            </Button>
+          </>
+        }
+      />
 
       {/* Top Row: Key Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
@@ -640,14 +748,14 @@ export function DashboardOverview() {
                   <div className="flex items-end justify-between">
                     <div>
                       <div className="text-2xl font-bold text-foreground">
-                        <CountUp target={data?.activeAgentCount ?? 0} duration={1} />
+                        <CountUp target={simAdjustedActiveAgents} duration={1} />
                         <span className="text-sm font-normal text-muted-foreground">
                           /<CountUp target={data?.agentCount ?? 0} duration={1} />
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {data?.agentCount
-                          ? `${Math.round(((data.activeAgentCount ?? 0) / data.agentCount) * 100)}% utilization`
+                          ? `${Math.round((simAdjustedActiveAgents / data.agentCount) * 100)}% utilization`
                           : 'No agents registered'}
                       </p>
                     </div>
@@ -674,7 +782,7 @@ export function DashboardOverview() {
                   <div className="flex items-end justify-between">
                     <div>
                       <div className="text-2xl font-bold text-foreground">
-                        <CountUp target={data?.memoryCount ?? 0} duration={1.4} />
+                        <CountUp target={simAdjustedMemories} duration={1.4} />
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Working, episodic, semantic & more
@@ -703,7 +811,7 @@ export function DashboardOverview() {
                   <div className="flex items-end justify-between">
                     <div>
                       <div className="text-2xl font-bold text-foreground">
-                        <CountUp target={data?.evolutionEventCount ?? 0} duration={1.2} />
+                        <CountUp target={simAdjustedEvolution} duration={1.2} />
                       </div>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {Object.entries(statusBreakdown).map(([status, count]) => (
@@ -728,14 +836,14 @@ export function DashboardOverview() {
             {/* Safety Score */}
             <motion.div variants={itemVariants}>
               <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-border/50 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:scale-[1.02]"
-                style={{ borderLeftWidth: '4px', borderLeftColor: safetyScore > 90 ? '#10b981' : safetyScore > 70 ? '#f59e0b' : '#ef4444' }}
+                style={{ borderLeftWidth: '4px', borderLeftColor: simAdjustedSafety > 90 ? '#10b981' : simAdjustedSafety > 70 ? '#f59e0b' : '#ef4444' }}
               >
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
-                    background: safetyScore > 90
+                    background: simAdjustedSafety > 90
                       ? 'linear-gradient(to bottom right, rgba(16,185,129,0.05), transparent)'
-                      : safetyScore > 70
+                      : simAdjustedSafety > 70
                         ? 'linear-gradient(to bottom right, rgba(245,158,11,0.05), transparent)'
                         : 'linear-gradient(to bottom right, rgba(239,68,68,0.05), transparent)',
                   }}
@@ -743,10 +851,10 @@ export function DashboardOverview() {
                 <CardHeader className="pb-0 pt-4 px-4 relative">
                   <CardDescription className="flex items-center gap-2">
                     <span className="relative">
-                      <Shield className={cn('size-4', safetyScoreColor(safetyScore))} />
+                      <Shield className={cn('size-4', safetyScoreColor(simAdjustedSafety))} />
                       <span className={cn(
                         'absolute -top-0.5 -right-0.5 size-2 rounded-full animate-pulse',
-                        safetyScore > 90 ? 'bg-emerald-500' : safetyScore > 70 ? 'bg-amber-500' : 'bg-red-500'
+                        simAdjustedSafety > 90 ? 'bg-emerald-500' : simAdjustedSafety > 70 ? 'bg-amber-500' : 'bg-red-500'
                       )} />
                     </span>
                     Safety Score
@@ -755,8 +863,8 @@ export function DashboardOverview() {
                 <CardContent className="px-4 pb-4 relative">
                   <div className="flex items-end justify-between">
                     <div>
-                      <div className={cn('text-2xl font-bold', safetyScoreColor(safetyScore))}>
-                        <CountUp target={safetyScore} duration={1.5} />
+                      <div className={cn('text-2xl font-bold', safetyScoreColor(simAdjustedSafety))}>
+                        <CountUp target={simAdjustedSafety} duration={1.5} />
                         <span className="text-sm">%</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -980,6 +1088,15 @@ export function DashboardOverview() {
               <CardTitle className="text-base flex items-center gap-2">
                 <Zap className="size-4 text-muted-foreground" />
                 Activity Feed
+                {sim.isSimulating && (
+                  <span className="ml-auto flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                    <span className="relative flex size-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full size-1.5 bg-emerald-500" />
+                    </span>
+                    Live
+                  </span>
+                )}
               </CardTitle>
               <CardDescription>Recent system events</CardDescription>
             </CardHeader>
@@ -993,42 +1110,49 @@ export function DashboardOverview() {
               ) : (
                 <ScrollArea className="max-h-96">
                   <div className="space-y-1">
-                    {activityItems.map((item, index) => {
-                      const SeverityIcon = severityIconMap[item.severity ?? 'info'] ?? Info
-                      return (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, x: -12 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.06, type: 'spring', stiffness: 300, damping: 24 }}
-                          className={cn(
-                            'flex items-start gap-3 rounded-lg p-2.5 hover:bg-accent/30 transition-colors group',
-                            index % 2 === 0 ? 'bg-muted/20' : 'bg-transparent'
-                          )}
-                        >
-                          <div className="mt-0.5 shrink-0">
-                            <SeverityIcon className={cn('size-4', severityColorMap[item.severity ?? 'info'])} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <span className={cn(
-                                'text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize',
-                                typeColorMap[item.type] ?? 'bg-muted text-muted-foreground'
-                              )}>
-                                {item.type}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                {timeAgo(item.timestamp)}
-                              </span>
+                    <AnimatePresence mode="popLayout">
+                      {activityItems.map((item, index) => {
+                        const SeverityIcon = severityIconMap[item.severity ?? 'info'] ?? Info
+                        const isSimItem = item.id.startsWith('sim-')
+                        return (
+                          <motion.div
+                            key={item.id}
+                            layout
+                            variants={activityItemVariants}
+                            initial={isSimItem ? 'initial' : false}
+                            animate="animate"
+                            exit="exit"
+                            transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                            className={cn(
+                              'flex items-start gap-3 rounded-lg p-2.5 hover:bg-accent/30 transition-colors group',
+                              index % 2 === 0 ? 'bg-muted/20' : 'bg-transparent',
+                              isSimItem && 'border-l-2 border-l-emerald-500/30'
+                            )}
+                          >
+                            <div className="mt-0.5 shrink-0">
+                              <SeverityIcon className={cn('size-4', severityColorMap[item.severity ?? 'info'])} />
                             </div>
-                            <p className="text-xs text-foreground leading-relaxed">
-                              {item.message}
-                            </p>
-                          </div>
-                          <ChevronRight className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
-                        </motion.div>
-                      )
-                    })}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className={cn(
+                                  'text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize',
+                                  typeColorMap[item.type] ?? 'bg-muted text-muted-foreground'
+                                )}>
+                                  {item.type}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {timeAgo(item.timestamp)}
+                                </span>
+                              </div>
+                              <p className="text-xs text-foreground leading-relaxed">
+                                {item.message}
+                              </p>
+                            </div>
+                            <ChevronRight className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
+                          </motion.div>
+                        )
+                      })}
+                    </AnimatePresence>
                   </div>
                 </ScrollArea>
               )}

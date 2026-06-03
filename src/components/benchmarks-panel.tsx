@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
 import { useAppStore } from '@/lib/store'
 import type { Benchmark } from '@/lib/types'
+import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
 // Category list
@@ -272,64 +273,57 @@ export function BenchmarksPanel() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-500/10 dark:bg-teal-500/20">
-            <BarChart3 className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">
-              Benchmark Suite
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Avg score: <span className="font-medium text-foreground">{avgScore}%</span>
-            </p>
-          </div>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Download className="size-4" />
-              Export
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => {
-              const data = filtered.map((b) => ({
-                Name: b.name,
-                Category: b.category,
-                Version: b.version,
-                Score: b.score,
-                'Max Score': b.maxScore,
-                'Score %': Math.round((b.score / b.maxScore) * 100),
-                'Previous Score': b.previousScore ?? '',
-                'Created At': b.createdAt,
-              }))
-              exportToCSV(data, 'benchmarks')
-            }}>
-              <FileSpreadsheet className="mr-2 size-4" />
-              Export as CSV
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {
-              const data = filtered.map((b) => ({
-                id: b.id,
-                name: b.name,
-                category: b.category,
-                version: b.version,
-                score: b.score,
-                maxScore: b.maxScore,
-                previousScore: b.previousScore,
-                details: b.details,
-                createdAt: b.createdAt,
-              }))
-              exportToJSON(data, 'benchmarks')
-            }}>
-              <FileJson className="mr-2 size-4" />
-              Export as JSON
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <PageHeader
+        icon={BarChart3}
+        iconColor="teal"
+        title="Benchmark Suite"
+       description={<>Avg score: <span className="font-medium text-foreground">{avgScore}%</span></>}
+        actions={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="size-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                const data = filtered.map((b) => ({
+                  Name: b.name,
+                  Category: b.category,
+                  Version: b.version,
+                  Score: b.score,
+                  'Max Score': b.maxScore,
+                  'Score %': Math.round((b.score / b.maxScore) * 100),
+                  'Previous Score': b.previousScore ?? '',
+                  'Created At': b.createdAt,
+                }))
+                exportToCSV(data, 'benchmarks')
+              }}>
+                <FileSpreadsheet className="mr-2 size-4" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                const data = filtered.map((b) => ({
+                  id: b.id,
+                  name: b.name,
+                  category: b.category,
+                  version: b.version,
+                  score: b.score,
+                  maxScore: b.maxScore,
+                  previousScore: b.previousScore,
+                  details: b.details,
+                  createdAt: b.createdAt,
+                }))
+                exportToJSON(data, 'benchmarks')
+              }}>
+                <FileJson className="mr-2 size-4" />
+                Export as JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
+      />
 
       {/* Summary Stats Row */}
       <motion.div

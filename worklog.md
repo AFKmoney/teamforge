@@ -686,3 +686,480 @@ Stage Summary:
 - Fixed pre-existing TypeScript error in itemVariants (type: 'spring' as const)
 - No new dependencies — only uses existing framer-motion and React hooks
 - Both files fully dark-mode compatible via semantic Tailwind CSS variables
+
+---
+Task ID: 3
+Agent: Real-Time Simulation Agent
+Task: Add Real-Time Data Simulation to the Dashboard
+
+Work Log:
+- Created `/src/hooks/use-simulation.ts` with full real-time simulation hook:
+  - Simulation event pool with 20 realistic events across types (agent, evolution, safety, memory, benchmark, system)
+  - `useSimulation()` hook with timer-driven updates at varying intervals:
+    - Gauge values (CPU +/-5%, Memory +/-3%, Network +/-8%, Agent Load): every 5-10s / speed
+    - Activity feed items: every 15-30s / speed, cycled from event pool
+    - Sparkline data shifts: every 30-60s / speed, shifts array and adds new point
+    - Metric deltas (agents, memories, evolution, safety): every 60s / speed
+  - Hook accepts `enabled` parameter, derives `isSimulating` from store state
+  - Returns: gaugeValues, activityItems, sparklineData, metricDeltas, lastUpdate, isSimulating, simulationSpeed, simulationEnabled, toggleSimulation
+  - Uses useRef for interval management, useCallback for update functions
+- Updated `/src/lib/store.ts` with simulation state:
+  - Added `simulationEnabled: boolean` (default: true)
+  - Added `simulationSpeed: number` (default: 1)
+  - Added `lastSimulationUpdate: Date | null` (default: null)
+  - Added actions: `toggleSimulation()`, `setSimulationSpeed()`, `setLastSimulationUpdate()`
+- Updated `/src/components/dashboard-overview.tsx` with full simulation integration:
+  - Imported and used `useSimulation` hook
+  - Replaced static gauge values with simulation-driven gauge values (falls back to static when simulation disabled)
+  - Added LIVE indicator component (LiveIndicator): pulsing green dot + "LIVE" text, clickable to toggle simulation on/off
+  - Added speed control dropdown (0.5x, 1x, 2x, 5x) next to LIVE indicator using shadcn Select component
+  - Merged simulation activity items with static items (simulation items have green left border accent)
+  - Activity feed uses AnimatePresence with popLayout mode for smooth item additions/removals
+  - New activity items slide in from left with framer-motion spring animation
+  - Activity Feed header shows "Live" badge with pulsing dot when simulation is active
+  - Sparkline data driven by simulation (shifts over time) with static fallback
+  - Metric card values adjusted by simulation deltas (activeAgentCount, memoryCount, etc.)
+  - CountUp component enhanced with key-based flash animation on value changes
+- Updated `/src/components/settings-panel.tsx` with Data Simulation section:
+  - Added Activity icon import
+  - Added "Data Simulation" card after Appearance section with emerald Activity icon
+  - Toggle for enabling/disabling real-time simulation (Switch component)
+  - Active state indicator (pulsing emerald dot + "Active" text)
+  - Speed slider (0.5x to 5x, step 0.5) with labels (Slow/Normal/Fast)
+  - Last update timestamp display
+- Lint passes clean (fixed react-hooks/set-state-in-effect and react-hooks/refs errors)
+- Dev server compiles without errors
+- All existing API data fetching logic preserved intact
+
+Stage Summary:
+- **useSimulation Hook**: Full real-time data simulation with configurable speed, 20-event pool, timer-driven updates for gauges/activity/sparklines/metrics
+- **Dashboard LIVE Mode**: LIVE indicator with pulsing green dot, speed control dropdown (0.5x-5x), simulation-driven gauge values, animated activity feed with slide-in items
+- **Settings Integration**: Data Simulation section with enable/disable toggle, speed slider, last update timestamp
+- **Store Updates**: simulationEnabled, simulationSpeed, lastSimulationUpdate state + toggle/set actions
+- **Visual Polish**: Simulation items have green left border accent, Activity Feed shows "Live" badge, metric values flash on change via key-based CSS animation
+- No new npm packages added
+- Full dark mode support with semantic Tailwind variables and dark: variants
+
+---
+Task ID: 4
+Agent: Agents Panel Polish Agent
+Task: Agents Panel Polish — Better Search UX, Status Indicators, and Hover States
+
+Work Log:
+- Read worklog.md and existing agents-panel.tsx to understand current implementation
+- **1. Search UX Enhancement**:
+  - Added results count badge next to search input showing "X of Y agents" when search is active (uses `debouncedSearch` state)
+  - Added clear button (X icon) inside the search input when text is present, clears both `searchQuery` and `debouncedSearch` immediately
+  - Updated placeholder text to "Search agents by name, role, or tools..."
+  - Implemented 300ms debounce on search input using `useRef` timer and `handleSearchChange` callback — filters use `debouncedSearch` instead of raw `searchQuery` for performance
+  - Cleanup debounce timer on unmount via useEffect return
+- **2. Improved Status Indicators**:
+  - Replaced flat status summary bar with visually distinct mini-cards using `STATUS_SUMMARY_CONFIG` mapping
+  - Each status count now in a mini-card with: icon (CheckCircle2 for Active, Clock for Busy, Moon for Idle, AlertTriangle for Error, PowerOff for Offline), count, and label
+  - Each mini-card has colored background and border per status (e.g., `bg-green-500/10 border-green-500/20` for Active)
+  - Added animated progress bar below summary showing active+busy / total ratio with framer-motion width animation and gradient fill (`from-green-500 to-emerald-500`)
+  - Made status mini-cards horizontally scrollable on mobile using `ScrollArea` with `ScrollBar orientation="horizontal"`
+- **3. Agent Card Hover Enhancements**:
+  - Added subtle border glow effect on hover: `hover:ring-2 hover:ring-primary/20`
+  - Added subtle scale-up effect: `hover:scale-[1.01]`
+  - Added quick action toolbar that appears on hover at bottom of card:
+    - Three icon buttons: Eye (View Details), Pencil (Edit Agent), Power (Activate/Deactivate)
+    - Toolbar has semi-transparent background: `bg-background/80 dark:bg-background/90 backdrop-blur-sm`
+    - Smooth slide-up animation: `opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200`
+  - Added Edit Agent dialog with name, description, and goals fields — calls PUT `/api/agents/{id}`
+  - Added `toggleAgentStatus()` function — toggles between active/idle via PUT API
+  - Power icon color changes based on current status (amber for active, green for inactive)
+- **4. Agent Detail Dialog Improvements**:
+  - Replaced flat dialog with tabbed layout using shadcn Tabs component (Overview | Performance | Tools | Configuration)
+  - **Overview tab**: Role+Status badges, description, goals, stats grid, last active, and new Status History mini-timeline
+  - **Performance tab**: Larger mini chart (h-32 instead of h-24) + metrics summary table with rows for Success Rate, Tasks Completed, Tokens Used, Avg Tokens/Task — each with value and status badge
+  - **Tools tab**: Grid of tool cards (1-col mobile, 2-col desktop) with icon in rounded `bg-primary/10` container, tool name, and description per tool
+  - **Configuration tab**: Custom `JsonViewer` component with syntax highlighting (purple keys, green strings, amber booleans, sky numbers), plus metadata grid (created, updated, agent ID, role)
+  - Added Status History mini-timeline in Overview tab: 5 mock entries with `generateStatusHistory()`, showing from→to status transitions with colored badges, reason, and timestamp
+  - Dialog widened to `max-w-2xl` with `max-h-[85vh]` and overflow handling
+- **5. Create Agent Dialog Enhancement**:
+  - Added "Role Template" dropdown at top with 8 options: Research, Coding, Evaluation, Memory, Evolution, Safety, Deployment, Custom
+  - Each template pre-fills role, description, goals, and tools (defined in `ROLE_TEMPLATES` config)
+  - Custom template starts with empty form
+  - Added form validation with error messages: name required, role required, success rate 0-1
+  - Errors clear on user input for the relevant field
+  - Added "Initial Success Rate" number input (0-1 range, step 0.1)
+  - Added live preview card on the right side (2-col layout on md+) showing:
+    - Gradient border matching selected role
+    - Name, role badge, status (Idle), description preview
+    - Success rate and tasks count
+    - Goals and tools tags if entered
+  - Form resets properly when dialog closes via `resetCreateForm()`
+- Added new lucide-react icon imports: X, Eye, Pencil, Power, CheckCircle2, Clock, Moon, AlertTriangle, PowerOff
+- Added shadcn/ui component imports: Tabs, TabsContent, TabsList, TabsTrigger, ScrollArea, ScrollBar
+- Added `useRef` import for debounce timer
+- All existing API data fetching, export, and CRUD logic preserved intact
+- Dev server compiles without errors
+
+Stage Summary:
+- Agents panel polished with 5 major enhancement areas:
+  1. **Search UX**: Debounced search (300ms), results count badge, clear button, better placeholder
+  2. **Status Indicators**: Mini-card layout with icons per status, animated progress bar, horizontally scrollable on mobile
+  3. **Card Hover**: Ring glow + scale-up on hover, quick action toolbar (View/Edit/Activate) with slide-up animation, Edit dialog
+  4. **Detail Dialog**: 4-tab layout (Overview/Performance/Tools/Configuration), Status History timeline, JsonViewer with syntax highlighting, metrics table
+  5. **Create Dialog**: Role Template pre-fill, form validation with errors, live preview card, success rate input
+- No new npm packages added
+- All semantic Tailwind CSS variables with dark: variants
+- All existing functionality preserved intact
+
+---
+Task ID: 5
+Agent: Topology Panel Enhancement Agent
+Task: Topology Panel Enhancement - Zoom/Pan Controls, Node Filtering, Label Improvements, Minimap, Search
+
+Work Log:
+- Read worklog.md and existing topology-panel.tsx (1288 lines) to understand current implementation
+- **Zoom and Pan Controls**:
+  - Added zoom state (0.5x to 3x) and pan offset state ({x, y})
+  - Implemented SVG transform group with `translate + scale + translate` for zoom/pan
+  - Added zoom control panel in bottom-right corner with: Zoom In (+), Zoom Out (-), Fit to Screen (Maximize), Reset View (RotateCcw) buttons
+  - Each button wrapped in TooltipProvider/Tooltip for accessibility
+  - Added current zoom level percentage display (font-mono, bg-muted/50 rounded) between zoom in/out buttons
+  - Implemented Ctrl+scroll mouse wheel zoom via useEffect with wheel event listener (passive: false for preventDefault)
+  - Added mouse drag panning: mousedown on SVG background starts pan, mousemove updates pan offset, mouseup/mouseleave ends pan
+  - Used isPanning state (not ref) for cursor style to satisfy React hooks lint rule
+  - Added smooth animation transitions via isAnimating state with 300ms CSS transition on transform
+  - Fit to Screen calculates optimal zoom based on container dimensions vs viewBox
+  - All zoom values clamped between MIN_ZOOM (0.5) and MAX_ZOOM (3.0) with ZOOM_STEP (0.2)
+- **Node Type Filtering**:
+  - Added activeTypes state (Set<NodeType>) initialized to all 7 types
+  - Created filter bar above SVG with toggle buttons for each node type: Controller (emerald), Agent (purple), Memory (cyan), Evolution (amber), Safety (red), Data (slate), External (teal)
+  - Each filter button shows: colored dot + type name + count in parentheses
+  - Active/inactive toggle state with visual feedback (opacity-60 + border-border/30 when inactive, shadow-sm when active)
+  - Added "All" and "None" quick toggle buttons before the type buttons
+  - Filtered-out nodes and their edges fade to 0.08 opacity
+  - Filtered-out nodes are not clickable (cursor-pointer removed, click handler skipped)
+  - Edges connected to filtered-out nodes also dim to 0.08 opacity
+  - ALL_NODE_TYPES constant for consistent type list
+- **Label Positioning Improvements**:
+  - Added labelPositions useMemo with collision detection algorithm
+  - Controller node label placed above (above=true)
+  - Nodes near top of diagram (y < 35%) get labels below; near bottom (y > 65%) get labels above
+  - Simple bounding box collision detection: if two labels overlap in both X and Y, offset one vertically by (height + 2) in the label's direction
+  - Added background rectangle behind each label (rect with fill="hsl(var(--card))", opacity=0.85, rx=3) for readability
+  - Increased font sizes: 11px for regular nodes (was 10px), 13px for controller (was 12px)
+  - Background rect sized to 100px wide × (fontSize + 5) tall, positioned relative to text anchor
+- **Minimap**:
+  - Added 150×100px minimap in bottom-left corner of SVG diagram
+  - Rendered as a separate SVG element with same viewBox (0 0 1300 850)
+  - Shows all nodes as tiny circles (radius 3 for normal, 0.15× original; radius 2 for filtered with 0.2 opacity)
+  - Filtered nodes appear dimmed in minimap
+  - Viewport rectangle drawn on minimap showing current visible area based on zoom/pan state
+  - Clicking on minimap navigates to that area by updating pan offset (centered on click point)
+  - Minimap styled with border, bg-card/95 backdrop-blur-sm, and shadow-md
+  - cursor-pointer on minimap for click-to-navigate affordance
+- **Search Nodes**:
+  - Added search input above the diagram with Search icon and placeholder text
+  - Search matches by label, ID, or type (case-insensitive)
+  - Matching nodes get a bright yellow highlight ring (stroke="#fbbf24", strokeWidth=3, opacity=0.7) with search-glow SVG filter
+  - Non-matching nodes fade to low opacity when search is active
+  - Edges between non-matching nodes also fade
+  - Result count displayed as Badge ("X nodes found") in the search input
+  - Clear button (X icon) to reset search
+  - searchMatches computed via useMemo for performance
+- Preserved ALL existing topology data (NODES, EDGES arrays) and functionality intact
+- Replaced emoji 🧠 with unicode escape \u{1F9E0} for consistency
+- Added Input component import from shadcn/ui for search field
+- Added ZoomIn, ZoomOut, Maximize, RotateCcw, Search icon imports from lucide-react
+- Used semantic Tailwind CSS variables throughout with dark: variants
+- No new npm packages added
+- Lint passes clean with zero errors
+
+Stage Summary:
+- Topology panel fully enhanced with 5 major features:
+  1. **Zoom/Pan Controls**: Bottom-right control panel with zoom in/out, fit-to-screen, reset view, zoom percentage display, Ctrl+scroll zoom, mouse drag pan, smooth animation transitions
+  2. **Node Type Filtering**: Filter bar with colored toggle buttons per type, All/None quick toggles, filtered nodes/edges fade to 0.08 opacity, filtered nodes not clickable
+  3. **Label Positioning**: Collision detection with vertical offset, controller label above, top/bottom-aware placement, background rect behind labels for readability, font size increase (10→11px regular, 12→13px controller)
+  4. **Minimap**: 150×100px minimap in bottom-left with all nodes at tiny scale, viewport rectangle showing visible area, click-to-navigate, respects type filtering
+  5. **Search Nodes**: Search input with name/ID/type matching, bright highlight ring on matches, non-matching fade, result count badge, clear button
+- All existing functionality preserved intact (25 nodes, 40 edges, detail panel, legend, hover highlighting)
+- Full dark mode support with semantic Tailwind color tokens
+- No new dependencies added
+
+---
+Task ID: 6
+Agent: Activity Panel Enhancement Agent
+Task: Enhance Activity Panel with Time Range Selector, Better Charts, Pagination, and Real-Time Updates
+
+Work Log:
+- Read worklog.md, existing activity-panel.tsx, export-utils.ts, types.ts, store.ts, page.tsx, and all relevant shadcn/ui components
+- Complete rewrite of `/src/components/activity-panel.tsx` with 6 major enhancements:
+
+1. **Time Range Selector**:
+   - Added ToggleGroup with 5 preset options: Last 1h, Last 6h, Last 24h, Last 7d, Last 30d
+   - Default set to "Last 24h"
+   - Selected time range filters the metrics API call (`/api/metrics?hours=N`)
+   - Added date range picker using Calendar component in Popover with "Custom Range" button
+   - Calendar supports range selection with Clear/Apply buttons
+   - Custom range activates a special "custom" state in the toggle group (rose-colored button)
+
+2. **Better Chart Readability**:
+   - Increased chart height from 256px/288px to 300px
+   - Changed from LineChart to AreaChart with gradient fills below lines (30% opacity at top → 2% at bottom)
+   - Made chart lines thicker: strokeWidth increased from 2 to 3
+   - Added interactive hover tooltips with exact values, color dots, and metric names
+   - Added gridlines with `opacity={0.5}` for better contrast
+   - Added custom legend component (`CustomLegend`) with clickable items to toggle line visibility
+   - Added animation on initial chart render (`animationDuration: 1200`, `animationEasing: "ease-out"`)
+   - Added BarChart for event counts by type (2/3 + 1/3 grid layout)
+   - BarChart uses individual Cell colors per type (purple=Agent, emerald=Evolution, amber=Safety, sky=Memory, teal=Benchmark, slate=System)
+
+3. **Activity Feed Pagination**:
+   - Shows 10 items per page
+   - Added shadcn/ui Pagination component with Previous/Next + page numbers + ellipsis
+   - Added "Showing X–Y of Z items" text
+   - Added "Load More" option as alternative to pagination (infinite scroll mode)
+   - Toggle between pagination and infinite scroll modes using ToggleGroup (Pages/Scroll)
+   - Pagination resets when filters change
+
+4. **Activity Log Improvements**:
+   - Added severity filter badges at top (Info, Success, Warning, Error) — clickable toggle with icon + label
+   - Added type filter badges (Agent, Evolution, Safety, Memory, Benchmark, System) — same toggle pattern
+   - Each log item has expand/collapse detail with AnimatePresence animation
+   - Added "Mark as Read" / "Mark as Unread" toggle per item (Eye/EyeOff icons with Tooltip)
+   - Read items are visually dimmed (opacity-60)
+   - Added relative timestamp with absolute timestamp on hover using shadcn/ui Tooltip
+
+5. **Export Functionality**:
+   - Preserved Export dropdown with CSV and JSON options
+   - Export now includes "Read" status column
+   - Export filenames include date range or time range label (e.g., `activity-log_24h.csv`)
+   - Export respects current severity and type filters
+
+6. **Real-Time Activity Updates**:
+   - Added "New Activity" badge (rose-colored pill with Sparkles icon) that appears when simulated new items arrive
+   - Simulation runs every 15 seconds, adding random activity items with "Just now" timestamps
+   - New items animate in from the top using framer-motion `newItemVariants` (opacity, y, scale with spring)
+   - Added auto-refresh toggle button (emerald colored when active)
+   - Auto-refresh fetches metrics data every 30 seconds
+   - RefreshCw icon spins during refresh
+   - Clicking "New Activity" badge resets page to 1 and clears the counter
+
+- Fixed lint error: Replaced `useEffect` with `setCurrentPage(1)` by calling `resetPagination()` directly in filter toggle handlers and time range change handler
+- Used recharts `Cell` component instead of raw `<rect>` for individual bar colors
+- All colors use semantic Tailwind CSS variables with dark: variants
+- Used existing shadcn/ui components: ToggleGroup, ToggleGroupItem, Pagination, Calendar, Popover, Tooltip, Badge, Button, DropdownMenu, ScrollArea, Separator, Card
+- No new npm packages added
+- Lint passes clean, dev server compiles without errors
+- All existing functionality preserved intact
+
+Stage Summary:
+- Activity Panel fully enhanced with all 6 requested features
+- Time Range Selector with presets + custom date range picker
+- Area Chart with gradient fills, thick lines, animated render, clickable legend + Bar Chart for event counts
+- Paginated Activity Feed with toggle between pagination and infinite scroll
+- Severity & type filter badges, read/unread toggle, timestamp tooltips, expandable details
+- Export respects filters with date-range-aware filenames
+- Real-time simulation with "New Activity" badge, auto-refresh, animated new items
+- Full dark mode support with semantic Tailwind color tokens
+- No new dependencies, lint clean, zero compilation errors
+
+---
+Task ID: 7
+Agent: Chat Panel Enhancement Agent
+Task: Chat Panel Enhancement — Conversation History, Better UX, Export
+
+Work Log:
+- Read worklog.md, chat-panel.tsx, store.ts, types.ts, export-utils.ts, chat API route to understand current implementation
+- Updated `/src/lib/types.ts`:
+  - Added `reaction?: 'thumbs-up' | 'thumbs-down' | null` field to ChatMessage interface
+  - Added new ChatConversation interface with id, title, messages, createdAt, updatedAt
+- Updated `/src/lib/store.ts`:
+  - Added ChatConversation import
+  - Added chatConversations[] and currentConversationId to state
+  - Added 8 new store actions: setChatMessages, setChatConversations, setCurrentConversationId, createNewConversation, switchConversation, deleteConversation, updateMessageReaction, clearChatHistory
+  - addChatMessage now auto-updates conversation title from first user message and syncs messages to the current conversation
+  - createNewConversation saves current messages first, then creates a fresh conversation (max 10 stored)
+  - switchConversation saves current messages before switching, loads target conversation messages
+  - deleteConversation handles edge cases (deleting current conversation, last conversation remaining)
+  - updateMessageReaction updates both chatMessages and the current conversation
+  - clearChatHistory resets messages and title for current conversation
+- Completely rewrote `/src/components/chat-panel.tsx` with all 5 enhancement categories:
+
+1. **Conversation History Persistence**:
+   - localStorage helpers: loadConversations(), saveConversations(), loadCurrentConvId(), saveCurrentConvId()
+   - useEffect on mount loads conversations from localStorage and restores current conversation
+   - useEffect with 300ms debounce saves conversations to localStorage on every change
+   - Collapsible conversation history sidebar (animated with framer-motion width transition)
+   - Each conversation shows title, message count, date, and delete button (hover-revealed)
+   - Active conversation highlighted with primary/10 border
+   - "New Conversation" button in header creates fresh conversation
+   - "Clear History" button clears current conversation and localStorage
+   - Stores up to 10 conversations
+
+2. **Better Empty State Guidance**:
+   - Welcome title: "Welcome to EvoAI Assistant"
+   - Subtitle: "I can help you understand and manage your Self-Evolving AI System"
+   - 6 suggested prompts in 3x2 grid with emoji icons: System Status (🔍), Evolution Progress (🧬), Safety Report (🛡️), Benchmark Analysis (📊), Agent Performance (🤖), Optimization Tips (💡)
+   - Each card has gradient background (from-{color}/10 to-{color}/5), hover effects, and colored icons
+   - Clicking a suggestion immediately sends the detailed prompt as a message
+
+3. **Export Functionality**:
+   - Export dropdown in header with 3 options: Export as Markdown, Export as JSON, Copy Conversation
+   - exportAsMarkdown(): Formats conversation with headers (# EvoAI Conversation), timestamps, role labels (👤/🤖), horizontal rules between messages
+   - exportAsJSON(): Full metadata export with exportedAt, messageCount, and complete message data including reactions
+   - copyConversationAsText(): Copies formatted text to clipboard with timestamps and role labels
+   - All disabled when no messages exist
+
+4. **Message Enhancement**:
+   - Timestamps displayed subtly below each message
+   - Thumbs up/down reaction buttons on assistant messages (stored in state, persisted to localStorage)
+   - Active reaction shown with colored icon (emerald for thumbs-up, rose for thumbs-down)
+   - "Regenerate" button on last assistant message with RefreshCw icon and tooltip
+   - BouncingDots component: 3 bouncing dots with staggered animation using framer-motion (y: [0, -6, 0], duration: 0.6, delay: i * 0.15)
+   - "Stop Generating" button (StopCircle icon) alongside typing indicator using AbortController
+
+5. **Input Enhancement**:
+   - Replaced Input with Textarea for multi-line support
+   - Shift+Enter for new line, Enter to send
+   - "Upload Context" button (Paperclip icon) opens Dialog for pasting long text as context
+   - Context text prepended to next message as [Context]: prefix, shown as Badge with remove button
+   - Character counter with word count: "1234/2000 150w"
+   - Color states: default (muted), near-limit (amber), over-limit (destructive)
+   - "Voice Input" placeholder button (Mic icon, disabled) with "Coming Soon" tooltip
+   - Textarea auto-sizes with min-h-[40px] max-h-[120px]
+
+- All new icons imported: Search, BarChart3, Lightbulb, ThumbsUp, ThumbsDown, RefreshCw, StopCircle, Plus, Trash2, Download, FileText, FileJson, ClipboardCopy, Paperclip, Mic, History, X
+- New component imports: DropdownMenu, Dialog, Separator, Badge, Textarea, TooltipProvider
+- Wrapped entire panel in TooltipProvider for consistent tooltip behavior
+- All semantic Tailwind CSS variables with dark: variants, cn() for conditional classes
+- framer-motion animations throughout: message variants, typing indicator, conversation sidebar, empty state grid
+- Lint passes clean with 0 errors, dev server compiles successfully
+
+Stage Summary:
+- Chat panel fully enhanced with 5 major feature categories:
+  1. Conversation history persistence with localStorage, sidebar panel, max 10 conversations
+  2. Better empty state with 3x2 prompt grid, welcome message, gradient cards
+  3. Export functionality (Markdown, JSON, Copy) via dropdown menu
+  4. Message enhancements: reactions, regenerate, bouncing dots, stop button, timestamps
+  5. Input enhancements: multi-line textarea, context upload, char/word counter, voice input placeholder
+- All existing LLM integration and chat API logic preserved intact
+- No new npm packages added
+- Full dark mode support with semantic Tailwind color tokens
+- Zero lint errors, zero compilation errors
+
+---
+Task ID: 8
+Agent: Cross-Panel Consistency Agent
+Task: Standardize headers, card styles, and action buttons across all panels
+
+Work Log:
+- Created `/src/components/page-header.tsx` — shared reusable PageHeader component with:
+  - `PageHeaderProps` interface: icon, iconColor, title, description, badge, actions, className
+  - `ICON_BG_MAP` and `ICON_TEXT_MAP` color dictionaries mapping iconColor keys to Tailwind classes (emerald, violet, amber, teal, rose, muted, primary, gradient)
+  - Consistent layout: gradient icon background (size-10 rounded-lg) + title/description left, actions right
+  - Title uses `text-xl font-semibold text-foreground`
+  - Description uses `text-sm text-muted-foreground`
+  - Responsive: `flex-col sm:flex-row` for stacking on mobile
+  - framer-motion entrance animation (fade in + slide down with spring physics)
+  - Uses `cn()` from @/lib/utils for conditional class composition
+- Updated all 12 panel components to use PageHeader:
+  1. **Dashboard Overview** — icon: Gauge, color: emerald, actions: LIVE indicator + speed select + Refresh button
+  2. **Agents Panel** — icon: Users, color: purple, badge: agent count, actions: view toggle + Export + Create Agent
+  3. **Evolution Panel** — icon: Dna, color: emerald, badge: event count, actions: Propose Improvement button
+  4. **Memory Panel** — icon: Database, color: violet, badge: memory count, actions: Export dropdown + Add Memory dialog
+  5. **Knowledge Panel** — icon: Network, color: teal, description: "X nodes · Y edges"
+  6. **Research Panel** — icon: FlaskConical, color: emerald, description: experiment count, actions: New Experiment dialog
+  7. **Benchmarks Panel** — icon: BarChart3, color: teal, description: avg score with styled span, actions: Export dropdown
+  8. **Safety Panel** — icon: Shield, color: amber, description: active alert count, actions: Export dropdown + status badge
+  9. **Chat Panel** — icon: MessageSquare, color: emerald, description: "Ask about the self-evolving AI system", actions: History/New/Export/Clear buttons
+  10. **Topology Panel** — icon: Network, color: gradient, description: "X nodes · Y edges", actions: All Systems Active badge
+  11. **Activity Panel** — icon: Activity, color: rose, badge: activity count, actions: Auto-refresh + feed mode + Export dropdown
+  12. **Settings Panel** — icon: Settings, color: muted, description: "Configure your self-evolving AI system", actions: Reset Defaults + Save Changes
+- Each panel's existing custom header div was replaced with the PageHeader component
+- All action buttons were moved into the `actions` prop as ReactNode fragments
+- Panel-specific header elements preserved (e.g., Topology's status badge, Safety's status badge)
+- Dialog components (Memory, Research) kept inside the actions prop using portals
+- Lint passes clean with zero errors
+- Dev server compiles all 12 panel routes without errors
+
+Stage Summary:
+- Created shared PageHeader component with consistent layout, responsive design, and framer-motion animations
+- Updated all 12 panel components to use the new PageHeader, eliminating custom header implementations
+- Each panel's icon color matches its visual identity (emerald for dashboard/evolution/research/chat, purple for agents, violet for memory, teal for knowledge/benchmarks, amber for safety, rose for activity, muted for settings, gradient for topology)
+- All existing functionality preserved — action buttons, export dropdowns, create dialogs, status badges all moved into PageHeader's `actions` prop
+- Consistent title styling (`text-xl font-semibold text-foreground`) across all panels
+- Consistent description styling (`text-sm text-muted-foreground`) across all panels
+- Lint clean, no compile errors
+
+---
+Task ID: Phase-5-Main
+Agent: Main
+Task: Phase 5 — Comprehensive QA, Feature Enhancement, and Styling Polish
+
+Work Log:
+- Reviewed /home/z/my-project/worklog.md to assess current project status (12 panels, all functional)
+- Performed QA testing with agent-browser across all panels (Dashboard, Agents, Evolution, Memory, Knowledge, Research, Benchmarks, Safety, Chat, Topology, Activity, Settings)
+- Used VLM (z-ai vision) to analyze screenshots and identify visual quality issues, UI/UX problems, and areas needing improvement
+- Identified key issues: sparkline visibility, gauge label readability, pipeline flow arrows, missing tooltips, search UX, topology zoom/pan, activity pagination, chat history persistence
+- Delegated 8 subagent tasks across 2 parallel batches:
+
+**Batch 1 (High Priority):**
+- Task 1: Dashboard Overview Polish — Enhanced sparklines (80x32, gradient fills, higher contrast), improved gauges (larger radius 40, stroke 7, status labels "Normal/Elevated/Critical", tooltips), evolution pipeline arrows (animated PipelineArrow, progress bar, larger particles), metric card tooltips, activity feed timestamps + View All button, AreaChart with gradient fill + thicker lines + Y-axis units, quick stats icon badges
+- Task 2: Evolution Diff Viewer — Created generateDiff() function for JSON comparison, SideBySideDiffPanel with line numbers and color coding (added=green, removed=red, changed=amber), DiffViewerDialog modal with event metadata, "View Changes" button (GitCompareArrows icon) on each event card
+- Task 3: Real-Time Data Simulation — Created /src/hooks/use-simulation.ts with timer-driven updates (gauges every 5-10s, activities every 15-30s, sparklines every 30-60s, metrics every 60s), LIVE indicator with pulsing dot, speed control (0.5x/1x/2x/5x), simulation toggle in Settings panel, 20-event pool, animated activity feed items
+
+**Batch 2 (Medium Priority):**
+- Task 4: Agents Panel Polish — Debounced search with results count badge, clear button, improved placeholder; Status mini-cards with icons (CheckCircle2, Clock, Moon, AlertTriangle, PowerOff) + animated progress bar; Quick action toolbar on hover (View/Edit/Power) with slide-up animation; Tabbed detail dialog (Overview/Performance/Tools/Configuration) with JSON viewer; Role template dropdown in create dialog with validation + live preview card
+- Task 5: Topology Panel Enhancement — Zoom/pan controls (0.5x-3x, Ctrl+scroll, mouse drag), node type filtering (7 toggle buttons + All/None), label collision detection with background rectangles, minimap (150x100px, viewport rectangle, click-to-navigate), search nodes with highlight
+- Task 6: Activity Panel Enhancement — Time range selector (1h/6h/24h/7d/30d + custom date range), AreaChart with gradient fills (300px height, strokeWidth 3), bar chart for event counts by type, pagination with ToggleGroup (Pages/Scroll mode), severity/type filter badges, export with date range in filename, auto-refresh toggle + "New Activity" badge
+- Task 7: Chat Panel Enhancement — localStorage conversation persistence (max 10 conversations, collapsible sidebar), 3x2 suggested prompts grid, export (Markdown/JSON/Copy), message timestamps + thumbs up/down reactions + regenerate button + stop generating, textarea with Shift+Enter, upload context dialog, voice input placeholder
+- Task 8: Cross-Panel Consistency — Created /src/components/page-header.tsx shared component with icon color system, updated all 12 panels to use consistent PageHeader, standardized card styling and action button placement
+
+- Ran final QA with agent-browser: all 12 panels render correctly
+- VLM analysis rated dashboard 8/10 (up from significant issues), agents 8/10
+- Mobile viewport tested
+- Lint passes clean, dev server compiles without errors
+- All API routes returning 200
+
+Stage Summary:
+- **Dashboard**: Enhanced sparklines with gradient fills, improved circular gauges with status labels and tooltips, animated pipeline arrows with progress bar, AreaChart with gradient fills and Y-axis units, metric card tooltips
+- **Evolution**: Full diff viewer with side-by-side comparison, line numbers, color coding, and dialog modal
+- **Real-Time Simulation**: LIVE indicator, speed control, timer-driven data updates across gauges/activity/sparklines, simulation toggle in Settings
+- **Agents**: Debounced search with results count, status mini-cards with icons and progress bar, quick action toolbar on hover, tabbed detail dialog, role template dropdown with validation
+- **Topology**: Zoom/pan controls, node type filtering, label collision detection, minimap, node search
+- **Activity**: Time range selector, enhanced charts, pagination, severity/type filters, export with date range, auto-refresh
+- **Chat**: Conversation persistence in localStorage, 6 suggested prompts, export, message reactions, textarea with Shift+Enter, upload context
+- **Cross-Panel**: Shared PageHeader component used by all 12 panels, consistent styling
+
+## Current Project Status — Phase 5 Complete
+
+The EvoAI Self-Evolving AI System now has 12 fully featured panels with:
+1. **Dashboard** — Animated gauges with status labels, gradient sparklines, LIVE simulation indicator, metric tooltips, enhanced pipeline
+2. **Agents** — Debounced search, status mini-cards, quick action toolbar, tabbed detail dialog, role templates
+3. **Evolution** — Diff viewer with side-by-side comparison, animated pipeline arrows with progress bar
+4. **Memory** — Gradient importance meter, type-colored top borders, lift-on-hover
+5. **Knowledge** — SVG glow effects, animated connection lines, dark mode graph
+6. **Research** — Gradient pipeline, status-colored borders, hover shadows
+7. **Benchmarks** — Summary stats, score-colored borders, custom dark tooltips
+8. **Safety** — Speedometer gauge, pulse animations, constitutional rule borders
+9. **Chat** — Conversation persistence, 6 suggested prompts, export, reactions, textarea
+10. **Settings** — Full configuration with simulation toggle and speed control
+11. **Topology** — Zoom/pan controls, node filtering, minimap, search, label collision detection
+12. **Activity** — Time range selector, enhanced charts, pagination, filters, auto-refresh
+
+### Global Features:
+- ✅ Dark Mode (Light/Dark/System with next-themes)
+- ✅ Real-Time Data Simulation (LIVE indicator, speed control, toggle)
+- ✅ Cross-Panel Consistency (shared PageHeader component)
+- ✅ Data Export (CSV/JSON across multiple panels)
+- ✅ Command Palette (⌘K)
+- ✅ Notification Bell with real-time updates
+- ✅ Framer-motion animations on all panels
+- ✅ Semantic Tailwind color tokens with dark mode
+- ✅ Responsive design with mobile sidebar
+- ✅ Sticky footer with system status
+- ✅ Zero browser errors, lint clean
+
+### Unresolved Issues / Next Steps:
+1. Knowledge graph could use more layout algorithms (force-directed, hierarchical)
+2. Could add user authentication and role-based access
+3. Could add more data visualization types (treemaps, heatmaps, scatter plots)
+4. Could add WebSocket-based real-time data instead of simulation
+5. Could add internationalization (i18n)
+6. Could add more API endpoints for CRUD operations on all resources

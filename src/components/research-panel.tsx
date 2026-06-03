@@ -37,6 +37,7 @@ import {
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import type { Experiment, ExperimentStatus } from '@/lib/types'
+import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
 // Status config
@@ -225,27 +226,19 @@ export function ResearchPanel() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-            <FlaskConical className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">
-              Research Laboratory
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {experiments.length} experiments
-            </p>
-          </div>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5">
-              <Plus className="h-4 w-4" />
-              New Experiment
-            </Button>
-          </DialogTrigger>
+      <PageHeader
+        icon={FlaskConical}
+        iconColor="emerald"
+        title="Research Laboratory"
+        description={`${experiments.length} experiments`}
+        actions={
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                New Experiment
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>New Experiment</DialogTitle>
@@ -311,7 +304,8 @@ export function ResearchPanel() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {/* Pipeline Visualization */}
       <Card>

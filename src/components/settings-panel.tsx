@@ -12,13 +12,13 @@ import {
   Save,
   RotateCcw,
   Check,
+  Activity,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -31,6 +31,7 @@ import { Slider } from '@/components/ui/slider'
 import { useAppStore } from '@/lib/store'
 import type { SystemSettings } from '@/lib/types'
 import { useTheme } from 'next-themes'
+import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
 // Component
@@ -38,6 +39,11 @@ import { useTheme } from 'next-themes'
 
 export function SettingsPanel() {
   const { settings, setSettings } = useAppStore()
+  const simulationEnabled = useAppStore((s) => s.simulationEnabled)
+  const simulationSpeed = useAppStore((s) => s.simulationSpeed)
+  const lastSimulationUpdate = useAppStore((s) => s.lastSimulationUpdate)
+  const toggleSimulation = useAppStore((s) => s.toggleSimulation)
+  const setSimulationSpeed = useAppStore((s) => s.setSimulationSpeed)
   const { theme, setTheme } = useTheme()
   const [localSettings, setLocalSettings] = useState<SystemSettings>(settings)
   const [saved, setSaved] = useState(false)
@@ -70,38 +76,33 @@ export function SettingsPanel() {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-            <Settings className="h-5 w-5 text-emerald-600" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-            <p className="text-sm text-muted-foreground">
-              Configure your self-evolving AI system
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleReset} className="gap-2">
-            <RotateCcw className="size-4" />
-            Reset Defaults
-          </Button>
-          <Button size="sm" onClick={handleSave} className="gap-2" disabled={saved}>
-            {saved ? (
-              <>
-                <Check className="size-4" />
-                Saved!
-              </>
-            ) : (
-              <>
-                <Save className="size-4" />
-                Save Changes
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={Settings}
+        iconColor="muted"
+        title="Settings"
+        description="Configure your self-evolving AI system"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={handleReset} className="gap-2">
+              <RotateCcw className="size-4" />
+              Reset Defaults
+            </Button>
+            <Button size="sm" onClick={handleSave} className="gap-2" disabled={saved}>
+              {saved ? (
+                <>
+                  <Check className="size-4" />
+                  Saved!
+                </>
+              ) : (
+                <>
+                  <Save className="size-4" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </>
+        }
+      />
 
       {/* Appearance */}
       <motion.div
@@ -133,6 +134,86 @@ export function SettingsPanel() {
                   <SelectItem value="system">System</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Data Simulation */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, delay: 0.03 }}
+      >
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Activity className="size-4 text-emerald-500" />
+              <CardTitle className="text-base">Data Simulation</CardTitle>
+            </div>
+            <CardDescription>Control real-time data simulation for the dashboard</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Real-Time Simulation</Label>
+                <p className="text-xs text-muted-foreground">
+                  Simulate live data updates on the dashboard
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {simulationEnabled && (
+                  <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                    <span className="relative flex size-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
+                    </span>
+                    Active
+                  </span>
+                )}
+                <Switch
+                  checked={simulationEnabled}
+                  onCheckedChange={toggleSimulation}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Simulation Speed</Label>
+                <Badge variant="secondary">{simulationSpeed}x</Badge>
+              </div>
+              <Slider
+                min={0.5}
+                max={5}
+                step={0.5}
+                value={[simulationSpeed]}
+                onValueChange={([val]) => setSimulationSpeed(val)}
+              />
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>0.5x (Slow)</span>
+                <span>1x (Normal)</span>
+                <span>5x (Fast)</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Higher speed makes data changes more frequent for demonstration purposes
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Last Update</Label>
+                <p className="text-xs text-muted-foreground">When the simulation last produced new data</p>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {lastSimulationUpdate
+                  ? lastSimulationUpdate.toLocaleTimeString()
+                  : 'No updates yet'}
+              </span>
             </div>
           </CardContent>
         </Card>
