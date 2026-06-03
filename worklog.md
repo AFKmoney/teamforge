@@ -348,3 +348,35 @@ Stage Summary:
 - Multi-cursor editing
 - Code folding
 - Split editor view
+
+---
+Task ID: AgentDetail-Fix
+Agent: Main Orchestrator
+Task: Fix agent detail dialog display issues
+
+Work Log:
+- Analyzed user screenshot showing layout problems in agent detail dialog
+- VLM analysis identified: text overflow, button misalignment, section boundary ambiguity, green focus ring inconsistency, icon-text alignment issues, awkward vertical flow
+- Complete rewrite of agent-detail-dialog.tsx:
+  - Added gradient header background (emerald glow for active agents)
+  - Larger agent avatar (size-12) with proper shadow
+  - Specialty shown inline with status in header
+  - Better stat cards with proper spacing and rounded-lg corners
+  - Moved "Assign New Task" inline into content (full-width dashed button → expandable form)
+  - Added proper section dividers with consistent spacing
+  - Empty states use dashed-border cards instead of plain text
+  - "Set Status" dropdown with all statuses + "current" indicator
+  - Clean footer with just "Set Status" and "Close" buttons
+  - Toast notifications for status changes and task assignments
+  - AnimatePresence for smooth assign task form transition
+  - Click-away handler for status dropdown
+- Also fixed: agent pills in top bar now clickable (were cursor-default with no onClick)
+- Also fixed: currentTaskId always set when assigning tasks (not just for idle/sleeping agents)
+- Lint: 0 errors
+- Browser verification: PASS
+
+Stage Summary:
+- Agent detail dialog completely redesigned with clean layout
+- All display issues fixed (no text overflow, proper spacing, visual hierarchy)
+- Agent pills now clickable to open detail dialog
+- Task assignment always sets currentTaskId

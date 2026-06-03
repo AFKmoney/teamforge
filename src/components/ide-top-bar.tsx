@@ -32,6 +32,7 @@ function AgentPill({ agent, currentTaskTitle }: { agent: { id: string; name: str
   const statusConfig = AGENT_STATUS_CONFIG[agent.status]
   const pillColors = ROLE_PILL_COLORS[agent.role]
   const isActive = agent.status !== 'idle' && agent.status !== 'sleeping'
+  const setSelectedAgentId = useAppStore((s) => s.setSelectedAgentId)
 
   // Map role to a glow color
   const glowColorMap: Record<AgentRole, string> = {
@@ -52,9 +53,11 @@ function AgentPill({ agent, currentTaskTitle }: { agent: { id: string; name: str
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            onClick={() => setSelectedAgentId(agent.id)}
             className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs cursor-default select-none transition-colors relative',
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs cursor-pointer select-none transition-colors relative',
               pillColors.bg,
               isActive && 'ring-1 ring-current/20',
             )}

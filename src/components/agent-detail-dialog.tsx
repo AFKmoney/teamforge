@@ -1,15 +1,13 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG, type Agent, type AgentRole, type AgentStatus } from '@/lib/types'
+import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG, type AgentRole, type AgentStatus } from '@/lib/types'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogClose,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,7 +15,6 @@ import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Progress } from '@/components/ui/progress'
 import {
-  User,
   Activity,
   FileCode2,
   Clock,
@@ -25,23 +22,26 @@ import {
   CheckCircle2,
   Target,
   Play,
-  Eye,
   ToggleLeft,
   Loader2,
+  Plus,
+  X,
+  ChevronDown,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
-import { useMemo, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useMemo, useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 function StatCard({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) {
   return (
-    <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 border">
-      <div className={cn('size-8 rounded-md flex items-center justify-center', color)}>
+    <div className="flex items-center gap-2.5 p-3 rounded-lg bg-muted/30 border border-border/50">
+      <div className={cn('size-9 rounded-lg flex items-center justify-center shrink-0', color)}>
         {icon}
       </div>
-      <div>
-        <div className="text-xs font-semibold text-foreground">{value}</div>
-        <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="min-w-0">
+        <div className="text-sm font-bold text-foreground tabular-nums">{value}</div>
+        <div className="text-[10px] text-muted-foreground leading-tight">{label}</div>
       </div>
     </div>
   )
@@ -59,6 +59,7 @@ export function AgentDetailDialog() {
   const [isAssigning, setIsAssigning] = useState(false)
   const [assignTaskTitle, setAssignTaskTitle] = useState('')
   const [showAssignTask, setShowAssignTask] = useState(false)
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
 
   const agent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) || null,
@@ -80,6 +81,7 @@ export function AgentDetailDialog() {
     () => agent
       ? activities
           .filter((a) => a.agentId === agent.id)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, 5)
       : [],
     [agent, activities],
@@ -104,7 +106,7 @@ export function AgentDetailDialog() {
     [agent, tasks],
   )
 
-  const handleSetStatus = async (newStatus: AgentStatus) => {
+  const handleSetStatus = useCallback(async (newStatus: AgentStatus) => {
     if (!agent) return
     try {
       const res = await fetch(`/api/agents/${agent.id}`, {
@@ -114,13 +116,16 @@ export function AgentDetailDialog() {
       })
       if (res.ok) {
         updateAgent(agent.id, { status: newStatus })
+        toast.success(`${agent.name} status set to ${AGENT_STATUS_CONFIG[newStatus].label}`)
       }
+      setStatusDropdownOpen(false)
     } catch (e) {
       console.error('Failed to update agent status:', e)
+      toast.error('Failed to update agent status')
     }
-  }
+  }, [agent, updateAgent])
 
-  const handleAssignTask = async () => {
+  const handleAssignTask = useCallback(async () => {
     if (!agent || !assignTaskTitle.trim()) return
     setIsAssigning(true)
     try {
@@ -139,152 +144,248 @@ export function AgentDetailDialog() {
         }),
       })
       if (res.ok) {
+        const task = await res.json()
         await fetchTasks()
-        // Set agent to thinking if idle
+        // Always set currentTaskId; also set status to thinking if idle/sleeping
+        const patchBody: Record<string, string> = { currentTaskId: task.id }
         if (agent.status === 'idle' || agent.status === 'sleeping') {
-          const task = await res.json()
-          const agentRes = await fetch(`/api/agents/${agent.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'thinking', currentTaskId: task.id }),
-          })
-          if (agentRes.ok) {
-            updateAgent(agent.id, { status: 'thinking', currentTaskId: task.id })
-          }
+          patchBody.status = 'thinking'
+        }
+        const agentRes = await fetch(`/api/agents/${agent.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patchBody),
+        })
+        if (agentRes.ok) {
+          updateAgent(agent.id, patchBody)
         }
         setAssignTaskTitle('')
         setShowAssignTask(false)
+        toast.success(`Task assigned to ${agent.name}`)
       }
     } catch (e) {
       console.error('Failed to assign task:', e)
+      toast.error('Failed to assign task')
     } finally {
       setIsAssigning(false)
     }
-  }
+  }, [agent, assignTaskTitle, updateAgent])
 
   if (!agent || !roleConfig || !statusConfig) return null
 
+  const successRatePct = Math.round(agent.successRate * 100)
+
   return (
     <Dialog open={!!selectedAgentId} onOpenChange={(v) => !v && setSelectedAgentId(null)}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <div className="size-10 rounded-xl flex items-center justify-center text-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
-              {agent.avatar}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className={cn('font-bold', roleConfig.color)}>{agent.name}</span>
-                <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-4 gap-0.5', roleConfig.color)}>
-                  {roleConfig.label}
-                </Badge>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        {/* Header with gradient background */}
+        <div className={cn(
+          'relative px-6 pt-5 pb-4',
+          'bg-gradient-to-br',
+          isActive
+            ? 'from-emerald-500/5 via-transparent to-transparent'
+            : 'from-muted/30 via-transparent to-transparent',
+        )}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className={cn(
+                'size-12 rounded-xl flex items-center justify-center text-2xl shadow-sm',
+                isActive ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/5 ring-1 ring-emerald-500/20' : 'bg-muted/50',
+              )}>
+                {agent.avatar}
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={cn('size-2 rounded-full', statusConfig.dotColor, isActive && 'animate-pulse')} />
-                <span className={cn('text-xs', statusConfig.color)}>{statusConfig.label}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={cn('text-lg font-bold', roleConfig.color)}>{agent.name}</span>
+                  <Badge variant="outline" className={cn('text-[10px] px-2 py-0 h-5 gap-0.5 font-medium', roleConfig.color, roleConfig.bgColor)}>
+                    {roleConfig.icon} {roleConfig.label}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={cn('size-2 rounded-full shrink-0', statusConfig.dotColor, isActive && 'animate-pulse')} />
+                  <span className={cn('text-xs font-medium', statusConfig.color)}>{statusConfig.label}</span>
+                  {agent.specialty && (
+                    <>
+                      <span className="text-muted-foreground/40">·</span>
+                      <span className="text-xs text-muted-foreground truncate">{agent.specialty}</span>
+                    </>
+                  )}
+                </div>
               </div>
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              View agent details, current task assignment, and recent activity.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            <StatCard
+              label="Tasks Done"
+              value={agent.tasksCompleted}
+              icon={<CheckCircle2 className="size-4 text-emerald-500" />}
+              color="bg-emerald-500/10"
+            />
+            <StatCard
+              label="Success Rate"
+              value={`${successRatePct}%`}
+              icon={<Target className="size-4 text-violet-500" />}
+              color="bg-violet-500/10"
+            />
+            <StatCard
+              label="Tokens Used"
+              value={agent.tokensUsed >= 1000 ? `${(agent.tokensUsed / 1000).toFixed(1)}K` : String(agent.tokensUsed)}
+              icon={<Zap className="size-4 text-amber-500" />}
+              color="bg-amber-500/10"
+            />
+          </div>
+
+          {/* Success rate progress */}
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-[11px] mb-1.5">
+              <span className="text-muted-foreground">Success Rate</span>
+              <span className="font-semibold text-foreground tabular-nums">{successRatePct}%</span>
             </div>
-          </DialogTitle>
-          <DialogDescription>View agent details, current task assignment, and recent activity.</DialogDescription>
-        </DialogHeader>
+            <Progress value={successRatePct} className="h-1.5" />
+          </div>
+        </div>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
-          <div className="space-y-4 pb-4">
-            {/* Specialty */}
-            {agent.specialty && (
-              <div className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Specialty:</span> {agent.specialty}
-              </div>
-            )}
+        <Separator />
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-2">
-              <StatCard
-                label="Tasks Done"
-                value={agent.tasksCompleted}
-                icon={<CheckCircle2 className="size-4 text-emerald-500" />}
-                color="bg-emerald-500/10"
-              />
-              <StatCard
-                label="Success Rate"
-                value={`${agent.successRate}%`}
-                icon={<Target className="size-4 text-violet-500" />}
-                color="bg-violet-500/10"
-              />
-              <StatCard
-                label="Tokens Used"
-                value={agent.tokensUsed >= 1000 ? `${(agent.tokensUsed / 1000).toFixed(1)}K` : String(agent.tokensUsed)}
-                icon={<Zap className="size-4 text-amber-500" />}
-                color="bg-amber-500/10"
-              />
-            </div>
-
-            {/* Success rate progress bar */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Success Rate</span>
-                <span className="font-medium text-foreground">{agent.successRate}%</span>
-              </div>
-              <Progress value={agent.successRate} className="h-1.5" />
-            </div>
-
-            <Separator />
+        {/* Scrollable content */}
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="px-6 py-4 space-y-5">
 
             {/* Current Task */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <section>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2">
                 <Activity className="size-3.5 text-emerald-500" />
                 Current Task
               </div>
               {currentTask ? (
-                <div className="p-2.5 rounded-lg border bg-muted/20">
-                  <div className="text-xs font-medium text-foreground">{currentTask.title}</div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{currentTask.status}</Badge>
+                <div className="p-3 rounded-lg border bg-muted/20">
+                  <div className="text-sm font-medium text-foreground">{currentTask.title}</div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{currentTask.status.replace('_', ' ')}</Badge>
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{currentTask.priority}</Badge>
+                    {currentTask.type && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{currentTask.type}</Badge>}
                   </div>
                 </div>
               ) : (
-                <div className="text-xs text-muted-foreground p-2 rounded-lg bg-muted/20">
+                <div className="text-xs text-muted-foreground p-3 rounded-lg bg-muted/15 border border-dashed border-border/60 text-center">
                   No current task assigned
                 </div>
               )}
-            </div>
+            </section>
 
             {/* Assigned Tasks */}
             {assignedTasks.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                  <Target className="size-3.5 text-amber-500" />
-                  Assigned Tasks ({assignedTasks.length})
+              <section>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Target className="size-3.5 text-amber-500" />
+                    Assigned Tasks
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{assignedTasks.length}</Badge>
                 </div>
                 <div className="space-y-1">
                   {assignedTasks.map((task) => (
-                    <div key={task.id} className="flex items-center gap-2 p-1.5 rounded-md text-xs hover:bg-muted/30 transition-colors">
+                    <div key={task.id} className="flex items-center gap-2 p-2 rounded-md text-xs hover:bg-muted/30 transition-colors border border-transparent hover:border-border/50">
                       <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0">{task.status.replace('_', ' ')}</Badge>
-                      <span className="text-foreground truncate">{task.title}</span>
+                      <span className="text-foreground truncate flex-1">{task.title}</span>
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
             )}
+
+            {/* Assign Task inline */}
+            <section>
+              <AnimatePresence mode="wait">
+                {showAssignTask ? (
+                  <motion.div
+                    key="assign-form"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                      <div className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
+                        <Plus className="size-3 text-emerald-500" />
+                        Assign New Task
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={assignTaskTitle}
+                          onChange={(e) => setAssignTaskTitle(e.target.value)}
+                          placeholder="Enter task title..."
+                          className="flex-1 h-8 rounded-md border bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-emerald-500/40 placeholder:text-muted-foreground/50"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && assignTaskTitle.trim()) handleAssignTask()
+                            if (e.key === 'Escape') { setShowAssignTask(false); setAssignTaskTitle('') }
+                          }}
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          onClick={handleAssignTask}
+                          disabled={!assignTaskTitle.trim() || isAssigning}
+                          className="gap-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                          {isAssigning ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
+                          Assign
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => { setShowAssignTask(false); setAssignTaskTitle('') }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="assign-button"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full gap-1.5 h-8 text-xs border-dashed"
+                      onClick={() => setShowAssignTask(true)}
+                    >
+                      <Plus className="size-3" />
+                      Assign New Task
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </section>
 
             <Separator />
 
             {/* Recent Activity */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <section>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2">
                 <Clock className="size-3.5 text-blue-500" />
                 Recent Activity
               </div>
               {recentActivities.length > 0 ? (
                 <div className="space-y-1">
                   {recentActivities.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-2 p-1.5 text-xs">
-                      <span className="size-1.5 rounded-full bg-muted-foreground/50 mt-1.5 shrink-0" />
+                    <div key={activity.id} className="flex items-start gap-2.5 p-2 rounded-md text-xs hover:bg-muted/20 transition-colors">
+                      <span className={cn('size-1.5 rounded-full mt-1.5 shrink-0', isActive ? 'bg-emerald-500/60' : 'bg-muted-foreground/40')} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-foreground/90 truncate">{activity.description}</div>
-                        <div className="text-[10px] text-muted-foreground">
+                        <div className="text-foreground/90">{activity.description}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
                           {new Date(activity.createdAt).toLocaleTimeString()}
                         </div>
                       </div>
@@ -292,98 +393,104 @@ export function AgentDetailDialog() {
                   ))}
                 </div>
               ) : (
-                <div className="text-xs text-muted-foreground p-2">
+                <div className="text-xs text-muted-foreground p-3 text-center bg-muted/15 rounded-lg border border-dashed border-border/60">
                   No recent activity
                 </div>
               )}
-            </div>
+            </section>
 
             {/* Recently Modified Files */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <section>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2">
                 <FileCode2 className="size-3.5 text-pink-500" />
                 Recently Modified Files
               </div>
               {recentFiles.length > 0 ? (
                 <div className="space-y-1">
                   {recentFiles.map((file) => (
-                    <div key={file.id} className="flex items-center gap-2 p-1.5 rounded-md text-xs hover:bg-muted/30 transition-colors">
+                    <div key={file.id} className="flex items-center gap-2 p-2 rounded-md text-xs hover:bg-muted/20 transition-colors">
                       <FileCode2 className="size-3 text-muted-foreground shrink-0" />
-                      <span className="text-foreground/80 truncate">{file.path}</span>
-                      <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
+                      <span className="text-foreground/80 truncate flex-1">{file.path}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
                         {new Date(file.updatedAt).toLocaleTimeString()}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-xs text-muted-foreground p-2">
+                <div className="text-xs text-muted-foreground p-3 text-center bg-muted/15 rounded-lg border border-dashed border-border/60">
                   No recently modified files
                 </div>
               )}
-            </div>
+            </section>
           </div>
         </ScrollArea>
 
         <Separator />
 
-        <DialogFooter className="gap-2">
-          {showAssignTask ? (
-            <div className="flex items-center gap-2 flex-1">
-              <input
-                type="text"
-                value={assignTaskTitle}
-                onChange={(e) => setAssignTaskTitle(e.target.value)}
-                placeholder="Task title..."
-                className="flex-1 h-8 rounded-md border bg-transparent px-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-500/50"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && assignTaskTitle.trim()) handleAssignTask()
-                  if (e.key === 'Escape') { setShowAssignTask(false); setAssignTaskTitle('') }
-                }}
-                autoFocus
-              />
-              <Button size="sm" onClick={handleAssignTask} disabled={!assignTaskTitle.trim() || isAssigning} className="gap-1">
-                {isAssigning ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
-                Assign
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => { setShowAssignTask(false); setAssignTaskTitle('') }}>
-                Cancel
-              </Button>
-            </div>
-          ) : (
+        {/* Footer actions - clean and organized */}
+        <div className="px-6 py-3 flex items-center gap-2 shrink-0 bg-muted/10">
+          {/* Set Status dropdown */}
+          <div className="relative">
             <Button
               size="sm"
               variant="outline"
-              className="gap-1.5"
-              onClick={() => setShowAssignTask(true)}
+              className="gap-1.5 h-8 text-xs"
+              onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
             >
-              <Play className="size-3" />
-              Assign Task
+              <ToggleLeft className="size-3" />
+              Set Status
+              <ChevronDown className="size-2.5 ml-0.5" />
             </Button>
-          )}
+            <AnimatePresence>
+              {statusDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full left-0 mb-1 w-44 rounded-lg border bg-popover p-1 shadow-lg z-50"
+                >
+                  {Object.entries(AGENT_STATUS_CONFIG).map(([key, cfg]) => (
+                    <button
+                      key={key}
+                      onClick={() => handleSetStatus(key as AgentStatus)}
+                      className={cn(
+                        'flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-xs transition-colors',
+                        agent.status === key ? 'bg-muted/50 font-medium' : 'hover:bg-muted/30',
+                      )}
+                    >
+                      <span className={cn('size-2 rounded-full', cfg.dotColor)} />
+                      <span className={cfg.color}>{cfg.label}</span>
+                      {agent.status === key && (
+                        <span className="ml-auto text-muted-foreground text-[10px]">current</span>
+                      )}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="flex-1" />
+
           <Button
             size="sm"
             variant="outline"
-            className="gap-1.5"
-            onClick={() => {
-              // Toggle between idle and coding
-              if (agent.status === 'idle') {
-                handleSetStatus('coding')
-              } else {
-                handleSetStatus('idle')
-              }
-            }}
+            className="h-8 text-xs"
+            onClick={() => setSelectedAgentId(null)}
           >
-            <ToggleLeft className="size-3" />
-            Set Status
+            Close
           </Button>
-          <DialogClose asChild>
-            <Button size="sm" variant="outline" className="gap-1.5">
-              <Eye className="size-3" />
-              Close
-            </Button>
-          </DialogClose>
-        </DialogFooter>
+        </div>
+
+        {/* Click-away for status dropdown */}
+        {statusDropdownOpen && (
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setStatusDropdownOpen(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )
