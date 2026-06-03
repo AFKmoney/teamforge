@@ -39,7 +39,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
+import { useRef, useEffect, useState, useMemo, useCallback, useSyncExternalStore } from 'react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'
@@ -272,6 +272,13 @@ function ModelSelector() {
   const updateAISettings = useAppStore((s) => s.updateAISettings)
   const [isOpen, setIsOpen] = useState(false)
 
+  // Use useSyncExternalStore to detect client-side mount without setState-in-effect
+  const mounted = useSyncExternalStore(
+    () => () => {}, // subscribe noop
+    () => true,     // client snapshot
+    () => false,    // server snapshot
+  )
+
   const currentProvider = AI_PROVIDERS.find((p) => p.type === aiSettings.provider)
   const currentModels = getModelsForProvider(aiSettings.provider)
 
@@ -287,21 +294,23 @@ function ModelSelector() {
     return 'DeepSeek'
   }, [aiSettings, currentModels])
 
-  // Provider icon
+  // Provider icon — use consistent default until mounted to avoid hydration mismatch
   const providerIcon = useMemo(() => {
+    if (!mounted) return <Bot className="size-3 text-emerald-500" />
     switch (aiSettings.provider) {
       case 'nvidia': return <Zap className="size-3 text-green-500" />
       case 'openai-compatible': return <Sparkles className="size-3 text-violet-500" />
       default: return <Bot className="size-3 text-emerald-500" />
     }
-  }, [aiSettings.provider])
+  }, [aiSettings.provider, mounted])
 
   // Has required API key?
   const hasRequiredKey = useMemo(() => {
+    if (!mounted) return true // consistent with SSR default (zai needs no key)
     if (aiSettings.provider === 'zai') return true
     if (aiSettings.provider === 'nvidia') return !!aiSettings.nvidiaApiKey
     return !!aiSettings.openaiCompatibleBaseUrl
-  }, [aiSettings])
+  }, [aiSettings, mounted])
 
   return (
     <div className="relative">

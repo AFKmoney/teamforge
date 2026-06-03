@@ -380,3 +380,102 @@ Stage Summary:
 - All display issues fixed (no text overflow, proper spacing, visual hierarchy)
 - Agent pills now clickable to open detail dialog
 - Task assignment always sets currentTaskId
+
+---
+Task ID: 2+4
+Agent: Full-stack Developer Subagent
+Task: Fix hydration mismatch error + Add ALL NVIDIA NIM free models
+
+Work Log:
+- **Hydration Mismatch Fix**: Fixed `ModelSelector` component in `ide-chat-panel.tsx`
+  - Root cause: `aiSettings.provider` comes from localStorage, so during SSR it defaults to 'zai' (Bot icon), but on client it may differ (e.g., Sparkles icon for openai-compatible), causing React hydration mismatch
+  - Fix: Added `mounted` detection using `useSyncExternalStore` (returns `false` on server, `true` on client) to avoid `setState-in-effect` lint error
+  - Before mount: provider icon always renders `<Bot>` (consistent with SSR default), hasRequiredKey returns `true` (consistent with zai default)
+  - After mount: renders actual provider-specific icon and key validation
+  - Used `useSyncExternalStore` instead of `useState+useEffect` to comply with `react-hooks/set-state-in-effect` lint rule
+- **NVIDIA NIM Models Expansion**: Replaced 6 models with comprehensive 32-model list in `ai-providers.ts`
+  - Meta Llama: Llama 3.3 70B, Llama 3.1 405B/70B/8B, Llama 3.2 1B/3B/11B Vision/90B Vision (8 models)
+  - NVIDIA Nemotron: Super 49B v1.5, Nemotron 70B, Nemotron 51B, Nano 9B v2, Nemotron 4 340B Reward (5 models)
+  - DeepSeek: R1, R1 Distill 70B, R1 Distill Qwen 32B (3 models)
+  - Mistral: Large 2, Mixtral 8x22B, Codestral 22B, Mistral 7B (4 models)
+  - Qwen: Qwen 2.5 72B, Qwen 2.5 Coder 32B, Qwen 2 72B (3 models)
+  - Google Gemma: Gemma 2 27B, Gemma 2 9B (2 models)
+  - Microsoft Phi: Phi-4 Mini, Phi-3.5 Mini, Phi-3 Medium 128K, Phi-3 Mini 128K, Phi-3 Small 128K (5 models)
+  - Snowflake: Arctic (1 model)
+  - IBM: Granite 34B Code (1 model)
+  - Updated provider description to "32 free models"
+- **RocketIcon**: Confirmed `RocketIcon` exists as a valid lucide-react alias alongside `Rocket` — no change needed
+- Lint: 0 errors, all clean
+- Dev server: Compiles successfully
+
+Stage Summary:
+- Hydration mismatch error resolved — server and client now render identical HTML on first paint
+- NVIDIA NIM provider expanded from 6 to 32 free models covering 9 model families
+- No breaking changes to existing functionality
+
+---
+Task ID: 3
+Agent: Full-stack Developer Subagent
+Task: Fix agent detail dialog display issues (round 2)
+
+Work Log:
+- **Issue #1: Status dropdown clipped by `overflow-hidden`** — The custom status dropdown opened upward (`bottom-full`) from the footer but was clipped by `overflow-hidden` on DialogContent, making it invisible or cut off. Fixed by replacing the custom dropdown with shadcn `DropdownMenu` which uses a Radix portal (renders outside the dialog's overflow boundary).
+- **Issue #2: Click-away handler z-index conflict** — The `fixed inset-0 z-40` click-away div was inside DialogContent (which is z-50 via portal), making it unreachable or causing it to interfere with dialog close behavior. Eliminated entirely since DropdownMenu handles click-away automatically.
+- **Issue #3: Duplicate close button** — DialogContent's built-in X close button (at `top-4 right-4`) overlapped with the custom header content. Fixed by adding `showCloseButton={false}` and placing a custom close button in the header that doesn't conflict.
+- **Issue #4: Header overflow** — The DialogTitle content could overflow without padding for the close button. Added `pr-8` to DialogTitle and `shrink-0` to the avatar.
+- **Issue #5: Replaced `overflow-hidden` with `overflow-clip`** — `overflow-clip` prevents scrolling without creating a scroll container, which is correct since the ScrollArea handles scrolling internally. DropdownMenu portal content is unaffected.
+- **Code cleanup** — Removed `statusDropdownOpen` state (no longer needed), removed click-away handler div, added `Check` icon import for current status indicator, removed `AnimatePresence` usage for the status dropdown (DropdownMenu animates itself).
+- Lint: 0 errors
+- Dev server: Compiles successfully
+
+Stage Summary:
+- Status dropdown now works correctly (uses portal, not clipped by dialog overflow)
+- Click-away behavior is handled by DropdownMenu (no z-index conflicts)
+- Custom close button in header (no overlap with content)
+- Dialog layout is clean and functional
+
+---
+Task ID: Main-Session-2
+Agent: Main Orchestrator
+Task: Fix hydration mismatch, agent detail display, and add ALL NVIDIA NIM free models
+
+Work Log:
+- Analyzed hydration mismatch error from user report — server rendered Bot icon, client rendered Sparkles icon due to localStorage-based provider selection
+- Fixed ModelSelector hydration by adding `useSyncExternalStore` mounted detection (consistent rendering during SSR)
+- Expanded NVIDIA NIM from 6 to 32 free models across 9 families (Meta Llama, NVIDIA Nemotron, DeepSeek, Mistral, Qwen, Google Gemma, Microsoft Phi, Snowflake, IBM)
+- Fixed agent detail dialog: replaced custom dropdown with DropdownMenu (portal-based, not clipped), added custom close button, fixed overflow issues
+- Browser verification: all 32 NVIDIA models visible in model selector, agent detail dialog opens correctly, no hydration errors
+- Lint: 0 errors
+
+Stage Summary:
+- Hydration mismatch error fully resolved
+- 32 NVIDIA NIM free models available (was 6)
+- Agent detail dialog displays correctly with working status dropdown
+- All core features operational
+
+## Current Project Status (v1.0.0)
+
+### NVIDIA NIM Free Models (32 total):
+- ✅ Meta Llama: 3.3 70B, 3.1 405B/70B/8B, 3.2 1B/3B/11B Vision/90B Vision
+- ✅ NVIDIA Nemotron: Super 49B v1.5, 70B, 51B, Nano 9B v2, 4 340B Reward
+- ✅ DeepSeek: R1, R1 Distill 70B, R1 Distill Qwen 32B
+- ✅ Mistral: Large 2, Mixtral 8x22B, Codestral 22B, Mistral 7B
+- ✅ Qwen: 2.5 72B, 2.5 Coder 32B, 2 72B
+- ✅ Google Gemma: 2 27B, 2 9B
+- ✅ Microsoft Phi: Phi-4 Mini, Phi-3.5 Mini, Phi-3 Medium/Mini/Small 128K
+- ✅ Snowflake: Arctic
+- ✅ IBM: Granite 34B Code
+
+### Bug Fixes This Session:
+- ✅ Hydration mismatch error in ModelSelector (useSyncExternalStore)
+- ✅ Agent detail dialog status dropdown clipped by overflow-hidden
+- ✅ Agent detail dialog click-away z-index conflict
+- ✅ Agent detail dialog duplicate close button overlapping header
+- ✅ Agent detail dialog header overflow without padding
+
+### Unresolved / Next Steps:
+- Continue adding more NVIDIA NIM models as they become available
+- AI code completion (inline suggestions)
+- Multi-cursor editing
+- Code folding
+- Split editor view

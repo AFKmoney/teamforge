@@ -15,6 +15,12 @@ import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Progress } from '@/components/ui/progress'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Activity,
   FileCode2,
   Clock,
@@ -27,6 +33,7 @@ import {
   Plus,
   X,
   ChevronDown,
+  Check,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo, useState, useCallback } from 'react'
@@ -59,7 +66,6 @@ export function AgentDetailDialog() {
   const [isAssigning, setIsAssigning] = useState(false)
   const [assignTaskTitle, setAssignTaskTitle] = useState('')
   const [showAssignTask, setShowAssignTask] = useState(false)
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
 
   const agent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) || null,
@@ -118,7 +124,6 @@ export function AgentDetailDialog() {
         updateAgent(agent.id, { status: newStatus })
         toast.success(`${agent.name} status set to ${AGENT_STATUS_CONFIG[newStatus].label}`)
       }
-      setStatusDropdownOpen(false)
     } catch (e) {
       console.error('Failed to update agent status:', e)
       toast.error('Failed to update agent status')
@@ -177,19 +182,31 @@ export function AgentDetailDialog() {
 
   return (
     <Dialog open={!!selectedAgentId} onOpenChange={(v) => !v && setSelectedAgentId(null)}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+      <DialogContent
+        showCloseButton={false}
+        className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-clip"
+      >
         {/* Header with gradient background */}
         <div className={cn(
-          'relative px-6 pt-5 pb-4',
+          'relative px-6 pt-5 pb-4 shrink-0',
           'bg-gradient-to-br',
           isActive
             ? 'from-emerald-500/5 via-transparent to-transparent'
             : 'from-muted/30 via-transparent to-transparent',
         )}>
+          {/* Custom close button in header */}
+          <button
+            onClick={() => setSelectedAgentId(null)}
+            className="absolute top-3 right-3 rounded-xs p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <X className="size-4" />
+            <span className="sr-only">Close</span>
+          </button>
+
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
+            <DialogTitle className="flex items-center gap-3 pr-8">
               <div className={cn(
-                'size-12 rounded-xl flex items-center justify-center text-2xl shadow-sm',
+                'size-12 rounded-xl flex items-center justify-center text-2xl shadow-sm shrink-0',
                 isActive ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/5 ring-1 ring-emerald-500/20' : 'bg-muted/50',
               )}>
                 {agent.avatar}
@@ -265,7 +282,7 @@ export function AgentDetailDialog() {
               {currentTask ? (
                 <div className="p-3 rounded-lg border bg-muted/20">
                   <div className="text-sm font-medium text-foreground">{currentTask.title}</div>
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{currentTask.status.replace('_', ' ')}</Badge>
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{currentTask.priority}</Badge>
                     {currentTask.type && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{currentTask.type}</Badge>}
@@ -428,49 +445,40 @@ export function AgentDetailDialog() {
 
         <Separator />
 
-        {/* Footer actions - clean and organized */}
+        {/* Footer actions */}
         <div className="px-6 py-3 flex items-center gap-2 shrink-0 bg-muted/10">
-          {/* Set Status dropdown */}
-          <div className="relative">
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5 h-8 text-xs"
-              onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-            >
-              <ToggleLeft className="size-3" />
-              Set Status
-              <ChevronDown className="size-2.5 ml-0.5" />
-            </Button>
-            <AnimatePresence>
-              {statusDropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 4, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 4, scale: 0.96 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute bottom-full left-0 mb-1 w-44 rounded-lg border bg-popover p-1 shadow-lg z-50"
+          {/* Set Status dropdown - uses DropdownMenu with portal so it won't be clipped */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-8 text-xs"
+              >
+                <ToggleLeft className="size-3" />
+                Set Status
+                <ChevronDown className="size-2.5 ml-0.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44">
+              {Object.entries(AGENT_STATUS_CONFIG).map(([key, cfg]) => (
+                <DropdownMenuItem
+                  key={key}
+                  onClick={() => handleSetStatus(key as AgentStatus)}
+                  className={cn(
+                    'flex items-center gap-2 text-xs cursor-pointer',
+                    agent.status === key && 'font-medium',
+                  )}
                 >
-                  {Object.entries(AGENT_STATUS_CONFIG).map(([key, cfg]) => (
-                    <button
-                      key={key}
-                      onClick={() => handleSetStatus(key as AgentStatus)}
-                      className={cn(
-                        'flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-xs transition-colors',
-                        agent.status === key ? 'bg-muted/50 font-medium' : 'hover:bg-muted/30',
-                      )}
-                    >
-                      <span className={cn('size-2 rounded-full', cfg.dotColor)} />
-                      <span className={cfg.color}>{cfg.label}</span>
-                      {agent.status === key && (
-                        <span className="ml-auto text-muted-foreground text-[10px]">current</span>
-                      )}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                  <span className={cn('size-2 rounded-full shrink-0', cfg.dotColor)} />
+                  <span className={cfg.color}>{cfg.label}</span>
+                  {agent.status === key && (
+                    <Check className="size-3 ml-auto text-muted-foreground" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="flex-1" />
 
@@ -483,14 +491,6 @@ export function AgentDetailDialog() {
             Close
           </Button>
         </div>
-
-        {/* Click-away for status dropdown */}
-        {statusDropdownOpen && (
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setStatusDropdownOpen(false)}
-          />
-        )}
       </DialogContent>
     </Dialog>
   )
