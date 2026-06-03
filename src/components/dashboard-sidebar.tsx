@@ -30,6 +30,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Search,
+  FileText,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useAppStore, type Page } from '@/lib/store'
@@ -129,6 +130,7 @@ const navSections: NavSection[] = [
     label: 'Tools',
     items: [
       { page: 'chat', label: 'Chat', icon: MessageSquare },
+      { page: 'system-log', label: 'System Log', icon: FileText },
       { page: 'settings', label: 'Settings', icon: Settings },
     ],
   },

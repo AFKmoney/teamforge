@@ -296,6 +296,24 @@ export type Page =
   | 'settings'
   | 'topology'
   | 'insights'
+  | 'system-log'
+
+// ---------------------------------------------------------------------------
+// System Log
+// ---------------------------------------------------------------------------
+
+export type SystemLogLevel = 'info' | 'warning' | 'error' | 'critical'
+export type SystemLogSource = 'agent' | 'evolution' | 'safety' | 'system' | 'user'
+
+export interface SystemLog {
+  id: string
+  timestamp: string
+  level: SystemLogLevel
+  source: SystemLogSource
+  action: string
+  details: Record<string, unknown>
+  userId?: string
+}
 
 // ---------------------------------------------------------------------------
 // Recent Page History

@@ -14,6 +14,7 @@ import { ChatPanel } from '@/components/chat-panel'
 import { SettingsPanel } from '@/components/settings-panel'
 import { TopologyPanel } from '@/components/topology-panel'
 import { InsightsPanel } from '@/components/insights-panel'
+import { SystemLogPanel } from '@/components/system-log-panel'
 import { ActivityPanel } from '@/components/activity-panel'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { PanelErrorFallback } from '@/components/panel-error-fallback'
@@ -53,6 +54,7 @@ const PAGE_NAMES: Record<Page, string> = {
   chat: 'Chat',
   activity: 'Activity',
   settings: 'Settings',
+  'system-log': 'System Log',
 }
 
 const PAGE_SECTIONS: Record<Page, string> = {
@@ -69,6 +71,7 @@ const PAGE_SECTIONS: Record<Page, string> = {
   chat: 'Tools',
   activity: 'Overview',
   settings: 'Tools',
+  'system-log': 'Tools',
 }
 
 // Helper to wrap a panel with ErrorBoundary
@@ -168,6 +171,8 @@ export default function Home() {
         return withErrorBoundary(<TopologyPanel />, 'Topology')
       case 'insights':
         return withErrorBoundary(<InsightsPanel />, 'Insights')
+      case 'system-log':
+        return withErrorBoundary(<SystemLogPanel />, 'System Log')
       default:
         return withErrorBoundary(<DashboardOverview />, 'Dashboard')
     }
@@ -179,22 +184,22 @@ export default function Home() {
         <DashboardSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           {/* Header with Breadcrumbs */}
-          <header className="flex items-center justify-between border-b bg-background/50 backdrop-blur-sm px-3 sm:px-4 md:px-6 py-2">
+          <header className="flex items-center justify-between border-b bg-card/60 backdrop-blur-md px-3 sm:px-4 md:px-6 py-2.5 sticky top-0 z-10">
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbLink
-                    className="flex items-center gap-1.5 cursor-pointer"
+                    className="flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                     onClick={() => setCurrentPage('dashboard')}
                   >
                     <Cpu className="size-3.5 text-emerald-500" />
-                    EvoAI
+                    <span className="font-medium">EvoAI</span>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   <BreadcrumbLink
-                    className="cursor-pointer"
+                    className="cursor-pointer hover:text-foreground transition-colors"
                     onClick={() => {
                       // Navigate to the first page in the same section
                       const section = PAGE_SECTIONS[currentPage]
@@ -208,7 +213,7 @@ export default function Home() {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{PAGE_NAMES[currentPage]}</BreadcrumbPage>
+                  <BreadcrumbPage className="font-medium">{PAGE_NAMES[currentPage]}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -223,23 +228,23 @@ export default function Home() {
             </div>
           </main>
           {/* Footer */}
-          <footer className="border-t bg-muted/30 px-4 md:px-6 py-3">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+          <footer className="border-t bg-card/40 backdrop-blur-sm px-4 md:px-6 py-2.5 mt-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
-                <Cpu className="size-3.5 text-emerald-500" />
-                <span className="font-medium">EvoAI</span>
-                <span className="text-border">•</span>
-                <span>Self-Evolving AI System v1.0</span>
+                <Cpu className="size-3 text-emerald-500" />
+                <span className="font-semibold text-foreground/80">EvoAI</span>
+                <span className="text-border/50">|</span>
+                <span>Self-Evolving AI System v2.0</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1.5">
                   <span className="relative flex size-1.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full size-1.5 bg-emerald-500" />
                   </span>
-                  All systems operational
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">All systems operational</span>
                 </span>
-                <span className="text-border">•</span>
+                <span className="text-border/50">|</span>
                 <span className="flex items-center gap-0.5">
                   Made with <Heart className="size-3 text-red-500 fill-red-500" /> for the future of AI
                 </span>

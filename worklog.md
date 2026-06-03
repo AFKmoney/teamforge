@@ -1671,3 +1671,265 @@ The EvoAI Self-Evolving AI System now has 13 fully featured panels:
 5. Could add drag-and-drop for topology/knowledge graph nodes
 6. Could add data import functionality
 7. Could add collaborative features (shared views, comments)
+
+---
+Task ID: 3
+Agent: System Log Panel Builder
+Task: Create new System Log / Audit Trail panel
+
+Work Log:
+- Updated `/src/lib/types.ts`: Added `SystemLog` interface with fields (id, timestamp, level, source, action, details, userId), `SystemLogLevel` type ('info'|'warning'|'error'|'critical'), `SystemLogSource` type ('agent'|'evolution'|'safety'|'system'|'user'), and added 'system-log' to Page type union
+- Updated `/src/lib/store.ts`: Added `SystemLog` import, `systemLogs: SystemLog[]` to state, `setSystemLogs` action
+- Updated `/src/components/page-header.tsx`: Added 'slate' color to ICON_BG_MAP and ICON_TEXT_MAP for FileText icon styling
+- Created `/src/app/api/system-log/route.ts`: GET endpoint with 30 realistic mock log entries covering all levels and sources, supports query params (level, source, search, limit, offset), sorted by timestamp descending
+- Created `/src/components/system-log-panel.tsx`: Full-featured system log panel with:
+  - PageHeader (FileText icon, slate color, "System Log" title, description)
+  - Filter Bar: Level toggle buttons (Info/Warning/Error/Critical) with colored dots, Source toggle buttons (Agent/Evolution/Safety/System/User) with icons, Search input with debounce (300ms)
+  - Stats summary row showing entry count and per-level counts
+  - Log Table (desktop): Level badge, relative timestamp (with absolute on Tooltip hover), Source badge, Action description, expand chevron
+  - Log Table (mobile): Collapsible cards with level/source badges and action
+  - Expandable row detail: Full action, JSON syntax-highlighted details (purple keys, emerald strings, amber numbers, sky booleans), User ID, full timestamp, Copy button
+  - Pagination: Page-based with 20 items per page, Previous/Next buttons, page number buttons
+  - Live indicator: "Live" badge with Radio icon pulse when simulation active
+  - Export: Dropdown (CSV/JSON) using @/lib/export-utils
+  - Framer-motion: containerVariants/rowVariants with staggered spring animations, AnimatePresence
+  - Full dark mode support with semantic Tailwind colors (text-foreground, text-muted-foreground, bg-card, border-border, etc.) and dark: variants
+  - Responsive design: Desktop table + mobile collapsible cards
+- Updated `/src/components/dashboard-sidebar.tsx`: Added FileText import, added 'system-log' nav item (FileText icon, "System Log" label) in Tools section between Chat and Settings
+- Updated `/src/app/page.tsx`: Imported SystemLogPanel, added 'system-log' case in renderPage switch, added 'system-log' to PAGE_NAMES and PAGE_SECTIONS (Tools section)
+- API verified: GET /api/system-log returns 30 entries, filtering by level/source/search works correctly
+- Lint passes (only pre-existing error in dashboard-overview.tsx unrelated to this task)
+
+Stage Summary:
+- **System Log Panel** fully functional with filterable, searchable, paginated audit trail
+- **API Route** with 30 mock entries and server-side filtering (level, source, search, limit, offset)
+- **Navigation**: System Log appears in sidebar Tools section, breadcrumb routing works
+- **Features**: Level/Source toggle filters, debounced search, expandable JSON details with syntax highlighting, copy button, pagination, live indicator, CSV/JSON export
+- **Dark mode**: Full support with semantic Tailwind tokens and dark: variants
+- **Responsive**: Desktop table + mobile collapsible card layout
+- **Animations**: Framer-motion staggered row entrance and spring expand transitions
+
+---
+Task ID: 2
+Agent: Dashboard Enhancement Agent
+Task: Enhance Dashboard Overview with welcome hero, improved quick stats, chart labels, consistent shadows
+
+Work Log:
+- Added new lucide-react imports: X, Sun, MessageSquare for welcome hero section
+- Created WelcomeHeroSection component with:
+  - Time-of-day greeting ("Good morning/afternoon/evening, Administrator")
+  - Current date/time display (auto-updates every 60 seconds)
+  - Quick action buttons: "View Agents" (Users icon, emerald hover), "Check Evolution" (Dna icon, violet hover), "Open Chat" (MessageSquare icon, amber hover)
+  - Animated gradient background (emerald-500/10 → violet-500/5 → emerald-500/10 with animate-gradient-x)
+  - Dismissible with X button, persisted via localStorage key 'evoai-welcome-dismissed'
+  - Lazy state initializer for dismissed state (avoids lint error for setState in effect)
+  - Framer-motion entrance animation (spring, opacity/y)
+- Inserted WelcomeHeroSection in DashboardOverview render after TourWelcomeCard
+- Replaced Quick Stats section from list-based layout to 4 mini-cards in 2x2 grid:
+  - Updated quickStatIconConfig to include `color` and `border` properties per stat
+  - Removed `status` entry (no longer used)
+  - Each mini-card has: colored left border (border-l-4), icon in colored badge, label, value, delta indicator (TrendingUp/Down badge)
+  - Cards: Avg Benchmark (BarChart3, emerald), Tokens Used (Coins, violet), Tasks Completed (Clock, amber), Safety Score (Shield, rose)
+  - "Last 24h" shown as Badge component (secondary variant) at top-right
+  - Hover effects: shadow-md + shadow-primary/5, bg-accent/20
+  - Loading skeleton: 2x2 grid of h-24 skeleton placeholders
+- Enhanced System Performance Chart:
+  - Added Y-axis title "Rate (%)" rotated vertically on the left side
+  - Increased chart height from h-[200px] md:h-[250px] to h-[250px] md:h-[300px]
+  - Added Y-axis tickFormatter showing values as percentages (e.g., "85%")
+  - Increased Y-axis width to 45px for percentage labels
+  - Enhanced ChartTooltip with custom formatter: shows "Success Rate: 85.0%" / "Cost: 42.3%" format
+  - Enhanced labelFormatter showing full date/time (e.g., "Jan 15, 3:45 PM")
+  - Added left margin (15px) for Y-axis title space
+  - Empty state height also increased to match
+- Applied consistent shadow-sm to all cards:
+  - System Health card: changed from shadow-md to shadow-sm
+  - All other cards already had shadow-sm (confirmed)
+- Fixed Evolution Pipeline "Rejected" readability:
+  - Changed background from bg-red-500/5 to bg-red-500/10 (stronger background)
+  - Changed border from border-red-500/30 to border-red-500/40 (stronger border)
+  - Changed text from text-red-600 dark:text-red-400 to text-red-700 dark:text-red-300 (better contrast)
+  - Applied improved contrast to all three text elements (label, count, percentage)
+  - Added font-medium to "Rejected" label for additional emphasis
+- Ensured Activity Feed subtitle visibility:
+  - Added whitespace-nowrap to CardDescription "Recent system events"
+  - Added whitespace-nowrap to Quick Stats CardDescription too
+  - Changed "Last 24h" from plain text to Badge component for better visibility
+- Cleaned up unused imports: removed RechartsTooltip, ResponsiveContainer from recharts import
+- Lint passes clean with no errors
+- Dev server compiles without errors, all API routes returning 200
+
+Stage Summary:
+- **Welcome Hero Section**: Time-based greeting, date/time, 3 quick action buttons, animated gradient, dismissible with localStorage persistence
+- **Improved Quick Stats**: 4 mini-cards in 2x2 grid with colored left borders, icons, values, delta indicators, and hover effects (replaces previous list-based layout)
+- **Chart Enhancement**: Y-axis title "Rate (%)", percentage tick labels, custom tooltip with date/time and formatted values, increased height
+- **Consistent Shadows**: All cards use shadow-sm (System Health changed from shadow-md)
+- **Evolution Pipeline Fix**: Better contrast for "Rejected" stage (text-red-700/dark:text-red-300 on bg-red-500/10)
+- **Activity Feed Fix**: Subtitle with whitespace-nowrap prevents text wrapping/cutoff
+
+---
+Task ID: 4
+Agent: Data Import & Insights Polish Agent
+Task: Add data import functionality and polish Insights panel
+
+Work Log:
+- Created `/src/lib/import-utils.ts` with four utility functions:
+  - `parseCSV(text)`: Full CSV parser handling quoted fields, newlines in quotes, escaped double-quotes, returns array of objects with header-row keys
+  - `parseJSON(text)`: JSON parser with validation, accepts both array of objects and single object, returns { data, error }
+  - `validateImportData(data, requiredFields)`: Validates imported data has required fields, returns { valid, errors, data, validCount, invalidCount }
+  - `readFileAsText(file)`: Promise-based FileReader utility
+- Updated `/src/components/agents-panel.tsx`:
+  - Added Import button in header next to Export dropdown
+  - Added Import dialog with: file type selector (CSV/JSON), drag & drop zone + click-to-select, preview table (first 5 rows), validation summary (valid/invalid counts + error details), animated progress bar during import, Import button that POSTs each valid row to /api/agents
+  - Added Upload, FileUp, CheckCircle, AlertCircle icon imports
+  - Added parseCSV, parseJSON, validateImportData, readFileAsText imports from @/lib/import-utils
+  - Added toastWarning import for partial-import notifications
+  - Required fields for agents: name, role, description
+- Updated `/src/components/memory-panel.tsx`:
+  - Same import pattern as Agents panel with Import button, dialog, and all features
+  - Required fields for memories: type, content, category
+  - Import calls POST /api/memory for each valid row
+  - Added useRef, Upload, FileUp, CheckCircle, AlertCircle icon imports
+  - Added Label import for import dialog
+  - Added parseCSV, parseJSON, validateImportData, readFileAsText imports
+  - Added toastWarning import
+- Verified existing POST API endpoints at /api/agents and /api/memory — both work correctly for individual creates
+- Rewrote `/src/components/insights-panel.tsx` with all 5 requested polish enhancements:
+  1. **Better Anomaly Detection UX**:
+     - Added "Acknowledge" action (green CheckCircle2 icon, marks alert as acknowledged with visual dimming + badge)
+     - Added "View All" link when anomalies are dismissed (expandable section showing dismissed alerts with line-through styling)
+     - Added severity filter toggle buttons (All / Critical / Warning) with counts
+     - Added anomaly count in header badge ("X active")
+     - Added AnimatePresence for smooth alert transitions
+  2. **Interactive Treemap**:
+     - Made treemap rectangles clickable via onClick handler
+     - Clicking a rectangle shows a Popover with detailed agent info (name, allocation %, description, status badge)
+     - Added hover brightness effect (filter: brightness(1.2)) on hovered/selected rectangles
+     - Added selection ring (stroke + strokeWidth) on clicked rectangles
+     - Made legend items clickable buttons that open the same popover
+  3. **Efficiency Score Enhancement**:
+     - Added "Trend" indicator (↑ 3.2% from last week) below the main score with TrendingUp/TrendingDown icons and green/red background
+     - Made sub-scores clickable with TooltipProvider showing "Click to view [label] details / Navigate to [panel] panel"
+     - Added animation on score change (motion.circle with strokeDashoffset animation, spring-based score number animation)
+  4. **Prediction Chart Enhancement**:
+     - Added annotation markers at notable data points: peak (green dot with glow) and trough (red dot with glow) in actual data
+     - Added "Model Confidence" indicator with animated progress bar (gradient from amber-500 to amber-400, motion.div animation)
+     - Improved tooltip formatting with proper date/time, color-coded dots, "Forecast zone" indicator
+     - Added peak/trough entries in legend below chart
+  5. **Heatmap Enhancement**:
+     - Added "Peak Hours" indicator showing top 3 busiest hours with Clock icon and Badge components
+     - Enhanced color scale with 8 more distinct steps (emerald-100 through emerald-800, stronger gradient)
+     - Made cells slightly larger (20px vs 18px) for better readability
+     - Peak hour labels highlighted in bold emerald text
+- All changes use semantic Tailwind color tokens with dark: variants
+- Uses framer-motion for animations throughout
+- Lint passes clean with no errors
+- Dev server compiles without errors
+
+Stage Summary:
+- **Import Utility**: Reusable parseCSV, parseJSON, validateImportData, readFileAsText functions at /src/lib/import-utils.ts
+- **Agents Import**: Full import dialog with drag & drop, file type selector, preview, validation, progress bar, and bulk POST to /api/agents
+- **Memory Import**: Same import pattern with required fields (type, content, category), bulk POST to /api/memory
+- **Insights Anomaly**: Acknowledge/Dismiss/Investigate actions, severity filter (All/Critical/Warning), View All dismissed, count badge
+- **Insights Treemap**: Clickable rectangles with Popover detail panel, hover brightness, selection ring, clickable legend
+- **Insights Efficiency**: Trend indicator (↑ X% from last week), clickable sub-scores with tooltips, animated circle/score
+- **Insights Prediction**: Peak/trough annotation markers, animated confidence bar, improved tooltip with date/time and forecast indicator
+- **Insights Heatmap**: Peak Hours indicator (top 3), 8-step color scale (stronger gradient), larger cells (20px), bold peak labels
+
+---
+Task ID: Phase-7-Main
+Agent: Main
+Task: Phase 7 — QA Testing, Bug Fixes, New Features, and Deep Styling Polish
+
+Work Log:
+- Reviewed /home/z/my-project/worklog.md to understand project status (Phase 6 complete, 13 panels)
+- Performed comprehensive QA testing with agent-browser across all panels
+- Used VLM (z-ai vision) to analyze screenshots and identify visual quality issues
+- Identified critical bug: Onboarding tour "Skip" button doesn't persist to localStorage, causing tour to reappear on every page load
+- Fixed onboarding tour bug: Updated `endTour()` in store.ts to also set localStorage item 'evoai-tour-completed' = 'true'
+- Delegated 3 parallel subagent tasks for major development work:
+
+**Task 2: Dashboard Overview Enhancement**
+- Added Welcome Hero Section with time-based greeting ("Good morning/afternoon/evening, Administrator"), current date/time display, 3 quick action buttons (View Agents, Check Evolution, Open Chat), animated gradient background (emerald/violet), dismissible with localStorage persistence
+- Replaced empty Quick Stats with 4 mini-cards in 2×2 grid: Avg Benchmark (emerald), Tokens Used (violet), Tasks Completed (amber), Safety Score (rose) — each with colored left border, icon, value, and delta indicator
+- Added Y-axis title "Rate (%)" to System Performance chart, formatted Y-axis ticks as percentages, enhanced tooltip with date/time
+- Made all card shadows consistent (shadow-sm)
+- Improved "Rejected" stage contrast in Evolution Pipeline (bg-red-500/10, text-red-700/dark:text-red-300)
+- Added whitespace-nowrap to Activity Feed subtitle
+
+**Task 3: System Log Panel**
+- Created /src/app/api/system-log/route.ts with 30 realistic mock log entries (info/warning/error/critical × agent/evolution/safety/system/user)
+- Created /src/components/system-log-panel.tsx with: PageHeader, stats summary, level/source filter buttons, search with debounce, log table (desktop) / collapsible cards (mobile), expandable JSON details, pagination, export CSV/JSON, framer-motion animations, full dark mode
+- Updated types.ts with SystemLog interface and 'system-log' Page type
+- Updated store.ts with systemLogs state and setSystemLogs action
+- Updated dashboard-sidebar.tsx with System Log nav item in Tools section
+- Updated page.tsx with SystemLogPanel import and routing
+
+**Task 4: Data Import & Insights Polish**
+- Created /src/lib/import-utils.ts with parseCSV, parseJSON, validateImportData, readFileAsText utilities
+- Added Import dialog to Agents panel with: file type selector, drag & drop zone, preview table, validation summary, progress indicator
+- Added Import dialog to Memory panel with same pattern
+- Enhanced Insights panel: "Acknowledge" anomaly action, severity filter toggle, interactive treemap with Popover details, clickable sub-scores with trend indicator, prediction chart with peak/trough annotation markers, animated Model Confidence progress bar, heatmap with Peak Hours indicator and stronger green gradient
+
+**Direct Styling Improvements:**
+- Enhanced globals.css: Added 5 new keyframe animations (gradient-x, flash-fade, pulse-ring, float), custom scrollbar styling, glass-effect class, glow-emerald class, smooth theme transitions
+- Improved page.tsx header: sticky with backdrop-blur-md, bg-card/60, hover effects on breadcrumb links, font-medium on active page
+- Improved page.tsx footer: bg-card/40 with backdrop-blur-sm, version updated to v2.0, emerald-colored "All systems operational" text, reduced padding
+
+- Final QA with agent-browser: Dashboard renders correctly with welcome hero, visible Quick Stats values, consistent shadows
+- VLM analysis rated dashboard 8/10 (up from 6/10)
+- Lint passes clean, dev server compiles without errors
+- All API routes returning 200
+
+Stage Summary:
+- **Bug Fix**: Onboarding tour "Skip" now persists to localStorage (was only setting tourActive=false, now also sets tourCompleted=true and localStorage)
+- **Dashboard**: Welcome hero banner, improved Quick Stats (4 mini-cards with values), Y-axis labels on charts, consistent shadows
+- **System Log Panel**: NEW — Full audit trail with filters, search, pagination, export, 30 mock entries
+- **Data Import**: NEW — Import CSV/JSON for Agents and Memory panels with drag & drop, preview, validation
+- **Insights Polish**: Interactive treemap, acknowledge anomalies, prediction annotations, peak hours heatmap
+- **Global Styling**: 5 new animations, custom scrollbars, glass effects, glow effects, improved header/footer
+
+## Current Project Status — Phase 7 Complete
+
+The EvoAI Self-Evolving AI System now has 14 fully featured panels:
+1. **Dashboard** — Welcome hero, animated metrics, Quick Stats cards, LIVE simulation, polished typography
+2. **Agents** — Search, status cards, quick actions, tabbed details, role templates, import/export
+3. **Evolution** — Diff viewer, animated pipeline, status-colored borders
+4. **Memory** — Gradient importance meter, type-colored borders, import/export
+5. **Knowledge** — Force-directed layout, curved edges, tooltips, zoom, search & filter
+6. **Topology** — Zoom/pan, node filtering, minimap, search, label collision detection
+7. **Insights** — Interactive treemap, heatmap with peak hours, prediction chart, anomaly management, efficiency score
+8. **Research** — Gradient pipeline, status-colored borders
+9. **Benchmarks** — Summary stats, score-colored borders, custom tooltips
+10. **Safety** — Speedometer gauge, pulse animations, constitutional rule borders
+11. **Chat** — Conversation persistence, suggested prompts, export, reactions, textarea
+12. **Activity** — Time range selector, enhanced charts, pagination, filters
+13. **Settings** — Full configuration with simulation toggle
+14. **System Log** — NEW: Audit trail with filters, search, pagination, export
+
+### Global Features:
+- ✅ Dark Mode (Light/Dark/System with next-themes)
+- ✅ Real-Time Data Simulation (LIVE indicator, speed control, toggle)
+- ✅ Data Import (CSV/JSON for Agents and Memory)
+- ✅ Data Export (CSV/JSON across multiple panels)
+- ✅ Cross-Panel Consistency (shared PageHeader)
+- ✅ Onboarding Tour (8-step walkthrough, properly persisted)
+- ✅ Command Palette (⌘K)
+- ✅ Notification Bell
+- ✅ Error Boundaries & Toast Notifications
+- ✅ Framer-motion animations on all panels
+- ✅ Custom scrollbar styling
+- ✅ Glass effect & glow utilities
+- ✅ Semantic Tailwind color tokens with dark mode
+- ✅ Responsive design with mobile sidebar
+- ✅ Sticky header with breadcrumbs
+- ✅ Polished footer with version & status
+
+### Unresolved Issues / Next Steps:
+1. Could add user authentication and role-based access
+2. Could add WebSocket-based real-time data (replace simulation)
+3. Could add internationalization (i18n)
+4. Could add drag-and-drop for topology/knowledge graph nodes
+5. Could add collaborative features (shared views, comments)
+6. Could add more API endpoints for full CRUD on all resources
+7. Could add keyboard navigation testing and accessibility audit

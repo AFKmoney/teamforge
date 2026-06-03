@@ -1,50 +1,43 @@
 # Task 2 — Dashboard Enhancement Agent
 
 ## Task
-Enhance Dashboard Overview with health gauges, activity feed, and polished cards
+Enhance Dashboard Overview with welcome hero, improved quick stats, chart labels, consistent shadows
 
-## Summary
-Completely rewrote `/home/z/my-project/src/components/dashboard-overview.tsx` with the following enhancements:
+## Changes Made
 
-### 1. Enhanced Metric Cards
-- Colored left border accents (`border-l-4 border-l-emerald-500`, etc.)
-- Subtle gradient backgrounds (`bg-gradient-to-br from-{color}/5 via-transparent to-transparent`)
-- Animated pulse dots on each card icon
-- Mini sparkline SVG trend indicators per card
-- Hover shadow transitions
+### File Modified: `/home/z/my-project/src/components/dashboard-overview.tsx`
 
-### 2. System Health Gauges
-- 4 circular SVG gauges: CPU (40-80%), Memory (30-70%), Network I/O (20-60%), Agent Load (calculated)
-- Color-coded: green < 50%, amber 50-75%, red > 75%
-- Smooth transition animations on the arc fill
+1. **Welcome Hero Section** — New component added before metric cards:
+   - Time-of-day greeting (Good morning/afternoon/evening, Administrator)
+   - Current date/time display with auto-refresh every 60s
+   - Quick action buttons: View Agents, Check Evolution, Open Chat
+   - Animated gradient background (emerald/violet)
+   - Dismissible with localStorage persistence
+   - Framer-motion entrance animation
 
-### 3. Activity Feed
-- 8 mock activity items with types: agent, evolution, safety, memory, benchmark, system
-- Severity levels: info, warning, success, error with corresponding icons
-- Framer-motion staggered entry animations
-- Type badges with distinct colors
-- Hover chevron reveal
+2. **Improved Quick Stats** — Replaced list-based layout with 4 mini-cards in 2x2 grid:
+   - Each card: colored left border (border-l-4), icon, label, value, delta indicator
+   - Cards: Avg Benchmark (emerald), Tokens Used (violet), Tasks Completed (amber), Safety Score (rose)
+   - "Last 24h" as Badge component
+   - Hover effects with shadow and background
 
-### 4. Better Visual Hierarchy
-- Card gradients and left border accents
-- Shadow classes on all cards (`shadow-sm hover:shadow-md`)
-- 3-column bottom layout (Activity Feed | Evolution Events | Quick Stats)
-- Trend indicator mini-cards in Quick Stats
+3. **System Performance Chart Enhancement**:
+   - Y-axis title "Rate (%)" rotated vertically
+   - Y-axis tick labels formatted as percentages
+   - Custom tooltip with date/time and formatted values
+   - Increased chart height (250px/300px)
+   - Wider Y-axis for percentage labels
 
-### 5. Dark Mode Support
-- All hardcoded colors replaced with semantic Tailwind tokens
-- `text-foreground`, `text-muted-foreground`, `bg-card`, `border-border`, etc.
-- `dark:` variant classes throughout
+4. **Consistent Card Shadows** — System Health changed from shadow-md to shadow-sm
 
-### 6. Animations
-- `framer-motion` containerVariants and itemVariants for staggered entrance
-- Spring-based animations (stiffness: 300, damping: 24)
+5. **Evolution Pipeline "Rejected" Fix** — Better contrast:
+   - Background: bg-red-500/5 → bg-red-500/10
+   - Text: text-red-600/dark:text-red-400 → text-red-700/dark:text-red-300
+   - Border: border-red-500/30 → border-red-500/40
 
-## Files Modified
-- `/home/z/my-project/src/components/dashboard-overview.tsx` — complete rewrite
-- `/home/z/my-project/worklog.md` — appended work log
+6. **Activity Feed Subtitle Fix** — Added whitespace-nowrap to prevent cutoff
 
 ## Verification
-- `bun run lint` passes clean
-- Dev server shows successful API calls (200 status)
-- All existing data fetching logic preserved
+- `bun run lint` passes clean (0 errors)
+- Dev server compiles without errors
+- All API routes returning 200

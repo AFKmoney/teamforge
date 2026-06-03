@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Lightbulb,
   AlertTriangle,
@@ -9,10 +9,17 @@ import {
   XCircle,
   Search,
   TrendingUp,
+  TrendingDown,
   Brain,
   Shield,
   Zap,
   ArrowRight,
+  CheckCircle2,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Filter,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -34,6 +41,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -67,16 +79,17 @@ interface TreemapItem {
   color: string
   darkColor: string
   description: string
+  status: string
 }
 
 const TREEMAP_DATA: TreemapItem[] = [
-  { name: 'Research', value: 25, color: 'fill-violet-500', darkColor: 'dark:fill-violet-400', description: 'Research agents exploring hypotheses' },
-  { name: 'Coding', value: 30, color: 'fill-emerald-500', darkColor: 'dark:fill-emerald-400', description: 'Coding agents writing and reviewing code' },
-  { name: 'Evaluation', value: 15, color: 'fill-sky-500', darkColor: 'dark:fill-sky-400', description: 'Evaluation agents testing outputs' },
-  { name: 'Memory', value: 10, color: 'fill-amber-500', darkColor: 'dark:fill-amber-400', description: 'Memory management systems' },
-  { name: 'Evolution', value: 12, color: 'fill-teal-500', darkColor: 'dark:fill-teal-400', description: 'Self-evolution engine processes' },
-  { name: 'Safety', value: 5, color: 'fill-rose-500', darkColor: 'dark:fill-rose-400', description: 'Safety validation and compliance' },
-  { name: 'Deployment', value: 3, color: 'fill-orange-500', darkColor: 'dark:fill-orange-400', description: 'Deployment pipeline operations' },
+  { name: 'Research', value: 25, color: 'fill-violet-500', darkColor: 'dark:fill-violet-400', description: 'Research agents exploring hypotheses', status: 'active' },
+  { name: 'Coding', value: 30, color: 'fill-emerald-500', darkColor: 'dark:fill-emerald-400', description: 'Coding agents writing and reviewing code', status: 'active' },
+  { name: 'Evaluation', value: 15, color: 'fill-sky-500', darkColor: 'dark:fill-sky-400', description: 'Evaluation agents testing outputs', status: 'busy' },
+  { name: 'Memory', value: 10, color: 'fill-amber-500', darkColor: 'dark:fill-amber-400', description: 'Memory management systems', status: 'active' },
+  { name: 'Evolution', value: 12, color: 'fill-teal-500', darkColor: 'dark:fill-teal-400', description: 'Self-evolution engine processes', status: 'active' },
+  { name: 'Safety', value: 5, color: 'fill-rose-500', darkColor: 'dark:fill-rose-400', description: 'Safety validation and compliance', status: 'idle' },
+  { name: 'Deployment', value: 3, color: 'fill-orange-500', darkColor: 'dark:fill-orange-400', description: 'Deployment pipeline operations', status: 'active' },
 ]
 
 // SVG color map (since Tailwind fill- classes don't work dynamically in SVG)
@@ -159,28 +172,6 @@ function squarify(
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
-function generateHeatmapData(): Map<string, number> {
-  const data = new Map<string, number>()
-  for (let day = 0; day < 7; day++) {
-    for (let hour = 0; hour < 24; hour++) {
-      const isWeekend = day >= 5
-      const isWorkHour = hour >= 8 && hour <= 18
-      const isPeak = hour >= 10 && hour <= 16
-
-      let base: number
-      if (isWeekend) {
-        base = isWorkHour ? 15 + Math.random() * 20 : 2 + Math.random() * 5
-      } else {
-        if (isPeak) base = 30 + Math.random() * 25
-        else if (isWorkHour) base = 15 + Math.random() * 20
-        else base = 2 + Math.random() * 8
-      }
-      data.set(`${day}-${hour}`, Math.round(base))
-    }
-  }
-  return data
-}
-
 // Seeded random for consistent data
 function seededHeatmapData(): Map<string, number> {
   const data = new Map<string, number>()
@@ -211,26 +202,17 @@ function seededHeatmapData(): Map<string, number> {
 
 const HEATMAP_DATA = seededHeatmapData()
 
-function getHeatmapColor(value: number, max: number): string {
-  const ratio = value / max
-  if (ratio < 0.1) return 'fill-emerald-100 dark:fill-emerald-950'
-  if (ratio < 0.25) return 'fill-emerald-200 dark:fill-emerald-900'
-  if (ratio < 0.4) return 'fill-emerald-300 dark:fill-emerald-800'
-  if (ratio < 0.55) return 'fill-emerald-400 dark:fill-emerald-700'
-  if (ratio < 0.7) return 'fill-emerald-500 dark:fill-emerald-600'
-  if (ratio < 0.85) return 'fill-emerald-600 dark:fill-emerald-500'
-  return 'fill-emerald-700 dark:fill-emerald-400'
-}
-
 function getHeatmapSvgColor(value: number, max: number): string {
   const ratio = value / max
-  if (ratio < 0.1) return '#d1fae5' // emerald-100
-  if (ratio < 0.25) return '#a7f3d0' // emerald-200
-  if (ratio < 0.4) return '#6ee7b7' // emerald-300
-  if (ratio < 0.55) return '#34d399' // emerald-400
-  if (ratio < 0.7) return '#10b981' // emerald-500
-  if (ratio < 0.85) return '#059669' // emerald-600
-  return '#047857' // emerald-700
+  // Stronger green gradient with more distinct steps
+  if (ratio < 0.1) return '#d1fae5'  // emerald-100
+  if (ratio < 0.2) return '#a7f3d0'  // emerald-200
+  if (ratio < 0.35) return '#6ee7b7' // emerald-300
+  if (ratio < 0.5) return '#34d399'  // emerald-400
+  if (ratio < 0.65) return '#10b981' // emerald-500
+  if (ratio < 0.8) return '#059669'  // emerald-600
+  if (ratio < 0.9) return '#047857'  // emerald-700
+  return '#065f46'                     // emerald-800
 }
 
 // ---------------------------------------------------------------------------
@@ -348,12 +330,13 @@ const SEVERITY_CONFIG: Record<Severity, { icon: React.ComponentType<{ className?
 // ---------------------------------------------------------------------------
 
 const EFFICIENCY_SCORE = 78
+const PREV_EFFICIENCY_SCORE = 75.4 // Last week's score for trend
 
 const SUB_SCORES = [
-  { label: 'Agent Utilization', value: 85, color: 'bg-emerald-500' },
-  { label: 'Memory Efficiency', value: 72, color: 'bg-amber-500' },
-  { label: 'Evolution ROI', value: 68, color: 'bg-teal-500' },
-  { label: 'Safety Compliance', value: 95, color: 'bg-violet-500' },
+  { label: 'Agent Utilization', value: 85, color: 'bg-emerald-500', panel: 'agents' as const },
+  { label: 'Memory Efficiency', value: 72, color: 'bg-amber-500', panel: 'memory' as const },
+  { label: 'Evolution ROI', value: 68, color: 'bg-teal-500', panel: 'evolution' as const },
+  { label: 'Safety Compliance', value: 95, color: 'bg-violet-500', panel: 'safety' as const },
 ]
 
 // ---------------------------------------------------------------------------
@@ -363,6 +346,7 @@ const SUB_SCORES = [
 // --- Treemap ---
 function TreemapVisualization() {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
+  const [selectedItem, setSelectedItem] = useState<TreemapItem | null>(null)
   const [tooltipInfo, setTooltipInfo] = useState<{
     name: string
     value: number
@@ -416,6 +400,10 @@ function TreemapVisualization() {
     }
   }, [])
 
+  const handleClick = useCallback((item: TreemapItem) => {
+    setSelectedItem(item)
+  }, [])
+
   return (
     <Card className="shadow-sm hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
@@ -424,6 +412,53 @@ function TreemapVisualization() {
             <Zap className="size-3.5 text-violet-600 dark:text-violet-400" />
           </div>
           Resource Allocation
+          {selectedItem && (
+            <Popover open={!!selectedItem} onOpenChange={(open) => { if (!open) setSelectedItem(null) }}>
+              <PopoverTrigger asChild>
+                <span />
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-0" side="bottom" align="start">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="size-3 rounded-sm shrink-0"
+                      style={{ backgroundColor: TREEMAP_SVG_COLORS[selectedItem.name]?.light }}
+                    />
+                    <span className="font-semibold text-sm text-foreground">{selectedItem.name}</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-[10px] ml-auto',
+                        selectedItem.status === 'active' && 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
+                        selectedItem.status === 'busy' && 'border-amber-500/30 text-amber-600 dark:text-amber-400',
+                        selectedItem.status === 'idle' && 'border-muted-foreground/30 text-muted-foreground',
+                      )}
+                    >
+                      {selectedItem.status}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{selectedItem.description}</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-md bg-muted/50 p-2">
+                      <div className="text-muted-foreground">Allocation</div>
+                      <div className="font-semibold text-foreground">{selectedItem.value}%</div>
+                    </div>
+                    <div className="rounded-md bg-muted/50 p-2">
+                      <div className="text-muted-foreground">Status</div>
+                      <div className={cn(
+                        'font-semibold',
+                        selectedItem.status === 'active' && 'text-emerald-600 dark:text-emerald-400',
+                        selectedItem.status === 'busy' && 'text-amber-600 dark:text-amber-400',
+                        selectedItem.status === 'idle' && 'text-muted-foreground',
+                      )}>
+                        {selectedItem.status.charAt(0).toUpperCase() + selectedItem.status.slice(1)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -436,6 +471,7 @@ function TreemapVisualization() {
             {rects.map((rect, i) => {
               const colors = TREEMAP_SVG_COLORS[rect.item.name]
               const isHovered = hoveredItem === rect.item.name
+              const isSelected = selectedItem?.name === rect.item.name
               const opacity = hoveredItem && !isHovered ? 0.6 : 1
 
               return (
@@ -448,13 +484,18 @@ function TreemapVisualization() {
                     rx={4}
                     fill={colors.light}
                     opacity={opacity}
-                    className="transition-all duration-200"
-                    style={{ filter: isHovered ? 'brightness(1.2)' : 'none' }}
+                    className="transition-all duration-200 cursor-pointer"
+                    style={{
+                      filter: isHovered || isSelected ? 'brightness(1.2)' : 'none',
+                      stroke: isSelected ? 'hsl(var(--foreground))' : 'none',
+                      strokeWidth: isSelected ? 2 : 0,
+                    }}
                     onMouseEnter={(e) => handleMouseEnter(rect.item, e)}
                     onMouseMove={(e) => handleMouseMove(rect.item, e)}
                     onMouseLeave={handleMouseLeave}
+                    onClick={() => handleClick(rect.item)}
                   />
-                  {/* Dark mode overlay — we use CSS to swap */}
+                  {/* Dark mode overlay */}
                   <rect
                     x={rect.x}
                     y={rect.y}
@@ -463,10 +504,10 @@ function TreemapVisualization() {
                     rx={4}
                     fill={colors.dark}
                     opacity={0}
-                    className="transition-all duration-200 dark:opacity-[var(--dark-opacity)]"
+                    className="transition-all duration-200 dark:opacity-[var(--dark-opacity)] cursor-pointer"
                     style={
                       {
-                        '--dark-opacity': isHovered
+                        '--dark-opacity': isHovered || isSelected
                           ? 1
                           : hoveredItem
                             ? 0.6
@@ -476,6 +517,7 @@ function TreemapVisualization() {
                     onMouseEnter={(e) => handleMouseEnter(rect.item, e)}
                     onMouseMove={(e) => handleMouseMove(rect.item, e)}
                     onMouseLeave={handleMouseLeave}
+                    onClick={() => handleClick(rect.item)}
                   />
                   {/* Text label — only show if rect is large enough */}
                   {rect.w > 50 && rect.h > 30 && (
@@ -506,7 +548,7 @@ function TreemapVisualization() {
               )
             })}
             {/* Tooltip */}
-            {tooltipInfo && (
+            {tooltipInfo && !selectedItem && (
               <g>
                 <foreignObject
                   x={Math.min(tooltipInfo.x + 10, width - 200)}
@@ -529,7 +571,11 @@ function TreemapVisualization() {
           {TREEMAP_DATA.map((item) => {
             const colors = TREEMAP_SVG_COLORS[item.name]
             return (
-              <div key={item.name} className="flex items-center gap-1.5">
+              <button
+                key={item.name}
+                className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                onClick={() => setSelectedItem(item)}
+              >
                 <div
                   className="size-2.5 rounded-sm"
                   style={{ backgroundColor: colors.light }}
@@ -537,7 +583,7 @@ function TreemapVisualization() {
                 <span className="text-xs text-muted-foreground">
                   {item.name} ({item.value}%)
                 </span>
-              </div>
+              </button>
             )
           })}
         </div>
@@ -562,7 +608,21 @@ function HeatmapVisualization() {
     return max
   }, [])
 
-  const cellSize = 18
+  // Compute peak hours (top 3 busiest)
+  const peakHours = useMemo(() => {
+    const hourTotals: { hour: number; total: number }[] = []
+    for (let h = 0; h < 24; h++) {
+      let total = 0
+      for (let d = 0; d < 7; d++) {
+        total += HEATMAP_DATA.get(`${d}-${h}`) ?? 0
+      }
+      hourTotals.push({ hour: h, total })
+    }
+    hourTotals.sort((a, b) => b.total - a.total)
+    return hourTotals.slice(0, 3)
+  }, [])
+
+  const cellSize = 20
   const gap = 2
   const labelWidth = 30
   const labelHeight = 20
@@ -572,33 +632,48 @@ function HeatmapVisualization() {
   return (
     <Card className="shadow-sm hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
-          <div className="size-6 rounded bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
-            <TrendingUp className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
+            <div className="size-6 rounded bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
+              <TrendingUp className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            Agent Activity Patterns
+          </CardTitle>
+          {/* Peak Hours indicator */}
+          <div className="hidden sm:flex items-center gap-2">
+            <Clock className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-[10px] text-muted-foreground">Peak:</span>
+            {peakHours.map((ph, i) => (
+              <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
+                {ph.hour.toString().padStart(2, '0')}:00
+              </Badge>
+            ))}
           </div>
-          Agent Activity Patterns
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="w-full overflow-x-auto">
           <svg
             viewBox={`0 0 ${svgWidth} ${svgHeight}`}
             className="w-full h-auto"
-            style={{ maxHeight: '220px' }}
+            style={{ maxHeight: '240px' }}
           >
             {/* Hour labels */}
-            {HOURS.filter((h) => h % 3 === 0).map((hour) => (
-              <text
-                key={`h-${hour}`}
-                x={labelWidth + hour * (cellSize + gap) + cellSize / 2}
-                y={12}
-                textAnchor="middle"
-                className="fill-muted-foreground"
-                fontSize={9}
-              >
-                {hour.toString().padStart(2, '0')}
-              </text>
-            ))}
+            {HOURS.filter((h) => h % 3 === 0).map((hour) => {
+              const isPeak = peakHours.some((p) => p.hour === hour)
+              return (
+                <text
+                  key={`h-${hour}`}
+                  x={labelWidth + hour * (cellSize + gap) + cellSize / 2}
+                  y={12}
+                  textAnchor="middle"
+                  className={cn(isPeak ? 'fill-emerald-600 dark:fill-emerald-400 font-semibold' : 'fill-muted-foreground')}
+                  fontSize={9}
+                >
+                  {hour.toString().padStart(2, '0')}
+                </text>
+              )
+            })}
             {/* Day labels & cells */}
             {DAYS.map((day, dayIdx) => (
               <g key={`day-${dayIdx}`}>
@@ -663,10 +738,10 @@ function HeatmapVisualization() {
         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
           <span className="text-xs text-muted-foreground">Low</span>
           <div className="flex gap-0.5">
-            {[0.05, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9].map((ratio, i) => (
+            {[0.05, 0.15, 0.25, 0.4, 0.55, 0.7, 0.85, 0.95].map((ratio, i) => (
               <div
                 key={i}
-                className="size-3 rounded-sm"
+                className="size-3.5 rounded-sm"
                 style={{ backgroundColor: getHeatmapSvgColor(ratio * maxValue, maxValue) }}
               />
             ))}
@@ -682,22 +757,39 @@ function HeatmapVisualization() {
 function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: PredictionPoint }> }) {
   if (!active || !payload?.[0]) return null
   const point = payload[0].payload as PredictionPoint
+  const isPrediction = point.actual === null && point.predicted !== null
+  const now = new Date()
+  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+
   return (
-    <div className="bg-popover border border-border rounded-lg shadow-lg p-2.5 text-xs">
-      <div className="font-semibold text-foreground">{point.day}</div>
-      {point.actual !== null && (
-        <div className="text-emerald-600 dark:text-emerald-400 mt-0.5">
-          Actual: {point.actual}%
-        </div>
-      )}
-      {point.predicted !== null && (
-        <div className="text-amber-600 dark:text-amber-400 mt-0.5">
-          Predicted: {point.predicted}%
-        </div>
-      )}
-      {point.upper !== null && point.lower !== null && (
-        <div className="text-muted-foreground mt-0.5">
-          Range: {point.lower}% — {point.upper}%
+    <div className="bg-popover border border-border rounded-lg shadow-lg p-3 text-xs min-w-[140px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-foreground">{point.day}</span>
+        <span className="text-[10px] text-muted-foreground">{timeStr}</span>
+      </div>
+      <div className="mt-1.5 space-y-1">
+        {point.actual !== null && (
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className="text-emerald-600 dark:text-emerald-400">Actual: {point.actual}%</span>
+          </div>
+        )}
+        {point.predicted !== null && (
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-500 border border-amber-400" />
+            <span className="text-amber-600 dark:text-amber-400">Predicted: {point.predicted}%</span>
+          </div>
+        )}
+        {point.upper !== null && point.lower !== null && (
+          <div className="text-muted-foreground pl-[18px]">
+            Range: {point.lower}% — {point.upper}%
+          </div>
+        )}
+      </div>
+      {isPrediction && (
+        <div className="mt-1.5 pt-1.5 border-t border-border text-muted-foreground">
+          <Eye className="size-3 inline mr-1" />
+          Forecast zone
         </div>
       )}
     </div>
@@ -706,23 +798,43 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{
 
 // --- Prediction Chart ---
 function PredictionChart() {
+  // Find peak and trough in actual data
+  const actualPoints = PREDICTION_DATA.filter((p) => p.actual !== null)
+  const peakPoint = actualPoints.reduce((best, p) => (p.actual! > best.actual! ? p : best), actualPoints[0])
+  const troughPoint = actualPoints.reduce((best, p) => (p.actual! < best.actual! ? p : best), actualPoints[0])
+
+  const MODEL_CONFIDENCE = 87
 
   return (
     <Card className="shadow-sm hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
             <div className="size-6 rounded bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center">
               <Brain className="size-3.5 text-amber-600 dark:text-amber-400" />
             </div>
             Performance Forecast
           </CardTitle>
-          <Badge
-            variant="outline"
-            className="text-xs border-amber-500/30 text-amber-600 dark:text-amber-400"
-          >
-            Model Confidence: 87%
-          </Badge>
+          <div className="flex items-center gap-3">
+            {/* Model Confidence indicator */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">Confidence</span>
+              <div className="w-20 h-2 rounded-full bg-muted overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${MODEL_CONFIDENCE}%` }}
+                  transition={{ duration: 1.2, delay: 0.5, ease: 'easeOut' }}
+                />
+              </div>
+              <Badge
+                variant="outline"
+                className="text-xs border-amber-500/30 text-amber-600 dark:text-amber-400"
+              >
+                {MODEL_CONFIDENCE}%
+              </Badge>
+            </div>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -776,7 +888,20 @@ function PredictionChart() {
                 strokeWidth={2.5}
                 fill="url(#actualGradient)"
                 connectNulls={false}
-                dot={{ r: 3, fill: '#10b981', strokeWidth: 0 }}
+                dot={(props: Record<string, unknown>) => {
+                  const { cx, cy, payload } = props as { cx: number; cy: number; payload: PredictionPoint }
+                  const isPeak = payload.day === peakPoint.day
+                  const isTrough = payload.day === troughPoint.day
+                  if (isPeak || isTrough) {
+                    return (
+                      <g key={`dot-${payload.day}`}>
+                        <circle cx={cx} cy={cy} r={6} fill={isPeak ? '#10b981' : '#ef4444'} opacity={0.2} />
+                        <circle cx={cx} cy={cy} r={4} fill={isPeak ? '#10b981' : '#ef4444'} stroke="#fff" strokeWidth={1.5} />
+                      </g>
+                    )
+                  }
+                  return <circle key={`dot-${payload.day}`} cx={cx} cy={cy} r={3} fill="#10b981" />
+                }}
                 activeDot={{ r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
               />
               {/* Predicted performance */}
@@ -807,10 +932,17 @@ function PredictionChart() {
                 strokeDasharray="3 3"
                 strokeWidth={1}
               />
-              {/* Annotation */}
+              {/* Annotation for peak */}
               <ReferenceLine
-                x="Mar 5"
-                stroke="#8b5cf6"
+                x={peakPoint.day}
+                stroke="#10b981"
+                strokeDasharray="2 2"
+                strokeWidth={1}
+              />
+              {/* Annotation for trough */}
+              <ReferenceLine
+                x={troughPoint.day}
+                stroke="#ef4444"
                 strokeDasharray="2 2"
                 strokeWidth={1}
               />
@@ -832,8 +964,12 @@ function PredictionChart() {
             <span className="text-xs text-muted-foreground">Confidence interval</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-0.5 bg-violet-500 rounded" />
-            <span className="text-xs text-muted-foreground">Prompt evolution deployed</span>
+            <div className="size-2.5 rounded-full bg-emerald-500" />
+            <span className="text-xs text-muted-foreground">Peak ({peakPoint.actual}%)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="size-2.5 rounded-full bg-red-500" />
+            <span className="text-xs text-muted-foreground">Trough ({troughPoint.actual}%)</span>
           </div>
         </div>
       </CardContent>
@@ -844,12 +980,30 @@ function PredictionChart() {
 // --- Anomaly Alerts ---
 function AnomalyAlerts() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set())
+  const [severityFilter, setSeverityFilter] = useState<'all' | 'critical' | 'warning'>('all')
+  const [showDismissed, setShowDismissed] = useState(false)
 
   const handleDismiss = (id: string) => {
     setDismissed((prev) => new Set(prev).add(id))
   }
 
-  const visibleAnomalies = ANOMALIES.filter((a) => !dismissed.has(a.id))
+  const handleAcknowledge = (id: string) => {
+    setAcknowledged((prev) => new Set(prev).add(id))
+  }
+
+  const allAnomalies = ANOMALIES
+  const activeAnomalies = allAnomalies.filter((a) => !dismissed.has(a.id))
+  const visibleAnomalies = activeAnomalies.filter((a) => {
+    if (severityFilter === 'all') return true
+    if (severityFilter === 'critical') return a.severity === 'critical'
+    if (severityFilter === 'warning') return a.severity === 'warning' || a.severity === 'error'
+    return true
+  })
+
+  const criticalCount = allAnomalies.filter((a) => a.severity === 'critical' && !dismissed.has(a.id)).length
+  const warningCount = allAnomalies.filter((a) => (a.severity === 'warning' || a.severity === 'error') && !dismissed.has(a.id)).length
+  const dismissedCount = dismissed.size
 
   return (
     <Card className="shadow-sm hover:shadow-md transition-shadow">
@@ -860,97 +1014,199 @@ function AnomalyAlerts() {
               <AlertTriangle className="size-3.5 text-rose-600 dark:text-rose-400" />
             </div>
             Anomaly Detection
+            <Badge variant="outline" className="text-xs border-rose-500/30 text-rose-600 dark:text-rose-400">
+              {activeAnomalies.length} active
+            </Badge>
           </CardTitle>
-          <Badge variant="outline" className="text-xs border-rose-500/30 text-rose-600 dark:text-rose-400">
-            {visibleAnomalies.length} active
-          </Badge>
+          {/* Severity filter */}
+          <div className="flex items-center gap-1">
+            <Filter className="size-3 text-muted-foreground mr-1" />
+            <Button
+              variant={severityFilter === 'all' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-6 text-[10px] px-2"
+              onClick={() => setSeverityFilter('all')}
+            >
+              All
+            </Button>
+            <Button
+              variant={severityFilter === 'critical' ? 'default' : 'ghost'}
+              size="sm"
+              className={cn('h-6 text-[10px] px-2', severityFilter === 'critical' && 'bg-rose-600 hover:bg-rose-700')}
+              onClick={() => setSeverityFilter('critical')}
+            >
+              Critical ({criticalCount})
+            </Button>
+            <Button
+              variant={severityFilter === 'warning' ? 'default' : 'ghost'}
+              size="sm"
+              className={cn('h-6 text-[10px] px-2', severityFilter === 'warning' && 'bg-amber-600 hover:bg-amber-700')}
+              onClick={() => setSeverityFilter('warning')}
+            >
+              Warning ({warningCount})
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-          {visibleAnomalies.map((anomaly, idx) => {
-            const cfg = SEVERITY_CONFIG[anomaly.severity]
-            const Icon = cfg.icon
-            return (
-              <motion.div
-                key={anomaly.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className={cn(
-                  'border-l-4 rounded-r-lg p-3 bg-card border border-border/50',
-                  cfg.borderClass
-                )}
-              >
-                <div className="flex items-start gap-2.5">
-                  <div className={cn('size-7 rounded-full flex items-center justify-center shrink-0 mt-0.5', cfg.bgClass)}>
-                    <Icon className={cn('size-3.5', cfg.iconColor)} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{anomaly.title}</span>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-[10px] px-1.5 py-0',
-                          anomaly.severity === 'critical' && 'border-rose-500/30 text-rose-600 dark:text-rose-400',
-                          anomaly.severity === 'error' && 'border-red-500/30 text-red-600 dark:text-red-400',
-                          anomaly.severity === 'warning' && 'border-amber-500/30 text-amber-600 dark:text-amber-400'
+          <AnimatePresence mode="popLayout">
+            {visibleAnomalies.map((anomaly, idx) => {
+              const cfg = SEVERITY_CONFIG[anomaly.severity]
+              const Icon = cfg.icon
+              const isAcknowledged = acknowledged.has(anomaly.id)
+              return (
+                <motion.div
+                  key={anomaly.id}
+                  layout
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10, transition: { duration: 0.15 } }}
+                  transition={{ delay: idx * 0.05 }}
+                  className={cn(
+                    'border-l-4 rounded-r-lg p-3 bg-card border border-border/50 transition-opacity',
+                    cfg.borderClass,
+                    isAcknowledged && 'opacity-60'
+                  )}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className={cn('size-7 rounded-full flex items-center justify-center shrink-0 mt-0.5', cfg.bgClass)}>
+                      <Icon className={cn('size-3.5', cfg.iconColor)} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">{anomaly.title}</span>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[10px] px-1.5 py-0',
+                            anomaly.severity === 'critical' && 'border-rose-500/30 text-rose-600 dark:text-rose-400',
+                            anomaly.severity === 'error' && 'border-red-500/30 text-red-600 dark:text-red-400',
+                            anomaly.severity === 'warning' && 'border-amber-500/30 text-amber-600 dark:text-amber-400'
+                          )}
+                        >
+                          {anomaly.severity}
+                        </Badge>
+                        {isAcknowledged && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
+                            acknowledged
+                          </Badge>
                         )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                        {anomaly.description}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-[10px] text-muted-foreground">
+                          {anomaly.timestamp}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Current: <span className="text-foreground font-medium">{anomaly.currentValue}</span>
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Expected: <span className="text-foreground font-medium">{anomaly.expectedRange}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <TooltipProvider delayDuration={0}>
+                        <UiTooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+                              onClick={() => handleAcknowledge(anomaly.id)}
+                              disabled={isAcknowledged}
+                            >
+                              <CheckCircle2 className="size-3 mr-0.5" />
+                              Ack
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Acknowledge this alert</TooltipContent>
+                        </UiTooltip>
+                      </TooltipProvider>
+                      <TooltipProvider delayDuration={0}>
+                        <UiTooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={() => handleDismiss(anomaly.id)}
+                            >
+                              Dismiss
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Dismiss this alert</TooltipContent>
+                        </UiTooltip>
+                      </TooltipProvider>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
                       >
-                        {anomaly.severity}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                      {anomaly.description}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <span className="text-[10px] text-muted-foreground">
-                        {anomaly.timestamp}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        Current: <span className="text-foreground font-medium">{anomaly.currentValue}</span>
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        Expected: <span className="text-foreground font-medium">{anomaly.expectedRange}</span>
-                      </span>
+                        <Search className="size-3 mr-1" />
+                        Investigate
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <TooltipProvider delayDuration={0}>
-                      <UiTooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                            onClick={() => handleDismiss(anomaly.id)}
-                          >
-                            Dismiss
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Dismiss this alert</TooltipContent>
-                      </UiTooltip>
-                    </TooltipProvider>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                    >
-                      <Search className="size-3 mr-1" />
-                      Investigate
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
           {visibleAnomalies.length === 0 && (
             <div className="text-center py-6 text-muted-foreground text-sm">
-              All anomalies dismissed. No active alerts.
+              {activeAnomalies.length === 0
+                ? 'All anomalies dismissed. No active alerts.'
+                : 'No anomalies match the current filter.'}
             </div>
           )}
         </div>
+        {/* View dismissed */}
+        {dismissedCount > 0 && !showDismissed && (
+          <button
+            className="mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            onClick={() => setShowDismissed(true)}
+          >
+            <ChevronDown className="size-3" />
+            View {dismissedCount} dismissed alert{dismissedCount > 1 ? 's' : ''}
+          </button>
+        )}
+        {showDismissed && dismissedCount > 0 && (
+          <div className="mt-2">
+            <button
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 mb-2"
+              onClick={() => setShowDismissed(false)}
+            >
+              <ChevronUp className="size-3" />
+              Hide dismissed alerts
+            </button>
+            <div className="space-y-1">
+              {allAnomalies
+                .filter((a) => dismissed.has(a.id))
+                .map((anomaly) => {
+                  const cfg = SEVERITY_CONFIG[anomaly.severity]
+                  return (
+                    <div
+                      key={anomaly.id}
+                      className={cn(
+                        'border-l-4 rounded-r-md p-2 bg-muted/30 opacity-50',
+                        cfg.borderClass
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground line-through">{anomaly.title}</span>
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 text-muted-foreground">
+                          dismissed
+                        </Badge>
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -959,6 +1215,9 @@ function AnomalyAlerts() {
 // --- Efficiency Score ---
 function EfficiencyScore() {
   const score = EFFICIENCY_SCORE
+  const prevScore = PREV_EFFICIENCY_SCORE
+  const trendPercent = ((score - prevScore) / prevScore * 100).toFixed(1)
+  const isTrendingUp = score > prevScore
   const radius = 70
   const strokeWidth = 10
   const circumference = 2 * Math.PI * radius
@@ -1003,7 +1262,7 @@ function EfficiencyScore() {
                 strokeWidth={strokeWidth}
               />
               {/* Progress circle */}
-              <circle
+              <motion.circle
                 cx="80"
                 cy="80"
                 r={radius}
@@ -1012,38 +1271,69 @@ function EfficiencyScore() {
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
                 strokeDasharray={circumference}
-                strokeDashoffset={offset}
-                className="transition-all duration-1000 ease-out"
+                initial={{ strokeDashoffset: circumference }}
+                animate={{ strokeDashoffset: offset }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
               />
             </svg>
             {/* Center text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={cn('text-4xl font-bold', scoreColor)}>
+              <motion.span
+                className={cn('text-4xl font-bold', scoreColor)}
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.3 }}
+              >
                 {score}
-              </span>
+              </motion.span>
               <span className="text-xs text-muted-foreground mt-0.5">
                 out of 100
               </span>
             </div>
           </div>
 
+          {/* Trend indicator */}
+          <div className={cn(
+            'flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-medium',
+            isTrendingUp
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+              : 'bg-red-500/10 text-red-600 dark:text-red-400'
+          )}>
+            {isTrendingUp ? (
+              <TrendingUp className="size-3.5" />
+            ) : (
+              <TrendingDown className="size-3.5" />
+            )}
+            <span>{isTrendingUp ? '+' : ''}{trendPercent}% from last week</span>
+          </div>
+
           {/* Sub-scores */}
           <div className="w-full mt-4 space-y-2.5">
             {SUB_SCORES.map((sub) => (
-              <div key={sub.label} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{sub.label}</span>
-                  <span className="text-xs font-medium text-foreground">{sub.value}%</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <motion.div
-                    className={cn('h-full rounded-full', sub.color)}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${sub.value}%` }}
-                    transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
-                  />
-                </div>
-              </div>
+              <TooltipProvider key={sub.label} delayDuration={0}>
+                <UiTooltip>
+                  <TooltipTrigger asChild>
+                    <button className="w-full text-left space-y-1 hover:opacity-80 transition-opacity">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">{sub.label}</span>
+                        <span className="text-xs font-medium text-foreground">{sub.value}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <motion.div
+                          className={cn('h-full rounded-full', sub.color)}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${sub.value}%` }}
+                          transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
+                        />
+                      </div>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Click to view {sub.label} details</p>
+                    <p className="text-xs text-muted-foreground">Navigate to {sub.panel} panel</p>
+                  </TooltipContent>
+                </UiTooltip>
+              </TooltipProvider>
             ))}
           </div>
 

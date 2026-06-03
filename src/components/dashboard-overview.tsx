@@ -29,6 +29,9 @@ import {
   BarChart3,
   Coins,
   HeartPulse,
+  X,
+  Sun,
+  MessageSquare,
 } from 'lucide-react'
 import {
   Card,
@@ -592,12 +595,119 @@ const metricCardAccentMap: Record<string, { border: string; hoverBorder: string;
 // Quick Stats icon badge configuration
 // ---------------------------------------------------------------------------
 
-const quickStatIconConfig: Record<string, { icon: React.ComponentType<{ className?: string }>; bg: string }> = {
-  benchmark: { icon: BarChart3, bg: 'bg-emerald-500/10' },
-  tokens: { icon: Coins, bg: 'bg-violet-500/10' },
-  tasks: { icon: Clock, bg: 'bg-amber-500/10' },
-  safety: { icon: AlertTriangle, bg: 'bg-rose-500/10' },
-  status: { icon: HeartPulse, bg: 'bg-emerald-500/10' },
+const quickStatIconConfig: Record<string, { icon: React.ComponentType<{ className?: string }>; bg: string; color: string; border: string }> = {
+  benchmark: { icon: BarChart3, bg: 'bg-emerald-500/10', color: 'text-emerald-600 dark:text-emerald-400', border: 'border-l-emerald-500' },
+  tokens: { icon: Coins, bg: 'bg-violet-500/10', color: 'text-violet-600 dark:text-violet-400', border: 'border-l-violet-500' },
+  tasks: { icon: Clock, bg: 'bg-amber-500/10', color: 'text-amber-600 dark:text-amber-400', border: 'border-l-amber-500' },
+  safety: { icon: Shield, bg: 'bg-rose-500/10', color: 'text-rose-600 dark:text-rose-400', border: 'border-l-rose-500' },
+}
+
+// ---------------------------------------------------------------------------
+// Welcome Hero Section Component
+// ---------------------------------------------------------------------------
+
+function WelcomeHeroSection() {
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('evoai-welcome-dismissed') === 'true'
+    }
+    return false
+  })
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage)
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const handleDismiss = () => {
+    setDismissed(true)
+    localStorage.setItem('evoai-welcome-dismissed', 'true')
+  }
+
+  const hour = currentTime.getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+  const formattedDate = currentTime.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  const formattedTime = currentTime.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  if (dismissed) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+    >
+      <Card className="relative overflow-hidden border-0 shadow-sm">
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-violet-500/5 to-emerald-500/10 animate-gradient-x pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-violet-500/5 pointer-events-none" />
+        <CardContent className="relative p-5 md:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Sun className="size-5 text-amber-500 dark:text-amber-400" />
+                <h2 className="text-lg md:text-xl font-bold text-foreground">
+                  {greeting}, Administrator
+                </h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                {formattedDate} &middot; {formattedTime}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 bg-background/60 backdrop-blur-sm hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-500/30 transition-all"
+                  onClick={() => setCurrentPage('agents')}
+                >
+                  <Users className="size-3.5" />
+                  View Agents
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 bg-background/60 backdrop-blur-sm hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all"
+                  onClick={() => setCurrentPage('evolution')}
+                >
+                  <Dna className="size-3.5" />
+                  Check Evolution
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 bg-background/60 backdrop-blur-sm hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/30 transition-all"
+                  onClick={() => setCurrentPage('chat')}
+                >
+                  <MessageSquare className="size-3.5" />
+                  Open Chat
+                </Button>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              onClick={handleDismiss}
+              aria-label="Dismiss welcome banner"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -845,6 +955,9 @@ export function DashboardOverview() {
       {/* Welcome Card for First-Time Users */}
       <TourWelcomeCard />
 
+      {/* Welcome Hero Section */}
+      <WelcomeHeroSection />
+
       {/* Top Row: Key Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
         {loading ? (
@@ -1065,7 +1178,7 @@ export function DashboardOverview() {
 
       {/* System Health Gauges */}
       <motion.div variants={itemVariants}>
-        <Card className="shadow-md bg-gradient-to-br from-card via-card to-muted/30 border-border/50">
+        <Card className="shadow-sm bg-gradient-to-br from-card via-card to-muted/30 border-border/50">
           <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-emerald-500/[0.02] via-transparent to-sky-500/[0.02] pointer-events-none" />
           <CardHeader className="pb-2 relative">
             <CardTitle className="text-base flex items-center gap-2">
@@ -1111,46 +1224,81 @@ export function DashboardOverview() {
               {loading ? (
                 <ChartSkeleton />
               ) : chartData.length > 0 ? (
-                <ChartContainer
-                  config={performanceChartConfig}
-                  className="h-[200px] md:h-[250px] w-full"
-                >
-                  <LineChart
-                    data={chartData}
-                    margin={{ top: 5, right: 10, left: 10, bottom: 0 }}
+                <div className="relative">
+                  {/* Y-axis title */}
+                  <div className="absolute -left-0 top-1/2 -translate-y-1/2 -rotate-90 origin-center">
+                    <span className="text-[10px] font-medium text-muted-foreground/60 tracking-wider uppercase">Rate (%)</span>
+                  </div>
+                  <ChartContainer
+                    config={performanceChartConfig}
+                    className="h-[250px] md:h-[300px] w-full"
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="time"
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(val: string) => {
-                        const d = new Date(val)
-                        return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
-                      }}
-                      className="text-xs"
-                    />
-                    <YAxis tickLine={false} axisLine={false} className="text-xs" />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Line
-                      type="monotone"
-                      dataKey="task_success_rate"
-                      stroke="var(--color-task_success_rate)"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="cost"
-                      stroke="var(--color-cost)"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ChartContainer>
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 5, right: 10, left: 15, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="time"
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(val: string) => {
+                          const d = new Date(val)
+                          return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+                        }}
+                        className="text-xs"
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        className="text-xs"
+                        tickFormatter={(val: number) => `${val}%`}
+                        width={45}
+                      />
+                      <ChartTooltip
+                        content={(
+                          <ChartTooltipContent
+                            formatter={(value, name) => {
+                              const v = typeof value === 'number' ? value : Number(value)
+                              const label = name === 'task_success_rate' ? 'Success Rate' : 'Cost'
+                              return (
+                                <span className="font-medium">
+                                  {label}: {v.toFixed(1)}%
+                                </span>
+                              )
+                            }}
+                            labelFormatter={(label) => {
+                              const d = new Date(label as string)
+                              return d.toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            }}
+                          />
+                        )}
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Line
+                        type="monotone"
+                        dataKey="task_success_rate"
+                        stroke="var(--color-task_success_rate)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="cost"
+                        stroke="var(--color-cost)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                </div>
               ) : (
-                <div className="h-[200px] md:h-[250px] flex items-center justify-center text-muted-foreground text-sm">
+                <div className="h-[250px] md:h-[300px] flex items-center justify-center text-muted-foreground text-sm">
                   No metric data available yet
                 </div>
               )}
@@ -1241,16 +1389,21 @@ export function DashboardOverview() {
                       className={cn(
                         'flex flex-col items-center gap-1.5 rounded-lg border px-5 py-4 min-w-[100px] transition-all',
                         (statusBreakdown['rejected'] ?? 0) > 0
-                          ? 'border-red-500/30 bg-red-500/5'
+                          ? 'border-red-500/40 bg-red-500/10'
                           : 'border-border bg-muted/30'
                       )}
                     >
-                      <span className="text-xs text-muted-foreground">Rejected</span>
+                      <span className={cn(
+                        'text-xs font-medium',
+                        (statusBreakdown['rejected'] ?? 0) > 0
+                          ? 'text-red-700 dark:text-red-300'
+                          : 'text-muted-foreground'
+                      )}>Rejected</span>
                       <span
                         className={cn(
                           'text-2xl font-bold tracking-tight',
                           (statusBreakdown['rejected'] ?? 0) > 0
-                            ? 'text-red-600 dark:text-red-400'
+                            ? 'text-red-700 dark:text-red-300'
                             : 'text-muted-foreground'
                         )}
                         style={{ letterSpacing: '-0.02em' }}
@@ -1260,7 +1413,7 @@ export function DashboardOverview() {
                       <span className={cn(
                         'text-[10px] font-medium',
                         (statusBreakdown['rejected'] ?? 0) > 0
-                          ? 'text-red-600 dark:text-red-400'
+                          ? 'text-red-700 dark:text-red-300'
                           : 'text-muted-foreground/50'
                       )}>
                         {totalEvolutionEvents > 0
@@ -1299,7 +1452,7 @@ export function DashboardOverview() {
                   </span>
                 )}
               </CardTitle>
-              <CardDescription className="text-sm font-medium text-muted-foreground">Recent system events</CardDescription>
+              <CardDescription className="text-sm font-medium text-muted-foreground whitespace-nowrap">Recent system events</CardDescription>
             </CardHeader>
             <CardContent className="p-5 pt-0">
               {loading ? (
@@ -1441,88 +1594,89 @@ export function DashboardOverview() {
           </Card>
         </motion.div>
 
-        {/* Quick Stats */}
+        {/* Quick Stats — 4 mini-cards grid */}
         <motion.div variants={itemVariants}>
           <Card className="shadow-sm h-full bg-card/80 backdrop-blur-sm border-border/30">
-            <CardHeader className="pb-2 p-5">
+            <CardHeader className="pb-3 p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base">Quick Stats</CardTitle>
-                  <CardDescription className="text-sm font-medium text-muted-foreground">System performance snapshot</CardDescription>
+                  <CardDescription className="text-sm font-medium text-muted-foreground whitespace-nowrap">System performance snapshot</CardDescription>
                 </div>
-                <span className="text-xs text-muted-foreground/70 font-medium">Last 24h</span>
+                <Badge variant="secondary" className="text-[10px] font-medium shrink-0">
+                  Last 24h
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className="p-5 pt-0">
               {loading ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-10 w-full" />
+                <div className="grid grid-cols-2 gap-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-24 w-full" />
                   ))}
                 </div>
               ) : (
-                <div className="space-y-0">
-                  {/* Average Benchmark Score */}
-                  <div className="space-y-2 py-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground flex items-center gap-2">
-                        <span className={cn('size-6 rounded-md flex items-center justify-center', quickStatIconConfig.benchmark.bg)}>
-                          {(() => { const Ic = quickStatIconConfig.benchmark.icon; return <Ic className="size-3.5 text-emerald-600 dark:text-emerald-400" /> })()}
-                        </span>
-                        Avg Benchmark
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Avg Benchmark */}
+                  <div className={cn(
+                    'rounded-lg border border-l-4 p-3.5 transition-all hover:shadow-md hover:shadow-primary/5',
+                    quickStatIconConfig.benchmark.border,
+                    'border-border/50 bg-card hover:bg-accent/20'
+                  )}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={cn('size-7 rounded-md flex items-center justify-center', quickStatIconConfig.benchmark.bg)}>
+                        {(() => { const Ic = quickStatIconConfig.benchmark.icon; return <Ic className={cn('size-3.5', quickStatIconConfig.benchmark.color)} /> })()}
                       </span>
-                      <div className="flex items-center gap-2">
-                        <MiniSparkline data={[72, 75, 74, 78, 76, 80, 79, data?.avgBenchmarkScore ?? 0]} color="emerald" width={40} height={16} />
-                        <span className="font-medium text-foreground">
-                          {(data?.avgBenchmarkScore ?? 0).toFixed(1)}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
-                          <TrendingUp className="size-2.5" />
-                          3.2%
-                        </span>
-                      </div>
+                      <span className="text-xs text-muted-foreground font-medium">Avg Benchmark</span>
                     </div>
-                    <Progress
-                      value={Math.min(data?.avgBenchmarkScore ?? 0, 100)}
-                      className="h-2"
-                    />
+                    <div className="flex items-end justify-between">
+                      <span className="text-xl font-bold text-foreground tracking-tight" style={{ letterSpacing: '-0.02em' }}>
+                        {(data?.avgBenchmarkScore ?? 0).toFixed(1)}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
+                        <TrendingUp className="size-2.5" />
+                        3.2%
+                      </span>
+                    </div>
                   </div>
 
-                  <Separator />
-
-                  {/* Total Tokens Used */}
-                  <div className="flex items-center justify-between text-sm py-3">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <span className={cn('size-6 rounded-md flex items-center justify-center', quickStatIconConfig.tokens.bg)}>
-                        {(() => { const Ic = quickStatIconConfig.tokens.icon; return <Ic className="size-3.5 text-violet-600 dark:text-violet-400" /> })()}
+                  {/* Tokens Used */}
+                  <div className={cn(
+                    'rounded-lg border border-l-4 p-3.5 transition-all hover:shadow-md hover:shadow-primary/5',
+                    quickStatIconConfig.tokens.border,
+                    'border-border/50 bg-card hover:bg-accent/20'
+                  )}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={cn('size-7 rounded-md flex items-center justify-center', quickStatIconConfig.tokens.bg)}>
+                        {(() => { const Ic = quickStatIconConfig.tokens.icon; return <Ic className={cn('size-3.5', quickStatIconConfig.tokens.color)} /> })()}
                       </span>
-                      Tokens Used
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <MiniSparkline data={[12, 15, 14, 18, 16, 20, 22, data?.totalTokensUsed ?? 0]} color="violet" width={40} height={16} />
-                      <span className="font-medium text-foreground">
+                      <span className="text-xs text-muted-foreground font-medium">Tokens Used</span>
+                    </div>
+                    <div className="flex items-end justify-between">
+                      <span className="text-xl font-bold text-foreground tracking-tight" style={{ letterSpacing: '-0.02em' }}>
                         {formatNumber(data?.totalTokensUsed ?? 0)}
                       </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium flex items-center gap-0.5">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
                         <TrendingDown className="size-2.5" />
                         1.1%
                       </span>
                     </div>
                   </div>
 
-                  <Separator />
-
-                  {/* Total Tasks Completed */}
-                  <div className="flex items-center justify-between text-sm py-3">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <span className={cn('size-6 rounded-md flex items-center justify-center', quickStatIconConfig.tasks.bg)}>
-                        {(() => { const Ic = quickStatIconConfig.tasks.icon; return <Ic className="size-3.5 text-amber-600 dark:text-amber-400" /> })()}
+                  {/* Tasks Completed */}
+                  <div className={cn(
+                    'rounded-lg border border-l-4 p-3.5 transition-all hover:shadow-md hover:shadow-primary/5',
+                    quickStatIconConfig.tasks.border,
+                    'border-border/50 bg-card hover:bg-accent/20'
+                  )}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={cn('size-7 rounded-md flex items-center justify-center', quickStatIconConfig.tasks.bg)}>
+                        {(() => { const Ic = quickStatIconConfig.tasks.icon; return <Ic className={cn('size-3.5', quickStatIconConfig.tasks.color)} /> })()}
                       </span>
-                      Tasks Completed
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <MiniSparkline data={[5, 8, 6, 10, 9, 12, 11, data?.totalTasksCompleted ?? 0]} color="amber" width={40} height={16} />
-                      <span className="font-medium text-foreground">
+                      <span className="text-xs text-muted-foreground font-medium">Tasks Completed</span>
+                    </div>
+                    <div className="flex items-end justify-between">
+                      <span className="text-xl font-bold text-foreground tracking-tight" style={{ letterSpacing: '-0.02em' }}>
                         {formatNumber(data?.totalTasksCompleted ?? 0)}
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
@@ -1532,66 +1686,31 @@ export function DashboardOverview() {
                     </div>
                   </div>
 
-                  <Separator />
-
-                  {/* Unresolved Safety Events */}
-                  <div className="flex items-center justify-between text-sm py-3">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <span className={cn('size-6 rounded-md flex items-center justify-center', quickStatIconConfig.safety.bg)}>
-                        {(() => { const Ic = quickStatIconConfig.safety.icon; return <Ic className="size-3.5 text-rose-600 dark:text-rose-400" /> })()}
+                  {/* Safety Score */}
+                  <div className={cn(
+                    'rounded-lg border border-l-4 p-3.5 transition-all hover:shadow-md hover:shadow-primary/5',
+                    quickStatIconConfig.safety.border,
+                    'border-border/50 bg-card hover:bg-accent/20'
+                  )}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={cn('size-7 rounded-md flex items-center justify-center', quickStatIconConfig.safety.bg)}>
+                        {(() => { const Ic = quickStatIconConfig.safety.icon; return <Ic className={cn('size-3.5', quickStatIconConfig.safety.color)} /> })()}
                       </span>
-                      Safety Events
-                    </span>
-                    {(data?.unresolvedSafetyCount ?? 0) > 0 ? (
-                      <Badge variant="destructive" className="text-xs">
-                        {data?.unresolvedSafetyCount} unresolved
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                      >
-                        All resolved
-                      </Badge>
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  {/* System Uptime */}
-                  <div className="flex items-center justify-between text-sm py-3">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <span className={cn('size-6 rounded-md flex items-center justify-center', quickStatIconConfig.status.bg)}>
-                        {(() => { const Ic = quickStatIconConfig.status.icon; return <Ic className="size-3.5 text-emerald-600 dark:text-emerald-400" /> })()}
-                      </span>
-                      System Status
-                    </span>
-                    <span className="font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <span className="relative flex size-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
-                      </span>
-                      Online
-                    </span>
-                  </div>
-
-                  <Separator />
-
-                  {/* Trend indicators with delta badges */}
-                  <div className="grid grid-cols-2 gap-3 pt-3">
-                    <div className="rounded-lg border border-border/50 p-2.5 text-center hover:bg-muted/20 transition-colors">
-                      <div className="flex items-center justify-center gap-1 text-emerald-600 dark:text-emerald-400">
-                        <TrendingUp className="size-3.5" />
-                        <span className="text-sm font-medium">+3.2%</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">Benchmark</p>
+                      <span className="text-xs text-muted-foreground font-medium">Safety Score</span>
                     </div>
-                    <div className="rounded-lg border border-border/50 p-2.5 text-center hover:bg-muted/20 transition-colors">
-                      <div className="flex items-center justify-center gap-1 text-amber-600 dark:text-amber-400">
-                        <TrendingDown className="size-3.5" />
-                        <span className="text-sm font-medium">-1.1%</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">Cost</p>
+                    <div className="flex items-end justify-between">
+                      <span className={cn('text-xl font-bold tracking-tight', safetyScoreColor(simAdjustedSafety))} style={{ letterSpacing: '-0.02em' }}>
+                        {simAdjustedSafety}%
+                      </span>
+                      {(data?.unresolvedSafetyCount ?? 0) > 0 ? (
+                        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                          {data?.unresolvedSafetyCount} open
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                          All resolved
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>

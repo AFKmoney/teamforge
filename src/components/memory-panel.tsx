@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import {
   Database,
   Plus,
@@ -10,6 +10,10 @@ import {
   Download,
   FileSpreadsheet,
   FileJson,
+  Upload,
+  FileUp,
+  CheckCircle,
+  AlertCircle,
 } from 'lucide-react'
 import type { Memory, MemoryType } from '@/lib/types'
 import { useAppStore } from '@/lib/store'
@@ -38,6 +42,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -53,7 +58,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
-import { toastSuccess, toastError } from '@/lib/toast-utils'
+import { parseCSV, parseJSON, validateImportData, readFileAsText } from '@/lib/import-utils'
+import type { ValidationResult } from '@/lib/import-utils'
+import { toastSuccess, toastError, toastWarning } from '@/lib/toast-utils'
 import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
@@ -289,6 +296,17 @@ export function MemoryPanel() {
   const [formContent, setFormContent] = useState('')
   const [formImportance, setFormImportance] = useState([0.5])
 
+  // Import state
+  const [importOpen, setImportOpen] = useState(false)
+  const [importFileType, setImportFileType] = useState<'csv' | 'json'>('csv')
+  const [importRawData, setImportRawData] = useState<Record<string, unknown>[]>([])
+  const [importValidation, setImportValidation] = useState<ValidationResult | null>(null)
+  const [importFileName, setImportFileName] = useState('')
+  const [importProgress, setImportProgress] = useState(0)
+  const [importing, setImporting] = useState(false)
+  const [importDragOver, setImportDragOver] = useState(false)
+  const importFileRef = useRef<HTMLInputElement>(null)
+
   const fetchMemories = useCallback(
     async (type?: string) => {
       try {
@@ -370,6 +388,108 @@ export function MemoryPanel() {
     typeCounts.all++
   }
 
+  // ---------------------------------------------------------------------------
+  // Import handlers
+  // ---------------------------------------------------------------------------
+
+  const handleImportFile = useCallback(async (file: File) => {
+    setImportFileName(file.name)
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    const type = ext === 'json' ? 'json' : 'csv'
+    setImportFileType(type)
+
+    try {
+      const text = await readFileAsText(file)
+      let parsed: Record<string, unknown>[] = []
+
+      if (type === 'json') {
+        const result = parseJSON(text)
+        if (result.error) {
+          toastError('Parse error', result.error)
+          return
+        }
+        parsed = result.data
+      } else {
+        parsed = parseCSV(text).map((row) => {
+          const obj: Record<string, unknown> = {}
+          for (const [key, val] of Object.entries(row)) {
+            obj[key] = val
+          }
+          return obj
+        })
+      }
+
+      setImportRawData(parsed)
+      const validation = validateImportData(parsed, ['type', 'content', 'category'])
+      setImportValidation(validation)
+    } catch {
+      toastError('File error', 'Could not read the file.')
+    }
+  }, [])
+
+  const handleImportDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setImportDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleImportFile(file)
+  }, [handleImportFile])
+
+  const handleImportFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleImportFile(file)
+  }, [handleImportFile])
+
+  const resetImportState = useCallback(() => {
+    setImportRawData([])
+    setImportValidation(null)
+    setImportFileName('')
+    setImportProgress(0)
+    setImporting(false)
+    setImportDragOver(false)
+  }, [])
+
+  const handleImport = useCallback(async () => {
+    if (!importValidation || importValidation.data.length === 0) return
+    setImporting(true)
+    let created = 0
+    let failed = 0
+
+    for (let i = 0; i < importValidation.data.length; i++) {
+      const row = importValidation.data[i]
+      setImportProgress(Math.round(((i + 1) / importValidation.data.length) * 100))
+      try {
+        const res = await fetch('/api/memory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: String(row.type ?? row.Type ?? 'working'),
+            content: String(row.content ?? row.Content ?? ''),
+            category: String(row.category ?? row.Category ?? 'general'),
+            importance: Number(row.importance ?? row.Importance ?? 0.5),
+          }),
+        })
+        if (res.ok) {
+          created++
+        } else {
+          failed++
+        }
+      } catch {
+        failed++
+      }
+    }
+
+    setImporting(false)
+    setImportOpen(false)
+    resetImportState()
+    await fetchMemories(activeTab)
+
+    if (failed === 0) {
+      toastSuccess('Import complete', `${created} memor(y/ies) imported successfully.`)
+    } else {
+      toastWarning('Import completed with errors', `${created} succeeded, ${failed} failed.`)
+    }
+  }, [importValidation, fetchMemories, activeTab, resetImportState])
+
   return (
     <div className="flex flex-col gap-4 overflow-x-hidden">
       {/* Header */}
@@ -427,6 +547,15 @@ export function MemoryPanel() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => { resetImportState(); setImportOpen(true) }}
+            >
+              <Upload className="size-4" />
+              Import
+            </Button>
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
@@ -546,6 +675,200 @@ export function MemoryPanel() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* ─── Import Dialog ─── */}
+      <Dialog open={importOpen} onOpenChange={(open) => { if (!open) resetImportState(); setImportOpen(open) }}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="size-5 text-primary" />
+              Import Memories
+            </DialogTitle>
+            <DialogDescription>
+              Upload a CSV or JSON file to bulk-import memories. Required fields: type, content, category.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-4 py-2">
+            {/* File type selector */}
+            <div className="flex items-center gap-2">
+              <Label className="text-sm text-foreground">File Type:</Label>
+              <div className="flex border rounded-md border-border">
+                <Button
+                  variant={importFileType === 'csv' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="rounded-r-none"
+                  onClick={() => setImportFileType('csv')}
+                >
+                  <FileSpreadsheet className="size-3.5 mr-1" />
+                  CSV
+                </Button>
+                <Button
+                  variant={importFileType === 'json' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="rounded-l-none"
+                  onClick={() => setImportFileType('json')}
+                >
+                  <FileJson className="size-3.5 mr-1" />
+                  JSON
+                </Button>
+              </div>
+            </div>
+
+            {/* Drop zone */}
+            <div
+              className={cn(
+                'border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer',
+                importDragOver
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/50 hover:bg-muted/30'
+              )}
+              onDragOver={(e) => { e.preventDefault(); setImportDragOver(true) }}
+              onDragLeave={() => setImportDragOver(false)}
+              onDrop={handleImportDrop}
+              onClick={() => importFileRef.current?.click()}
+            >
+              <input
+                ref={importFileRef}
+                type="file"
+                accept={importFileType === 'csv' ? '.csv' : '.json'}
+                className="hidden"
+                onChange={handleImportFileSelect}
+              />
+              <Upload className={cn('size-10 mx-auto mb-3', importDragOver ? 'text-primary' : 'text-muted-foreground')} />
+              {importFileName ? (
+                <p className="text-sm font-medium text-foreground">{importFileName}</p>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-foreground">
+                    Drag & drop your {importFileType.toUpperCase()} file here
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">or click to select a file</p>
+                </>
+              )}
+            </div>
+
+            {/* Validation summary */}
+            {importValidation && (
+              <div className={cn(
+                'rounded-lg p-3 text-sm',
+                importValidation.valid
+                  ? 'bg-emerald-500/10 border border-emerald-500/20'
+                  : 'bg-amber-500/10 border border-amber-500/20'
+              )}>
+                <div className="flex items-center gap-2 font-medium">
+                  {importValidation.valid ? (
+                    <CheckCircle className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  ) : (
+                    <AlertCircle className="size-4 text-amber-600 dark:text-amber-400" />
+                  )}
+                  Validation Result
+                </div>
+                <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle className="size-3 text-emerald-600 dark:text-emerald-400" />
+                    {importValidation.validCount} valid rows
+                  </span>
+                  {importValidation.invalidCount > 0 && (
+                    <span className="flex items-center gap-1">
+                      <AlertCircle className="size-3 text-amber-600 dark:text-amber-400" />
+                      {importValidation.invalidCount} errors
+                    </span>
+                  )}
+                  <span className="text-muted-foreground">
+                    {importRawData.length} total rows
+                  </span>
+                </div>
+                {importValidation.errors.length > 0 && (
+                  <div className="mt-2 max-h-24 overflow-y-auto text-xs text-amber-600 dark:text-amber-400 space-y-0.5">
+                    {importValidation.errors.slice(0, 10).map((err, i) => (
+                      <p key={i}>{err}</p>
+                    ))}
+                    {importValidation.errors.length > 10 && (
+                      <p>...and {importValidation.errors.length - 10} more errors</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Preview table */}
+            {importRawData.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">
+                  Preview (first 5 rows)
+                </Label>
+                <ScrollArea className="max-h-48 rounded-md border border-border">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-muted/50 border-b border-border">
+                          {Object.keys(importRawData[0]).map((key) => (
+                            <th key={key} className="px-3 py-2 text-left font-medium text-foreground whitespace-nowrap">
+                              {key}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importRawData.slice(0, 5).map((row, i) => (
+                          <tr key={i} className="border-b border-border/50 last:border-0">
+                            {Object.keys(importRawData[0]).map((key) => (
+                              <td key={key} className="px-3 py-1.5 text-muted-foreground whitespace-nowrap max-w-[200px] truncate">
+                                {String(row[key] ?? '')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
+            {/* Progress */}
+            {importing && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Importing memories...</span>
+                  <span>{importProgress}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <motion.div
+                    className="h-full bg-primary rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${importProgress}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { resetImportState(); setImportOpen(false) }} disabled={importing}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImport}
+              disabled={!importValidation || importValidation.validCount === 0 || importing}
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="size-4 mr-1 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload className="size-4 mr-1" />
+                  Import {importValidation?.validCount ?? 0} Memories
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

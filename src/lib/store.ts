@@ -15,6 +15,7 @@ import type {
   KnowledgeNode,
   Memory,
   SafetyEvent,
+  SystemLog,
   SystemMetric,
   SystemSettings,
   Notification,
@@ -51,6 +52,7 @@ interface AppState {
   safetyEvents: SafetyEvent[]
   experiments: Experiment[]
   metrics: SystemMetric[]
+  systemLogs: SystemLog[]
   chatMessages: ChatMessage[]
   chatConversations: ChatConversation[]
   currentConversationId: string | null
@@ -92,6 +94,7 @@ interface AppState {
   setSafetyEvents: (events: SafetyEvent[]) => void
   setExperiments: (experiments: Experiment[]) => void
   setMetrics: (metrics: SystemMetric[]) => void
+  setSystemLogs: (logs: SystemLog[]) => void
   setSettings: (settings: SystemSettings) => void
 
   // Actions — Chat
@@ -155,6 +158,7 @@ export const useAppStore = create<AppState>((set) => ({
   safetyEvents: [],
   experiments: [],
   metrics: [],
+  systemLogs: [],
   chatMessages: [],
   chatConversations: [],
   currentConversationId: null,
@@ -222,6 +226,7 @@ export const useAppStore = create<AppState>((set) => ({
   setSafetyEvents: (events) => set({ safetyEvents: events }),
   setExperiments: (experiments) => set({ experiments }),
   setMetrics: (metrics) => set({ metrics }),
+  setSystemLogs: (logs) => set({ systemLogs: logs }),
   setSettings: (settings) => set({ settings }),
 
   // Chat actions
@@ -389,7 +394,12 @@ export const useAppStore = create<AppState>((set) => ({
   startTour: () => set({ tourActive: true, tourStep: 0 }),
   nextTourStep: () => set((state) => ({ tourStep: state.tourStep + 1 })),
   prevTourStep: () => set((state) => ({ tourStep: Math.max(0, state.tourStep - 1) })),
-  endTour: () => set({ tourActive: false }),
+  endTour: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('evoai-tour-completed', 'true')
+    }
+    set({ tourActive: false, tourCompleted: true })
+  },
   completeTour: () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('evoai-tour-completed', 'true')
