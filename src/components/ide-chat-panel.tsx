@@ -282,8 +282,9 @@ function ModelSelector() {
   const currentProvider = AI_PROVIDERS.find((p) => p.type === aiSettings.provider)
   const currentModels = getModelsForProvider(aiSettings.provider)
 
-  // Determine the display label
+  // Determine the display label — must defer to default until mounted to avoid hydration mismatch
   const displayLabel = useMemo(() => {
+    if (!mounted) return 'DeepSeek' // Consistent with SSR default (provider=zai, model=deepseek-chat)
     if (aiSettings.provider === 'nvidia') {
       const model = currentModels.find((m) => m.id === aiSettings.model)
       return model?.name || aiSettings.model.split('/').pop() || aiSettings.model
@@ -292,7 +293,7 @@ function ModelSelector() {
       return aiSettings.openaiCompatibleModelId === 'custom' ? 'Custom' : aiSettings.openaiCompatibleModelId
     }
     return 'DeepSeek'
-  }, [aiSettings, currentModels])
+  }, [aiSettings, currentModels, mounted])
 
   // Provider icon — use consistent default until mounted to avoid hydration mismatch
   const providerIcon = useMemo(() => {
@@ -379,9 +380,9 @@ function ModelSelector() {
               </div>
 
               {/* Model section */}
-              <div className="p-1.5 max-h-48 overflow-y-auto">
+              <div className="p-1.5 max-h-64 overflow-y-auto">
                 <div className="px-2 py-1 text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">
-                  Models
+                  Models {currentModels.length > 0 && `(${currentModels.length})`}
                 </div>
                 {aiSettings.provider === 'openai-compatible' ? (
                   <div className="px-2 py-1.5">
@@ -405,21 +406,21 @@ function ModelSelector() {
                         setIsOpen(false)
                       }}
                       className={cn(
-                        'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition-colors',
+                        'flex items-center gap-2 w-full px-2 py-1 rounded-md text-xs transition-colors',
                         aiSettings.model === m.id
                           ? 'bg-emerald-500/10 text-foreground'
                           : 'hover:bg-muted/50 text-foreground/80',
                       )}
                     >
-                      <Bot className="size-3 text-muted-foreground/60" />
+                      <Bot className="size-3 text-muted-foreground/60 shrink-0" />
                       <div className="flex-1 min-w-0 text-left">
                         <div className="font-medium truncate">{m.name}</div>
                         {m.description && (
-                          <div className="text-[9px] text-muted-foreground/60 truncate">{m.description}</div>
+                          <div className="text-[8px] text-muted-foreground/50 truncate">{m.description}</div>
                         )}
                       </div>
                       {aiSettings.model === m.id && (
-                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                        <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
                       )}
                     </button>
                   ))
