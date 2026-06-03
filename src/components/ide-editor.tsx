@@ -297,51 +297,70 @@ function WelcomeScreen() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center max-w-md"
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="text-center max-w-md px-6"
       >
-        <div className="flex items-center justify-center mb-6">
-          <div className="flex items-center justify-center size-16 rounded-2xl bg-emerald-500/15">
-            <Zap className="size-8 text-emerald-500" />
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.4, ease: 'easeOut' }}
+          className="flex items-center justify-center mb-8"
+        >
+          <div className="flex items-center justify-center size-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/5 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/10">
+            <Zap className="size-9 text-emerald-500" />
           </div>
-        </div>
-        <h1 className="text-2xl font-bold text-foreground mb-2">TeamForge IDE</h1>
-        <p className="text-muted-foreground text-sm mb-8">
+        </motion.div>
+        <motion.h1
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="text-2xl font-bold text-foreground mb-2 tracking-tight"
+        >
+          TeamForge IDE
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="text-muted-foreground text-sm mb-8"
+        >
           Where AI agents collaborate to build software 24/7
-        </p>
-        <div className="grid grid-cols-2 gap-3 text-xs">
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 text-muted-foreground">
-            <Command className="size-4 text-emerald-500" />
-            <div className="text-left">
-              <div className="text-foreground font-medium">Quick Open</div>
-              <div>Ctrl+K</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 text-muted-foreground">
-            <Code2 className="size-4 text-violet-500" />
-            <div className="text-left">
-              <div className="text-foreground font-medium">Toggle Terminal</div>
-              <div>Ctrl+`</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 text-muted-foreground">
-            <Keyboard className="size-4 text-amber-500" />
-            <div className="text-left">
-              <div className="text-foreground font-medium">Save File</div>
-              <div>Ctrl+S</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 text-muted-foreground">
-            <Zap className="size-4 text-pink-500" />
-            <div className="text-left">
-              <div className="text-foreground font-medium">Run Project</div>
-              <div>F5</div>
-            </div>
-          </div>
-        </div>
-        <p className="text-muted-foreground/50 text-[10px] mt-8">
+        </motion.p>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="grid grid-cols-2 gap-3 text-xs"
+        >
+          {[
+            { icon: <Command className="size-4 text-emerald-500" />, title: 'Command Palette', shortcut: 'Ctrl+K' },
+            { icon: <Code2 className="size-4 text-violet-500" />, title: 'Toggle Terminal', shortcut: 'Ctrl+J' },
+            { icon: <Keyboard className="size-4 text-amber-500" />, title: 'Save File', shortcut: 'Ctrl+S' },
+            { icon: <Zap className="size-4 text-pink-500" />, title: 'Run Project', shortcut: 'F5' },
+          ].map((item, i) => (
+            <motion.div
+              key={item.title}
+              initial={{ opacity: 0, x: i % 2 === 0 ? -10 : 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 + i * 0.08 }}
+              className="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-white/8 text-muted-foreground transition-colors cursor-default border border-white/5"
+            >
+              {item.icon}
+              <div className="text-left">
+                <div className="text-foreground font-medium">{item.title}</div>
+                <div className="text-muted-foreground/60">{item.shortcut}</div>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="text-muted-foreground/40 text-[10px] mt-8"
+        >
           Select a file from the explorer to start editing
-        </p>
+        </motion.p>
       </motion.div>
     </div>
   )

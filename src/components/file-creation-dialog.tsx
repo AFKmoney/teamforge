@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -166,6 +167,7 @@ export function FileCreationDialog({ open, onOpenChange, initialPath = '', isFol
             )}
             {isFolder ? 'Create New Folder' : 'Create New File'}
           </DialogTitle>
+          <DialogDescription>{isFolder ? 'Enter a path for the new folder.' : 'Enter a file path and a template will be auto-generated based on the extension.'}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">

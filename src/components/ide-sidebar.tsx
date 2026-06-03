@@ -30,6 +30,7 @@ import {
   FolderPlus,
   Trash2,
   Pencil,
+  X,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useMemo } from 'react'
@@ -406,10 +407,10 @@ export function IDESidebar() {
   }
 
   return (
-    <div className="flex flex-col w-60 border-r bg-card/50 shrink-0 overflow-hidden">
+    <div className="flex flex-col w-60 border-r bg-gradient-to-b from-card/60 to-card/40 shrink-0 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 h-9 border-b shrink-0">
-        <span className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Explorer</span>
+      <div className="flex items-center justify-between px-3 h-9 border-b bg-card/50 shrink-0">
+        <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/80 uppercase">Explorer</span>
         <div className="flex items-center gap-0.5">
           <TooltipProvider delayDuration={300}>
             <Tooltip>
@@ -461,18 +462,23 @@ export function IDESidebar() {
       <ScrollArea className="flex-1">
         {/* File Explorer Section */}
         <div className="py-1">
-          <div className="flex items-center gap-1 px-2 py-1">
-            <Search className="size-3 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 mx-2 px-1.5 py-1 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+            <Search className="size-3 text-muted-foreground/60" />
             <input
               type="text"
               placeholder="Search files..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 outline-none flex-1"
+              className="bg-transparent text-xs text-foreground placeholder:text-muted-foreground/50 outline-none flex-1"
             />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="text-muted-foreground/50 hover:text-foreground transition-colors">
+                <X className="size-3" />
+              </button>
+            )}
           </div>
-          <div className="px-2 py-0.5">
-            <span className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Files</span>
+          <div className="px-3 py-1 mt-0.5">
+            <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">Files</span>
           </div>
           {fileTree.map((node) => (
             <FileTreeNodeView
@@ -493,11 +499,11 @@ export function IDESidebar() {
         {/* Agent Team Section */}
         <div className="py-2">
           <div className="px-3 py-0.5 flex items-center gap-1.5">
-            <Users className="size-3 text-muted-foreground" />
-            <span className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+            <Users className="size-3 text-muted-foreground/70" />
+            <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
               Agent Team
             </span>
-            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 ml-auto">
+            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 ml-auto bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
               {agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping').length}/{agents.length}
             </Badge>
           </div>

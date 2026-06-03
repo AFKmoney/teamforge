@@ -5,11 +5,12 @@ import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG, type AgentRole, type AgentStatu
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer, TestTube2, Rocket, Sparkles, Activity } from 'lucide-react'
+import { NotificationBell } from '@/components/notification-panel'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -125,6 +126,7 @@ function NewTaskDialog() {
             <Plus className="size-4 text-emerald-500" />
             Create New Task
           </DialogTitle>
+          <DialogDescription>Create a new task for the project. Assign it to an agent or let the system auto-assign.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
@@ -327,16 +329,19 @@ export function IDETopBar() {
   const activeAgents = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping')
 
   return (
-    <div className="flex items-center h-11 px-3 border-b bg-card/90 backdrop-blur-sm gap-2 shrink-0 z-20">
+    <div className="flex items-center h-11 px-3 border-b bg-gradient-to-r from-card/95 via-card/90 to-card/95 backdrop-blur-md gap-2 shrink-0 z-20 shadow-sm shadow-black/5">
       {/* Project name */}
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="flex items-center justify-center size-6 rounded-md bg-emerald-500/15">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center justify-center size-7 rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 ring-1 ring-emerald-500/20 shadow-sm shadow-emerald-500/10">
           <Zap className="size-3.5 text-emerald-500" />
         </div>
-        <span className="font-semibold text-sm text-foreground truncate">
-          {currentProject?.name || 'TeamForge IDE'}
-        </span>
-        <ChevronDown className="size-3 text-muted-foreground shrink-0" />
+        <div className="flex flex-col min-w-0">
+          <span className="font-semibold text-sm text-foreground truncate leading-tight">
+            {currentProject?.name || 'TeamForge IDE'}
+          </span>
+          <span className="text-[9px] text-muted-foreground/60 leading-tight hidden lg:block">Autonomous AI Development</span>
+        </div>
+        <ChevronDown className="size-3 text-muted-foreground/60 shrink-0" />
       </div>
 
       <div className="h-4 w-px bg-border shrink-0" />
@@ -399,6 +404,7 @@ export function IDETopBar() {
           </TooltipProvider>
         </div>
         <div className="h-4 w-px bg-border mx-0.5" />
+        <NotificationBell />
         <Button
           size="icon"
           variant="ghost"

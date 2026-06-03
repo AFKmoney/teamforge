@@ -10,7 +10,20 @@ export type BuildStatus = 'running' | 'success' | 'failed' | 'warning'
 export type BuildType = 'build' | 'test' | 'lint' | 'deploy'
 export type ProjectStatus = 'active' | 'paused' | 'completed' | 'archived'
 export type IDEPanel = 'agents' | 'chat' | 'tasks' | 'terminal' | 'files'
-export type IDEBottomTab = 'terminal' | 'tasks' | 'build' | 'problems'
+export type IDEBottomTab = 'terminal' | 'tasks' | 'build' | 'problems' | 'analytics'
+export type NotificationType = 'info' | 'success' | 'warning' | 'error'
+export type NotificationCategory = 'task' | 'build' | 'agent' | 'system' | 'chat'
+
+export interface Notification {
+  id: string
+  title: string
+  message: string
+  type: NotificationType
+  category: NotificationCategory
+  read: boolean
+  createdAt: string
+  actionUrl?: string
+}
 
 export interface Project {
   id: string

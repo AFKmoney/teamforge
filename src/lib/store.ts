@@ -1,5 +1,49 @@
 import { create } from 'zustand'
-import type { Agent, Task, Message, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project } from '@/lib/types'
+import type { Agent, Task, Message, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification } from '@/lib/types'
+
+/**
+ * Fetch with retry logic and graceful error handling.
+ * Retries up to `retries` times with exponential backoff.
+ * Returns null on failure instead of throwing.
+ */
+async function fetchWithRetry(url: string, retries = 2, baseDelay = 500): Promise<Response | null> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url)
+      if (res.ok) return res
+      // Don't retry client errors (4xx)
+      if (res.status >= 400 && res.status < 500) return res
+      // Server error — retry if we have attempts left
+      if (attempt < retries) {
+        const delay = baseDelay * Math.pow(2, attempt)
+        await new Promise((r) => setTimeout(r, delay))
+        continue
+      }
+      return res
+    } catch {
+      // Network error — retry if we have attempts left
+      if (attempt < retries) {
+        const delay = baseDelay * Math.pow(2, attempt)
+        await new Promise((r) => setTimeout(r, delay))
+        continue
+      }
+      // All retries exhausted — return null silently
+      return null
+    }
+  }
+  return null
+}
+
+/**
+ * Deduplicate an array of objects by id, keeping the last occurrence.
+ */
+function deduplicateById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Map<string, T>()
+  for (const item of items) {
+    seen.set(item.id, item)
+  }
+  return Array.from(seen.values())
+}
 
 interface AppState {
   // Current project
@@ -48,11 +92,19 @@ interface AppState {
   isRunning: boolean
   setIsRunning: (running: boolean) => void
 
+  // Notifications
+  notifications: Notification[]
+  addNotification: (notification: Omit<Notification, 'id' | 'read' | 'createdAt'>) => void
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: () => void
+  clearNotifications: () => void
+  generateSeedNotifications: () => void
+
   // Loading
   loading: boolean
   setLoading: (loading: boolean) => void
 
-  // Setters
+  // Setters (deduplication ensures no duplicate IDs)
   setAgents: (agents: Agent[]) => void
   setTasks: (tasks: Task[]) => void
   setMessages: (messages: Message[]) => void
@@ -135,17 +187,95 @@ export const useAppStore = create<AppState>((set, get) => ({
   isRunning: false,
   setIsRunning: (running) => set({ isRunning: running }),
 
+  // Notifications
+  notifications: [],
+  addNotification: (notification) => set((s) => ({
+    notifications: [{
+      ...notification,
+      id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      read: false,
+      createdAt: new Date().toISOString(),
+    }, ...s.notifications],
+  })),
+  markNotificationRead: (id) => set((s) => ({
+    notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
+  })),
+  markAllNotificationsRead: () => set((s) => ({
+    notifications: s.notifications.map((n) => ({ ...n, read: true })),
+  })),
+  clearNotifications: () => set({ notifications: [] }),
+  generateSeedNotifications: () => {
+    const now = Date.now()
+    const seeds: Omit<Notification, 'id' | 'read' | 'createdAt'>[] = [
+      {
+        title: 'Build Succeeded',
+        message: 'Production build completed successfully in 2.3s',
+        type: 'success',
+        category: 'build',
+      },
+      {
+        title: 'Task Completed',
+        message: 'Implement user authentication flow has been marked as done',
+        type: 'success',
+        category: 'task',
+      },
+      {
+        title: 'Agent Idle',
+        message: 'CodeBot is now idle and ready for new tasks',
+        type: 'info',
+        category: 'agent',
+      },
+      {
+        title: 'Lint Warning',
+        message: '2 warnings found in src/lib/utils.ts',
+        type: 'warning',
+        category: 'build',
+      },
+      {
+        title: 'New Message',
+        message: 'Architect agent shared design decisions for the API layer',
+        type: 'info',
+        category: 'chat',
+      },
+      {
+        title: 'Deploy Failed',
+        message: 'Staging deployment failed due to missing environment variables',
+        type: 'error',
+        category: 'build',
+      },
+      {
+        title: 'Task Blocked',
+        message: 'Database migration task is blocked by pending review',
+        type: 'warning',
+        category: 'task',
+      },
+      {
+        title: 'System Update',
+        message: 'TeamForge IDE has been updated to version 2.4.0',
+        type: 'info',
+        category: 'system',
+      },
+    ]
+    const notifications: Notification[] = seeds.map((seed, i) => ({
+      ...seed,
+      id: `notif_seed_${i}`,
+      read: i > 4, // first 5 are unread
+      createdAt: new Date(now - (i + 1) * 5 * 60 * 1000).toISOString(), // stagger by 5 min
+    }))
+    set({ notifications })
+  },
+
   // Loading
   loading: false,
   setLoading: (loading) => set({ loading }),
 
-  // Setters
-  setAgents: (agents) => set({ agents }),
-  setTasks: (tasks) => set({ tasks }),
-  setMessages: (messages) => set({ messages }),
-  setFiles: (files) => set({ files }),
-  setBuildLogs: (logs) => set({ buildLogs: logs }),
-  setActivities: (activities) => set({ activities }),
+  // Setters (deduplication ensures no duplicate IDs)
+  setAgents: (agents) => set({ agents: deduplicateById(agents) }),
+  setTasks: (tasks) => set({ tasks: deduplicateById(tasks) }),
+  setMessages: (messages) => set({ messages: deduplicateById(messages) }),
+  setFiles: (files) => set({ files: deduplicateById(files) }),
+  setBuildLogs: (logs) => set({ buildLogs: deduplicateById(logs) }),
+  setActivities: (activities) => set({ activities: deduplicateById(activities) }),
 
   // Add message
   addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
@@ -163,83 +293,96 @@ export const useAppStore = create<AppState>((set, get) => ({
     files: s.files.map((f) => (f.id === id ? { ...f, content } : f)),
   })),
 
-  // Fetch helpers
+  // Fetch helpers — use retry logic and deduplication
   fetchAgents: async () => {
-    try {
-      const res = await fetch('/api/agents')
-      if (res.ok) set({ agents: await res.json() })
-    } catch (e) { console.error('Failed to fetch agents:', e) }
+    const res = await fetchWithRetry('/api/agents')
+    if (res?.ok) {
+      const data = await res.json()
+      set({ agents: deduplicateById(data) })
+    }
   },
   fetchTasks: async () => {
-    try {
-      const projectId = get().currentProject?.id
-      const url = projectId ? `/api/tasks?projectId=${projectId}` : '/api/tasks'
-      const res = await fetch(url)
-      if (res.ok) set({ tasks: await res.json() })
-    } catch (e) { console.error('Failed to fetch tasks:', e) }
+    const projectId = get().currentProject?.id
+    const url = projectId ? `/api/tasks?projectId=${projectId}` : '/api/tasks'
+    const res = await fetchWithRetry(url)
+    if (res?.ok) {
+      const data = await res.json()
+      set({ tasks: deduplicateById(data) })
+    }
   },
   fetchMessages: async () => {
-    try {
-      const projectId = get().currentProject?.id
-      const url = projectId ? `/api/messages?projectId=${projectId}` : '/api/messages'
-      const res = await fetch(url)
-      if (res.ok) set({ messages: await res.json() })
-    } catch (e) { console.error('Failed to fetch messages:', e) }
+    const projectId = get().currentProject?.id
+    const url = projectId ? `/api/messages?projectId=${projectId}` : '/api/messages'
+    const res = await fetchWithRetry(url)
+    if (res?.ok) {
+      const data = await res.json()
+      set({ messages: deduplicateById(data) })
+    }
   },
   fetchFiles: async () => {
-    try {
-      const projectId = get().currentProject?.id
-      const url = projectId ? `/api/files?projectId=${projectId}` : '/api/files'
-      const res = await fetch(url)
-      if (res.ok) set({ files: await res.json() })
-    } catch (e) { console.error('Failed to fetch files:', e) }
+    const projectId = get().currentProject?.id
+    const url = projectId ? `/api/files?projectId=${projectId}` : '/api/files'
+    const res = await fetchWithRetry(url)
+    if (res?.ok) {
+      const data = await res.json()
+      set({ files: deduplicateById(data) })
+    }
   },
   fetchBuildLogs: async () => {
-    try {
-      const projectId = get().currentProject?.id
-      const url = projectId ? `/api/build-logs?projectId=${projectId}` : '/api/build-logs'
-      const res = await fetch(url)
-      if (res.ok) set({ buildLogs: await res.json() })
-    } catch (e) { console.error('Failed to fetch build logs:', e) }
+    const projectId = get().currentProject?.id
+    const url = projectId ? `/api/build-logs?projectId=${projectId}` : '/api/build-logs'
+    const res = await fetchWithRetry(url)
+    if (res?.ok) {
+      const data = await res.json()
+      set({ buildLogs: deduplicateById(data) })
+    }
   },
   fetchActivities: async () => {
-    try {
-      const res = await fetch('/api/activities')
-      if (res.ok) set({ activities: await res.json() })
-    } catch (e) { console.error('Failed to fetch activities:', e) }
+    const res = await fetchWithRetry('/api/activities')
+    if (res?.ok) {
+      const data = await res.json()
+      set({ activities: deduplicateById(data) })
+    }
   },
   fetchAll: async (projectId) => {
     set({ loading: true })
     try {
       // Fetch project
       if (projectId) {
-        const pRes = await fetch(`/api/projects/${projectId}`)
-        if (pRes.ok) set({ currentProject: await pRes.json() })
+        const pRes = await fetchWithRetry(`/api/projects/${projectId}`)
+        if (pRes?.ok) set({ currentProject: await pRes.json() })
       }
 
-      // Fetch all in parallel
+      // Fetch all in parallel with retry
       const pid = projectId || get().currentProject?.id
       const [agentsRes, tasksRes, messagesRes, filesRes, logsRes, activitiesRes] = await Promise.all([
-        fetch('/api/agents'),
-        fetch(pid ? `/api/tasks?projectId=${pid}` : '/api/tasks'),
-        fetch(pid ? `/api/messages?projectId=${pid}` : '/api/messages'),
-        fetch(pid ? `/api/files?projectId=${pid}` : '/api/files'),
-        fetch(pid ? `/api/build-logs?projectId=${pid}` : '/api/build-logs'),
-        fetch('/api/activities'),
+        fetchWithRetry('/api/agents'),
+        fetchWithRetry(pid ? `/api/tasks?projectId=${pid}` : '/api/tasks'),
+        fetchWithRetry(pid ? `/api/messages?projectId=${pid}` : '/api/messages'),
+        fetchWithRetry(pid ? `/api/files?projectId=${pid}` : '/api/files'),
+        fetchWithRetry(pid ? `/api/build-logs?projectId=${pid}` : '/api/build-logs'),
+        fetchWithRetry('/api/activities'),
       ])
 
       const [agents, tasks, messages, files, buildLogs, activities] = await Promise.all([
-        agentsRes.ok ? agentsRes.json() : [],
-        tasksRes.ok ? tasksRes.json() : [],
-        messagesRes.ok ? messagesRes.json() : [],
-        filesRes.ok ? filesRes.json() : [],
-        logsRes.ok ? logsRes.json() : [],
-        activitiesRes.ok ? activitiesRes.json() : [],
+        agentsRes?.ok ? agentsRes.json() : [],
+        tasksRes?.ok ? tasksRes.json() : [],
+        messagesRes?.ok ? messagesRes.json() : [],
+        filesRes?.ok ? filesRes.json() : [],
+        logsRes?.ok ? logsRes.json() : [],
+        activitiesRes?.ok ? activitiesRes.json() : [],
       ])
 
-      set({ agents, tasks, messages, files, buildLogs, activities })
-    } catch (e) {
-      console.error('Failed to fetch all:', e)
+      set({
+        agents: deduplicateById(agents),
+        tasks: deduplicateById(tasks),
+        messages: deduplicateById(messages),
+        files: deduplicateById(files),
+        buildLogs: deduplicateById(buildLogs),
+        activities: deduplicateById(activities),
+      })
+    } catch {
+      // Silently keep existing data on failure
     } finally {
       set({ loading: false })
     }

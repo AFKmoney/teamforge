@@ -5,6 +5,7 @@ import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG, type Agent, type AgentRole, typ
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -140,6 +141,7 @@ export function AgentDetailDialog() {
               </div>
             </div>
           </DialogTitle>
+          <DialogDescription>View agent details, current task assignment, and recent activity.</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 -mx-6 px-6">

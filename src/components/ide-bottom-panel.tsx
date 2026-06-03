@@ -20,16 +20,19 @@ import {
   PanelTopOpen,
   Play,
   ChevronRight,
+  BarChart3,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo, useCallback, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { AnalyticsDashboard } from '@/components/analytics-dashboard'
 
 const BOTTOM_TABS: { id: IDEBottomTab; label: string; icon: React.ReactNode }[] = [
   { id: 'terminal', label: 'Terminal', icon: <Terminal className="size-3.5" /> },
   { id: 'tasks', label: 'Tasks', icon: <LayoutGrid className="size-3.5" /> },
   { id: 'build', label: 'Build', icon: <Hammer className="size-3.5" /> },
   { id: 'problems', label: 'Problems', icon: <AlertTriangle className="size-3.5" /> },
+  { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="size-3.5" /> },
 ]
 
 function BuildStatusIcon({ status }: { status: string }) {
@@ -414,22 +417,28 @@ export function IDEBottomPanel() {
         return <BuildView />
       case 'problems':
         return <ProblemsView />
+      case 'analytics':
+        return <AnalyticsDashboard />
       default:
         return <TerminalView />
     }
   }
 
   return (
-    <div className="flex flex-col border-t shrink-0 bg-background">
+    <div className="flex flex-col border-t shrink-0 bg-gradient-to-b from-card/80 to-card/60">
       {/* Resize handle */}
       <div
         ref={resizeRef}
         className={cn(
-          'h-1 cursor-row-resize hover:bg-emerald-500/30 transition-colors -mt-0.5 relative z-10',
+          'h-1.5 cursor-row-resize hover:bg-emerald-500/30 transition-colors -mt-0.5 relative z-10 group',
           isResizing && 'bg-emerald-500/40',
         )}
         onMouseDown={handleMouseDown}
-      />
+      >
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="w-8 h-0.5 rounded-full bg-muted-foreground/30" />
+        </div>
+      </div>
 
       {/* Tab bar */}
       <div className="flex items-center h-9 px-1 border-b shrink-0">

@@ -98,9 +98,10 @@ function ChatMessage({ message }: { message: Message }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        'px-3 py-2.5 rounded-lg mx-2 mb-1',
+        'px-3 py-2.5 rounded-xl mx-2 mb-1.5 transition-colors',
         typeConfig.bgColor,
-        isSystem && 'border border-border/50',
+        !isSystem && 'hover:bg-muted/20',
+        isSystem && 'border border-border/40 bg-gradient-to-r from-muted/30 to-muted/10',
       )}
     >
       <div className="flex items-start gap-2">
@@ -416,13 +417,13 @@ export function IDEChatPanel() {
   }
 
   return (
-    <div className="flex flex-col w-80 border-l bg-card/50 shrink-0">
+    <div className="flex flex-col w-80 border-l bg-gradient-to-b from-card/60 to-card/40 shrink-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 h-9 border-b shrink-0">
+      <div className="flex items-center justify-between px-3 h-9 border-b bg-card/50 shrink-0">
         <div className="flex items-center gap-1.5">
-          <MessageSquare className="size-3.5 text-muted-foreground" />
+          <MessageSquare className="size-3.5 text-emerald-500/70" />
           <span className="text-xs font-semibold text-foreground">Team Chat</span>
-          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5">
+          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
             <Users className="size-2.5" />
             {onlineCount}
           </Badge>
@@ -526,7 +527,7 @@ export function IDEChatPanel() {
       </AnimatePresence>
 
       {/* Message input */}
-      <div className="p-2 border-t shrink-0">
+      <div className="p-2 border-t shrink-0 bg-card/30">
         <div className="flex items-end gap-1.5">
           <textarea
             ref={textareaRef}
@@ -555,7 +556,7 @@ export function IDEChatPanel() {
               }
             }}
             rows={1}
-            className="flex-1 bg-muted/50 rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-1 focus:ring-emerald-500/50 transition-ring resize-none max-h-[120px] font-mono"
+            className="flex-1 bg-muted/40 rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-1 focus:ring-emerald-500/40 transition-all resize-none max-h-[120px] font-mono border border-transparent focus:border-emerald-500/20"
           />
           <Button
             size="icon"
