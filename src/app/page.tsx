@@ -95,6 +95,12 @@ export default function Home() {
   // Start agent orchestrator as fallback polling (reduced to 60s when WS is active)
   useAgentOrchestrator({ pollingInterval: wsConnected ? 60000 : 30000 })
 
+  // Hydrate AI settings from localStorage (must run after mount to avoid hydration mismatch)
+  const hydrateAISettings = useAppStore((s) => s.hydrateAISettings)
+  useEffect(() => {
+    hydrateAISettings()
+  }, [hydrateAISettings])
+
   // Initial data load - dynamically fetch the first project
   useEffect(() => {
     fetchAll()

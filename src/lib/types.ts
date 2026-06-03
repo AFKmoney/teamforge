@@ -97,6 +97,7 @@ export interface Task {
 export interface Message {
   id: string
   projectId: string
+  chatSessionId: string | null
   agentId: string | null
   content: string
   type: MessageType
@@ -104,6 +105,16 @@ export interface Message {
   createdAt: string
   // Joined
   agent?: Agent | null
+}
+
+export interface ChatSession {
+  id: string
+  projectId: string
+  title: string
+  summary: string
+  createdAt: string
+  updatedAt: string
+  messageCount?: number
 }
 
 export interface ProjectFile {

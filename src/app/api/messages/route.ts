@@ -6,10 +6,12 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const projectId = searchParams.get('projectId')
+    const chatSessionId = searchParams.get('chatSessionId')
     const limit = searchParams.get('limit')
 
     const where: Record<string, unknown> = {}
     if (projectId) where.projectId = projectId
+    if (chatSessionId) where.chatSessionId = chatSessionId
 
     const messages = await db.message.findMany({
       where,
@@ -28,7 +30,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { projectId, agentId, content, type, metadata } = body
+    const { projectId, chatSessionId, agentId, content, type, metadata } = body
 
     if (!projectId || !content) {
       return NextResponse.json({ error: 'Project ID and content are required' }, { status: 400 })
@@ -37,6 +39,7 @@ export async function POST(req: NextRequest) {
     const message = await db.message.create({
       data: {
         projectId,
+        chatSessionId: chatSessionId || null,
         agentId: agentId || null,
         content,
         type: type || 'chat',

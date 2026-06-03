@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { AGENT_ROLE_CONFIG, type Message, type MessageType } from '@/lib/types'
+import { AGENT_ROLE_CONFIG, type Message, type MessageType, type ChatSession } from '@/lib/types'
 import { AI_PROVIDERS, getModelsForProvider, type AIProviderType } from '@/lib/ai-providers'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -37,13 +37,20 @@ import {
   Zap,
   Bot,
   ChevronDown,
+  PlusCircle,
+  History,
+  Trash2,
+  Clock,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useRef, useEffect, useState, useMemo, useCallback, useSyncExternalStore } from 'react'
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 const MESSAGE_TYPE_CONFIG: Record<MessageType, { icon: React.ReactNode; color: string; bgColor: string; label: string }> = {
   chat: { icon: <MessageSquare className="size-3" />, color: 'text-foreground', bgColor: 'bg-card', label: 'Chat' },
@@ -115,6 +122,7 @@ function ChatMessage({ message }: { message: Message }) {
   const isCodeChange = message.type === 'code_change'
   const [showReactions, setShowReactions] = useState(false)
   const [reactions, setReactions] = useState<Record<string, number>>({})
+  const [copied, setCopied] = useState(false)
 
   const handleReaction = (emoji: string) => {
     setReactions((prev) => {
@@ -124,6 +132,33 @@ function ChatMessage({ message }: { message: Message }) {
     })
     setShowReactions(false)
   }
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(message.content).then(() => {
+      setCopied(true)
+      toast.success('Message copied to clipboard')
+      setTimeout(() => setCopied(false), 1500)
+    }).catch(() => {
+      toast.error('Failed to copy message')
+    })
+  }, [message.content])
+
+  // Format full date/time for tooltip
+  const fullTimestamp = useMemo(() => {
+    try {
+      return new Date(message.createdAt).toLocaleString(undefined, {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    } catch {
+      return message.createdAt
+    }
+  }, [message.createdAt])
 
   // Parse metadata for code changes
   const metadata = useMemo(() => {
@@ -148,7 +183,7 @@ function ChatMessage({ message }: { message: Message }) {
       onMouseEnter={() => setShowReactions(true)}
       onMouseLeave={() => setShowReactions(false)}
     >
-      {/* Message reactions - small emoji buttons that appear on hover */}
+      {/* Message actions - emoji reactions + copy button that appear on hover */}
       <AnimatePresence>
         {showReactions && !isSystem && (
           <motion.div
@@ -167,6 +202,14 @@ function ChatMessage({ message }: { message: Message }) {
                 {emoji}
               </button>
             ))}
+            <div className="w-px h-3 bg-border/40 mx-0.5" />
+            <button
+              onClick={handleCopy}
+              className="size-5 flex items-center justify-center rounded-full hover:bg-muted/80 text-muted-foreground/60 hover:text-foreground transition-colors"
+              title="Copy message"
+            >
+              {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -218,9 +261,16 @@ function ChatMessage({ message }: { message: Message }) {
                 {metadata.provider === 'zai' ? 'Z-AI' : metadata.provider === 'nvidia' ? 'NVIDIA' : 'Custom'}
               </Badge>
             )}
-            <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
-              {formatTime(message.createdAt)}
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-[10px] text-muted-foreground ml-auto shrink-0 cursor-default">
+                  {formatTime(message.createdAt)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">
+                {fullTimestamp}
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {/* Content */}
@@ -272,19 +322,11 @@ function ModelSelector() {
   const updateAISettings = useAppStore((s) => s.updateAISettings)
   const [isOpen, setIsOpen] = useState(false)
 
-  // Use useSyncExternalStore to detect client-side mount without setState-in-effect
-  const mounted = useSyncExternalStore(
-    () => () => {}, // subscribe noop
-    () => true,     // client snapshot
-    () => false,    // server snapshot
-  )
-
   const currentProvider = AI_PROVIDERS.find((p) => p.type === aiSettings.provider)
   const currentModels = getModelsForProvider(aiSettings.provider)
 
-  // Determine the display label — must defer to default until mounted to avoid hydration mismatch
+  // Determine the display label
   const displayLabel = useMemo(() => {
-    if (!mounted) return 'DeepSeek' // Consistent with SSR default (provider=zai, model=deepseek-chat)
     if (aiSettings.provider === 'nvidia') {
       const model = currentModels.find((m) => m.id === aiSettings.model)
       return model?.name || aiSettings.model.split('/').pop() || aiSettings.model
@@ -293,25 +335,23 @@ function ModelSelector() {
       return aiSettings.openaiCompatibleModelId === 'custom' ? 'Custom' : aiSettings.openaiCompatibleModelId
     }
     return 'DeepSeek'
-  }, [aiSettings, currentModels, mounted])
+  }, [aiSettings, currentModels])
 
-  // Provider icon — use consistent default until mounted to avoid hydration mismatch
+  // Provider icon
   const providerIcon = useMemo(() => {
-    if (!mounted) return <Bot className="size-3 text-emerald-500" />
     switch (aiSettings.provider) {
       case 'nvidia': return <Zap className="size-3 text-green-500" />
       case 'openai-compatible': return <Sparkles className="size-3 text-violet-500" />
       default: return <Bot className="size-3 text-emerald-500" />
     }
-  }, [aiSettings.provider, mounted])
+  }, [aiSettings.provider])
 
   // Has required API key?
   const hasRequiredKey = useMemo(() => {
-    if (!mounted) return true // consistent with SSR default (zai needs no key)
     if (aiSettings.provider === 'zai') return true
     if (aiSettings.provider === 'nvidia') return !!aiSettings.nvidiaApiKey
     return !!aiSettings.openaiCompatibleBaseUrl
-  }, [aiSettings, mounted])
+  }, [aiSettings])
 
   return (
     <div className="relative">
@@ -443,11 +483,131 @@ function ModelSelector() {
   )
 }
 
+/** Chat history dropdown — similar pattern to ModelSelector */
+function ChatHistoryDropdown({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean
+  onClose: () => void
+}) {
+  const chatSessions = useAppStore((s) => s.chatSessions)
+  const currentChatSessionId = useAppStore((s) => s.currentChatSessionId)
+  const setCurrentChatSessionId = useAppStore((s) => s.setCurrentChatSessionId)
+  const removeChatSession = useAppStore((s) => s.removeChatSession)
+  const fetchMessages = useAppStore((s) => s.fetchMessages)
+  const fetchChatSessions = useAppStore((s) => s.fetchChatSessions)
+  const setMessages = useAppStore((s) => s.setMessages)
+
+  const handleSwitchSession = useCallback(async (sessionId: string) => {
+    setCurrentChatSessionId(sessionId)
+    // Fetch messages for the selected session
+    await fetchMessages()
+    onClose()
+  }, [setCurrentChatSessionId, fetchMessages, onClose])
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={onClose}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.95 }}
+            transition={{ duration: 0.12 }}
+            className="absolute top-full left-0 mt-1 w-72 bg-card border border-border/60 rounded-lg shadow-xl z-50 overflow-hidden"
+          >
+            <div className="p-1.5 border-b border-border/40">
+              <div className="px-2 py-1 text-[9px] text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-1">
+                <Clock className="size-2.5" />
+                Chat History
+              </div>
+            </div>
+            <div className="max-h-64 overflow-y-auto p-1">
+              {chatSessions.length === 0 ? (
+                <div className="px-2 py-3 text-[10px] text-muted-foreground/60 text-center">
+                  No chat sessions yet
+                </div>
+              ) : (
+                chatSessions.map((session) => (
+                  <button
+                    key={session.id}
+                    onClick={() => handleSwitchSession(session.id)}
+                    className={cn(
+                      'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition-colors group/item',
+                      session.id === currentChatSessionId
+                        ? 'bg-emerald-500/10 text-foreground'
+                        : 'hover:bg-muted/50 text-foreground/80',
+                    )}
+                  >
+                    <MessageSquare className="size-3 text-muted-foreground/60 shrink-0" />
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="font-medium truncate text-[11px]">{session.title || 'New Chat'}</div>
+                      <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
+                        <span>{formatTime(session.updatedAt)}</span>
+                        {session.messageCount !== undefined && (
+                          <span>{session.messageCount} msgs</span>
+                        )}
+                      </div>
+                    </div>
+                    {session.id === currentChatSessionId && (
+                      <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // Inline delete handler to avoid the closure issue
+                        const doDelete = async () => {
+                          try {
+                            const res = await fetch(`/api/chat-sessions/${session.id}`, { method: 'DELETE' })
+                            if (res.ok) {
+                              removeChatSession(session.id)
+                              if (session.id === currentChatSessionId) {
+                                const remaining = chatSessions.filter((s) => s.id !== session.id)
+                                if (remaining.length > 0) {
+                                  setCurrentChatSessionId(remaining[0].id)
+                                  await fetchMessages()
+                                } else {
+                                  setCurrentChatSessionId(null)
+                                  setMessages([])
+                                }
+                              }
+                              toast.success('Chat session deleted')
+                            } else {
+                              toast.error('Failed to delete session')
+                            }
+                          } catch {
+                            toast.error('Failed to delete session')
+                          }
+                        }
+                        doDelete()
+                      }}
+                      className="size-5 flex items-center justify-center rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors opacity-0 group-hover/item:opacity-100 shrink-0"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </button>
+                ))
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  )
+}
+
 export function IDEChatPanel() {
   const messages = useAppStore((s) => s.messages)
   const agents = useAppStore((s) => s.agents)
   const currentProject = useAppStore((s) => s.currentProject)
   const addMessage = useAppStore((s) => s.addMessage)
+  const setMessages = useAppStore((s) => s.setMessages)
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen)
   const setRightPanelOpen = useAppStore((s) => s.setRightPanelOpen)
   const addBuildLog = useAppStore((s) => s.addBuildLog)
@@ -458,6 +618,15 @@ export function IDEChatPanel() {
   const updateAgent = useAppStore((s) => s.updateAgent)
   const aiSettings = useAppStore((s) => s.aiSettings)
 
+  // Chat session state
+  const chatSessions = useAppStore((s) => s.chatSessions)
+  const currentChatSessionId = useAppStore((s) => s.currentChatSessionId)
+  const setCurrentChatSessionId = useAppStore((s) => s.setCurrentChatSessionId)
+  const addChatSession = useAppStore((s) => s.addChatSession)
+  const updateChatSession = useAppStore((s) => s.updateChatSession)
+  const fetchMessages = useAppStore((s) => s.fetchMessages)
+  const fetchChatSessions = useAppStore((s) => s.fetchChatSessions)
+
   const [inputValue, setInputValue] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [showSlashCommands, setShowSlashCommands] = useState(false)
@@ -467,11 +636,51 @@ export function IDEChatPanel() {
   const [runTaskTitle, setRunTaskTitle] = useState('')
   const [runTaskAssigneeId, setRunTaskAssigneeId] = useState('')
   const [runTaskIsCreating, setRunTaskIsCreating] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const onlineCount = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping').length
+
+  // Fetch chat sessions on mount
+  useEffect(() => {
+    if (currentProject?.id) {
+      fetchChatSessions()
+    }
+  }, [currentProject?.id, fetchChatSessions])
+
+  // Current session title for display
+  const currentSessionTitle = useMemo(() => {
+    if (!currentChatSessionId) return 'Team Chat'
+    const session = chatSessions.find((s) => s.id === currentChatSessionId)
+    return session?.title || 'Team Chat'
+  }, [currentChatSessionId, chatSessions])
+
+  // Handle new chat
+  const handleNewChat = useCallback(async () => {
+    try {
+      const res = await fetch('/api/chat-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: currentProject?.id || '',
+          title: 'New Chat',
+        }),
+      })
+      if (res.ok) {
+        const session = await res.json()
+        addChatSession(session)
+        setCurrentChatSessionId(session.id)
+        setMessages([])
+        toast.success('New chat started')
+      } else {
+        toast.error('Failed to create new chat')
+      }
+    } catch {
+      toast.error('Failed to create new chat')
+    }
+  }, [currentProject, addChatSession, setCurrentChatSessionId, setMessages])
 
   // Run task handler
   const handleRunTask = useCallback(async () => {
@@ -605,13 +814,14 @@ export function IDEChatPanel() {
         setBottomPanelOpen(true)
         setActiveBottomTab('terminal')
         try {
+          // Run the actual test command
           const res = await fetch('/api/build-logs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               projectId: currentProject?.id || '',
-              output: '$ bun run test\n⠋ Running test suite...\n✓ 42 tests passed\n✗ 0 tests failed\n✓ Coverage: 87.3%\n\nDone in 4.1s',
-              status: 'success',
+              output: '$ bun run lint',
+              status: 'running',
               type: 'test',
             }),
           })
@@ -619,6 +829,31 @@ export function IDEChatPanel() {
             const log = await res.json()
             addBuildLog(log)
           }
+          // Actually run lint to get real results
+          const lintRes = await fetch('/api/exec', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'bun run lint', projectId: currentProject?.id }),
+          })
+          const lintData = lintRes.ok ? await lintRes.json() : null
+          const finalOutput = lintData?.output || 'Lint command completed.'
+          // Update the build log with real output
+          try {
+            const updateRes = await fetch('/api/build-logs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                projectId: currentProject?.id || '',
+                output: `$ bun run lint\n${finalOutput}`,
+                status: lintData?.exitCode === 0 ? 'success' : 'warning',
+                type: 'test',
+              }),
+            })
+            if (updateRes.ok) {
+              const log2 = await updateRes.json()
+              addBuildLog(log2)
+            }
+          } catch { /* ignore */ }
         } catch (e) {
           console.error('Failed to run tests:', e)
         } finally {
@@ -628,7 +863,7 @@ export function IDEChatPanel() {
           id: `sys_${Date.now()}`,
           projectId: currentProject?.id || '',
           agentId: null,
-          content: '🧪 Running test suite... Results will appear in the terminal.',
+          content: '🧪 Running lint check... Results will appear in the terminal.',
           type: 'system',
           metadata: {},
           createdAt: new Date().toISOString(),
@@ -640,13 +875,14 @@ export function IDEChatPanel() {
         setBottomPanelOpen(true)
         setActiveBottomTab('terminal')
         try {
+          // Run the actual build command
           const res = await fetch('/api/build-logs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               projectId: currentProject?.id || '',
-              output: '$ bun run deploy\n⠋ Deploying to production...\n✓ Build artifacts uploaded\n✓ CDN cache purged\n✓ Deployment successful\n\nDone in 12.8s',
-              status: 'success',
+              output: '$ bun run build',
+              status: 'running',
               type: 'deploy',
             }),
           })
@@ -654,6 +890,31 @@ export function IDEChatPanel() {
             const log = await res.json()
             addBuildLog(log)
           }
+          // Actually run the build to get real results
+          const buildRes = await fetch('/api/exec', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'bun run build', projectId: currentProject?.id }),
+          })
+          const buildData = buildRes.ok ? await buildRes.json() : null
+          const buildOutput = buildData?.output || 'Build command completed.'
+          // Update with real output
+          try {
+            const updateRes = await fetch('/api/build-logs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                projectId: currentProject?.id || '',
+                output: `$ bun run build\n${buildOutput}`,
+                status: buildData?.exitCode === 0 ? 'success' : 'failed',
+                type: 'deploy',
+              }),
+            })
+            if (updateRes.ok) {
+              const log2 = await updateRes.json()
+              addBuildLog(log2)
+            }
+          } catch { /* ignore */ }
         } catch (e) {
           console.error('Failed to deploy:', e)
         } finally {
@@ -663,7 +924,7 @@ export function IDEChatPanel() {
           id: `sys_${Date.now()}`,
           projectId: currentProject?.id || '',
           agentId: null,
-          content: '🚀 Deploying to production... Check the terminal for progress.',
+          content: '🚀 Running build... Check the terminal for progress.',
           type: 'system',
           metadata: {},
           createdAt: new Date().toISOString(),
@@ -684,6 +945,23 @@ export function IDEChatPanel() {
     }
   }, [currentProject, agents, onlineCount, messages, addMessage, addBuildLog, setIsRunning, setBottomPanelOpen, setActiveBottomTab])
 
+  // Auto-title update after first AI response
+  const autoTitleUpdate = useCallback(async (sessionId: string, firstUserMessage: string) => {
+    const title = firstUserMessage.slice(0, 60).trim() || 'New Chat'
+    try {
+      const res = await fetch(`/api/chat-sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      })
+      if (res.ok) {
+        updateChatSession(sessionId, { title })
+      }
+    } catch {
+      // Silently fail — title update is non-critical
+    }
+  }, [updateChatSession])
+
   const handleSend = useCallback(async () => {
     if (!inputValue.trim() || isSending) return
 
@@ -700,6 +978,11 @@ export function IDEChatPanel() {
     setInputValue('')
     setIsSending(true)
 
+    // Track whether this is the first message in a new session for auto-title
+    const isNewSession = currentChatSessionId
+      ? chatSessions.find((s) => s.id === currentChatSessionId)?.title === 'New Chat'
+      : false
+
     try {
       // Use the new multi-provider AI chat endpoint
       const res = await fetch('/api/ai/chat', {
@@ -708,6 +991,7 @@ export function IDEChatPanel() {
         body: JSON.stringify({
           message: msg,
           projectId: currentProject?.id || '',
+          chatSessionId: currentChatSessionId || undefined,
           provider: aiSettings.provider,
           model: aiSettings.provider === 'openai-compatible'
             ? (aiSettings.openaiCompatibleModelId || aiSettings.model)
@@ -721,6 +1005,27 @@ export function IDEChatPanel() {
 
       if (res.ok) {
         const data = await res.json()
+
+        // Handle chat session ID from response
+        if (data.chatSessionId && data.chatSessionId !== currentChatSessionId) {
+          // New session was created by the server
+          const newSessionId = data.chatSessionId
+          // Check if we already have this session in the store
+          const existingSession = chatSessions.find((s) => s.id === newSessionId)
+          if (!existingSession) {
+            addChatSession({
+              id: newSessionId,
+              projectId: currentProject?.id || '',
+              title: 'New Chat',
+              summary: '',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              messageCount: 0,
+            })
+          }
+          setCurrentChatSessionId(newSessionId)
+        }
+
         // Add user message
         if (data.userMessage) {
           const userMsg = data.userMessage
@@ -736,6 +1041,11 @@ export function IDEChatPanel() {
             try { aiMsg.metadata = JSON.parse(aiMsg.metadata) } catch { aiMsg.metadata = {} }
           }
           addMessage(aiMsg)
+        }
+
+        // Auto-title update: after first AI response in a new session, update the title
+        if (isNewSession && data.chatSessionId && msg) {
+          autoTitleUpdate(data.chatSessionId, msg)
         }
       } else {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
@@ -756,7 +1066,7 @@ export function IDEChatPanel() {
     } finally {
       setIsSending(false)
     }
-  }, [inputValue, isSending, currentProject, addMessage, executeSlashCommand, aiSettings])
+  }, [inputValue, isSending, currentProject, addMessage, executeSlashCommand, aiSettings, currentChatSessionId, chatSessions, addChatSession, setCurrentChatSessionId, autoTitleUpdate])
 
   if (!rightPanelOpen) {
     return (
@@ -786,15 +1096,43 @@ export function IDEChatPanel() {
     <div className="flex flex-col w-80 border-l bg-gradient-to-b from-card/60 to-card/40 shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between px-3 h-9 border-b bg-card/50 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <MessageSquare className="size-3.5 text-emerald-500/70" />
-          <span className="text-xs font-semibold text-foreground">Team Chat</span>
-          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <MessageSquare className="size-3.5 text-emerald-500/70 shrink-0" />
+          <span className="text-xs font-semibold text-foreground truncate max-w-[100px]" title={currentSessionTitle}>
+            {currentSessionTitle}
+          </span>
+          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 shrink-0">
             <Users className="size-2.5" />
             {onlineCount}
           </Badge>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-6 text-foreground/60 hover:text-foreground hover:bg-muted/50"
+            title="New Chat"
+            onClick={handleNewChat}
+          >
+            <PlusCircle className="size-3" />
+          </Button>
+          <div className="relative">
+            <Button
+              size="icon"
+              variant="ghost"
+              className={cn(
+                'size-6 transition-colors',
+                historyOpen
+                  ? 'text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10'
+                  : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
+              )}
+              title="Chat History"
+              onClick={() => setHistoryOpen(!historyOpen)}
+            >
+              <History className="size-3" />
+            </Button>
+            <ChatHistoryDropdown isOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
+          </div>
           <Button
             size="icon"
             variant="ghost"
@@ -866,9 +1204,13 @@ export function IDEChatPanel() {
                     <MessageCircle className="size-6 text-emerald-500/60" />
                   </div>
                 </div>
-                <p className="text-xs font-medium text-foreground mb-1">Team Chat</p>
+                <p className="text-xs font-medium text-foreground mb-1">
+                  {currentChatSessionId ? 'Team Chat' : 'Start a new conversation'}
+                </p>
                 <p className="text-[10px] text-center text-muted-foreground/70 mb-4 max-w-[200px]">
-                  Talk to your AI dev team. Ask for updates, assign tasks, or request code reviews.
+                  {currentChatSessionId
+                    ? 'Talk to your AI dev team. Ask for updates, assign tasks, or request code reviews.'
+                    : 'Type a message below or pick a quick prompt to start chatting with your AI dev team.'}
                 </p>
                 <div className="grid grid-cols-2 gap-1.5 w-full">
                   {QUICK_PROMPTS.map((qp) => (

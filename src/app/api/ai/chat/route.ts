@@ -6,6 +6,7 @@ import type { AIProviderType } from '@/lib/types'
 interface ChatRequest {
   message: string
   projectId: string
+  chatSessionId?: string
   agentId?: string
   provider?: AIProviderType
   model?: string
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
     const {
       message,
       projectId,
+      chatSessionId,
       agentId,
       provider = 'zai',
       model = 'deepseek-chat',
@@ -39,10 +41,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
     }
 
+    // Ensure a chat session exists — create one if needed
+    let sessionId = chatSessionId || null
+    if (!sessionId) {
+      const session = await db.chatSession.create({
+        data: {
+          projectId,
+          title: message.slice(0, 60) + (message.length > 60 ? '...' : ''),
+        },
+      })
+      sessionId = session.id
+    }
+
+    // Fetch conversation history for context (last 20 messages in this session)
+    const sessionMessages = sessionId
+      ? await db.message.findMany({
+          where: { chatSessionId: sessionId },
+          orderBy: { createdAt: 'asc' },
+          take: 20,
+        })
+      : []
+
     // Save the user message
     const userMessage = await db.message.create({
       data: {
         projectId,
+        chatSessionId: sessionId,
         agentId: agentId || null,
         content: message,
         type: 'chat',
@@ -67,12 +91,21 @@ export async function POST(req: NextRequest) {
       db.agent.findMany(),
     ])
 
-    // Build context
+    // Build context with conversation history
     const systemPrompt = buildSystemPrompt(files, tasks, agents)
 
+    const conversationHistory = sessionMessages.map((m) => {
+      const meta = JSON.parse(m.metadata || '{}')
+      return {
+        role: (meta.sender === 'ai' ? 'assistant' : 'user') as 'user' | 'assistant',
+        content: m.content,
+      }
+    })
+
     const messages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: message },
+      { role: 'system' as const, content: systemPrompt },
+      ...conversationHistory,
+      { role: 'user' as const, content: message },
     ]
 
     // Get AI response based on provider
@@ -110,6 +143,7 @@ export async function POST(req: NextRequest) {
     const aiMessage = await db.message.create({
       data: {
         projectId,
+        chatSessionId: sessionId,
         agentId: agentId || null,
         content: aiContent,
         type: 'chat',
@@ -118,7 +152,7 @@ export async function POST(req: NextRequest) {
       include: { agent: true },
     })
 
-    return NextResponse.json({ userMessage, aiMessage })
+    return NextResponse.json({ userMessage, aiMessage, chatSessionId: sessionId })
   } catch (error) {
     console.error('Failed to process AI chat message:', error)
     return NextResponse.json({ error: 'Failed to process message' }, { status: 500 })

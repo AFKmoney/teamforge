@@ -554,6 +554,7 @@ function AIProviderTab() {
   const [showOpenAIKey, setShowOpenAIKey] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [nvidiaTestResult, setNvidiaTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const currentProvider = AI_PROVIDERS.find((p) => p.type === aiSettings.provider)
   const models = getModelsForProvider(aiSettings.provider)
@@ -563,20 +564,23 @@ function AIProviderTab() {
     const defaultModel = getModelsForProvider(p)[0]?.id || 'deepseek-chat'
     updateAISettings({ provider: p, model: defaultModel })
     setTestResult(null)
+    setNvidiaTestResult(null)
   }, [updateAISettings])
 
   const handleModelChange = useCallback((model: string) => {
     updateAISettings({ model })
     setTestResult(null)
+    setNvidiaTestResult(null)
   }, [updateAISettings])
 
   const handleTestConnection = useCallback(async () => {
     setTesting(true)
     setTestResult(null)
+    setNvidiaTestResult(null)
     try {
       const params = new URLSearchParams({
         provider: aiSettings.provider,
-        model: aiSettings.model,
+        model: aiSettings.provider === 'nvidia' ? 'meta/llama-3.3-70b-instruct' : aiSettings.model,
       })
       if (aiSettings.provider === 'nvidia' && aiSettings.nvidiaApiKey) {
         params.set('apiKey', aiSettings.nvidiaApiKey)
@@ -594,15 +598,27 @@ function AIProviderTab() {
       const data = await res.json()
 
       if (data.success) {
-        setTestResult({ success: true, message: 'Connection successful! AI responded.' })
+        const result = { success: true, message: 'Connection successful! AI responded.' }
+        setTestResult(result)
+        if (aiSettings.provider === 'nvidia') {
+          setNvidiaTestResult(result)
+        }
         toast.success('AI Provider connection test passed')
       } else {
-        setTestResult({ success: false, message: data.error || 'Connection failed' })
+        const result = { success: false, message: data.error || 'Connection failed' }
+        setTestResult(result)
+        if (aiSettings.provider === 'nvidia') {
+          setNvidiaTestResult(result)
+        }
         toast.error('Connection test failed')
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Network error'
-      setTestResult({ success: false, message: msg })
+      const result = { success: false, message: msg }
+      setTestResult(result)
+      if (aiSettings.provider === 'nvidia') {
+        setNvidiaTestResult(result)
+      }
       toast.error('Connection test failed')
     } finally {
       setTesting(false)
@@ -720,10 +736,38 @@ function AIProviderTab() {
                   {nvidiaValidation.valid ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
                 </span>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-[10px] gap-1 px-2 shrink-0"
+                onClick={handleTestConnection}
+                disabled={testing || !aiSettings.nvidiaApiKey}
+                title="Test NVIDIA API connection"
+              >
+                {testing ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Zap className="size-3" />
+                )}
+                Test
+              </Button>
             </div>
           </SettingRow>
           {nvidiaValidation && !nvidiaValidation.valid && aiSettings.nvidiaApiKey && (
             <p className="text-[10px] text-red-500 px-1 ml-7">{nvidiaValidation.message}</p>
+          )}
+          {nvidiaTestResult && (
+            <div className={cn(
+              'ml-7 p-1.5 rounded-md text-[10px] border',
+              nvidiaTestResult.success
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                : 'bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400',
+            )}>
+              <div className="flex items-center gap-1">
+                {nvidiaTestResult.success ? <CheckCircle2 className="size-2.5" /> : <XCircle className="size-2.5" />}
+                {nvidiaTestResult.message}
+              </div>
+            </div>
           )}
           <div className="h-px bg-border/50" />
         </>

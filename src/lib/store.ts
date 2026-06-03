@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Agent, Task, Message, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus, AIProviderType } from '@/lib/types'
+import type { Agent, Task, Message, ChatSession, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus, AIProviderType } from '@/lib/types'
 import { AI_SETTINGS_KEY, DEFAULT_AI_SETTINGS, type AISettings } from '@/lib/ai-providers'
 
 /**
@@ -96,17 +96,10 @@ function saveAISettingsLocal(settings: AISettings) {
   }
 }
 
-// Load AI settings from localStorage
-function loadAISettingsFromStorage(): AISettings {
-  if (typeof window === 'undefined') return DEFAULT_AI_SETTINGS
-  try {
-    const stored = localStorage.getItem(AI_SETTINGS_KEY)
-    if (stored) return { ...DEFAULT_AI_SETTINGS, ...JSON.parse(stored) }
-  } catch {
-    // ignore parse errors
-  }
-  return DEFAULT_AI_SETTINGS
-}
+// NOTE: We no longer read AI settings from localStorage at store creation time.
+// Instead, we always initialize with DEFAULT_AI_SETTINGS and hydrate from
+// localStorage in a useEffect after mount. This prevents hydration mismatches
+// where server renders with defaults but client renders with persisted values.
 
 export type AppSettings = typeof DEFAULT_SETTINGS & AISettings
 
@@ -127,6 +120,9 @@ interface AppState {
   agents: Agent[]
   tasks: Task[]
   messages: Message[]
+  chatSessions: ChatSession[]
+  currentChatSessionId: string | null
+  setCurrentChatSessionId: (id: string | null) => void
   files: ProjectFile[]
   buildLogs: BuildLog[]
   activities: AgentActivity[]
@@ -218,6 +214,7 @@ interface AppState {
   // AI Provider settings (synced with localStorage)
   aiSettings: AISettings
   updateAISettings: (updates: Partial<AISettings>) => void
+  hydrateAISettings: () => void
 
   // Loading
   loading: boolean
@@ -227,12 +224,16 @@ interface AppState {
   setAgents: (agents: Agent[]) => void
   setTasks: (tasks: Task[]) => void
   setMessages: (messages: Message[]) => void
+  setChatSessions: (sessions: ChatSession[]) => void
   setFiles: (files: ProjectFile[]) => void
   setBuildLogs: (logs: BuildLog[]) => void
   setActivities: (activities: AgentActivity[]) => void
 
   // Add message
   addMessage: (message: Message) => void
+  addChatSession: (session: ChatSession) => void
+  removeChatSession: (id: string) => void
+  updateChatSession: (id: string, updates: Partial<ChatSession>) => void
   addBuildLog: (log: BuildLog) => void
   addActivity: (activity: AgentActivity) => void
   updateAgent: (id: string, updates: Partial<Agent>) => void
@@ -248,6 +249,7 @@ interface AppState {
   fetchAgents: () => Promise<void>
   fetchTasks: () => Promise<void>
   fetchMessages: () => Promise<void>
+  fetchChatSessions: () => Promise<void>
   fetchFiles: () => Promise<void>
   fetchBuildLogs: () => Promise<void>
   fetchActivities: () => Promise<void>
@@ -275,6 +277,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   agents: [],
   tasks: [],
   messages: [],
+  chatSessions: [],
+  currentChatSessionId: null,
+  setCurrentChatSessionId: (id) => set({ currentChatSessionId: id }),
   files: [],
   buildLogs: [],
   activities: [],
@@ -396,8 +401,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     // No-op: removed seed/placeholder notifications
   },
 
-  // AI Provider settings
-  aiSettings: loadAISettingsFromStorage(),
+  // AI Provider settings — always start with defaults to avoid hydration mismatch
+  aiSettings: DEFAULT_AI_SETTINGS,
   updateAISettings: (updates) => {
     const next = { ...get().aiSettings, ...updates }
     saveAISettingsLocal(next)
@@ -412,6 +417,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveSettings(settingsNext)
     set({ aiSettings: next, settings: settingsNext })
   },
+  // Hydrate AI settings from localStorage after client mount
+  hydrateAISettings: () => {
+    if (typeof window === 'undefined') return
+    try {
+      const stored = localStorage.getItem(AI_SETTINGS_KEY)
+      if (stored) {
+        const persisted = { ...DEFAULT_AI_SETTINGS, ...JSON.parse(stored) }
+        set({ aiSettings: persisted })
+      }
+    } catch {
+      // ignore parse errors
+    }
+  },
 
   // Loading
   loading: false,
@@ -421,12 +439,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAgents: (agents) => set({ agents: deduplicateById(agents) }),
   setTasks: (tasks) => set({ tasks: deduplicateById(tasks) }),
   setMessages: (messages) => set({ messages: deduplicateById(messages) }),
+  setChatSessions: (sessions) => set({ chatSessions: deduplicateById(sessions) }),
   setFiles: (files) => set({ files: deduplicateById(files) }),
   setBuildLogs: (logs) => set({ buildLogs: deduplicateById(logs) }),
   setActivities: (activities) => set({ activities: deduplicateById(activities) }),
 
   // Add message
   addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
+  addChatSession: (session) => set((s) => ({ chatSessions: [session, ...s.chatSessions] })),
+  removeChatSession: (id) => set((s) => ({ chatSessions: s.chatSessions.filter((cs) => cs.id !== id) })),
+  updateChatSession: (id, updates) => set((s) => ({
+    chatSessions: s.chatSessions.map((cs) => cs.id === id ? { ...cs, ...updates } : cs),
+  })),
   addBuildLog: (log) => set((s) => ({ buildLogs: [log, ...s.buildLogs] })),
   addActivity: (activity) => set((s) => ({ activities: [activity, ...s.activities] })),
   updateAgent: (id, updates) => set((s) => ({
@@ -490,11 +514,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   fetchMessages: async () => {
     const projectId = get().currentProject?.id
-    const url = projectId ? `/api/messages?projectId=${projectId}` : '/api/messages'
+    const sessionId = get().currentChatSessionId
+    let url = '/api/messages'
+    const params: string[] = []
+    if (projectId) params.push(`projectId=${projectId}`)
+    if (sessionId) params.push(`chatSessionId=${sessionId}`)
+    if (params.length > 0) url += '?' + params.join('&')
     const res = await fetchWithRetry(url)
     if (res?.ok) {
       const data = await res.json()
       set({ messages: deduplicateById(data) })
+    }
+  },
+  fetchChatSessions: async () => {
+    const projectId = get().currentProject?.id
+    const url = projectId ? `/api/chat-sessions?projectId=${projectId}` : '/api/chat-sessions'
+    const res = await fetchWithRetry(url)
+    if (res?.ok) {
+      const data = await res.json()
+      set({ chatSessions: deduplicateById(data) })
+      // Auto-select the most recent session if none selected
+      if (!get().currentChatSessionId && data.length > 0) {
+        set({ currentChatSessionId: data[0].id })
+      }
     }
   },
   fetchFiles: async () => {
@@ -559,28 +601,36 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       // Fetch all in parallel with retry
-      const [agentsRes, tasksRes, messagesRes, filesRes, logsRes, activitiesRes] = await Promise.all([
+      const [agentsRes, tasksRes, messagesRes, chatSessionsRes, filesRes, logsRes, activitiesRes] = await Promise.all([
         fetchWithRetry('/api/agents'),
         fetchWithRetry(`/api/tasks?projectId=${pid}`),
         fetchWithRetry(`/api/messages?projectId=${pid}`),
+        fetchWithRetry(`/api/chat-sessions?projectId=${pid}`),
         fetchWithRetry(`/api/files?projectId=${pid}`),
         fetchWithRetry(`/api/build-logs?projectId=${pid}`),
         fetchWithRetry('/api/activities'),
       ])
 
-      const [agents, tasks, messages, files, buildLogs, activities] = await Promise.all([
+      const [agents, tasks, messages, chatSessions, files, buildLogs, activities] = await Promise.all([
         agentsRes?.ok ? agentsRes.json() : [],
         tasksRes?.ok ? tasksRes.json() : [],
         messagesRes?.ok ? messagesRes.json() : [],
+        chatSessionsRes?.ok ? chatSessionsRes.json() : [],
         filesRes?.ok ? filesRes.json() : [],
         logsRes?.ok ? logsRes.json() : [],
         activitiesRes?.ok ? activitiesRes.json() : [],
       ])
 
+      // Auto-select the most recent chat session if none selected
+      const currentSessionId = get().currentChatSessionId
+      const autoSessionId = !currentSessionId && chatSessions.length > 0 ? chatSessions[0].id : currentSessionId
+
       set({
         agents: deduplicateById(agents),
         tasks: deduplicateById(tasks),
         messages: deduplicateById(messages),
+        chatSessions: deduplicateById(chatSessions),
+        currentChatSessionId: autoSessionId,
         files: deduplicateById(files),
         buildLogs: deduplicateById(buildLogs),
         activities: deduplicateById(activities),

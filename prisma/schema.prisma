@@ -19,6 +19,7 @@ model Project {
 
   tasks       Task[]
   messages    Message[]
+  chatSessions ChatSession[]
   files       ProjectFile[]
   buildLogs   BuildLog[]
 }
@@ -63,17 +64,31 @@ model Task {
   assignee    Agent?   @relation(fields: [assigneeId], references: [id])
 }
 
-model Message {
+model ChatSession {
   id          String   @id @default(cuid())
   projectId   String
-  agentId     String?
-  content     String
-  type        String   @default("chat") // chat, system, action, code_change, review_comment, test_result, deploy_log
-  metadata    String   @default("{}") // JSON
+  title       String   @default("New Chat")
+  summary     String   @default("") // Auto-generated summary of the conversation
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  agent       Agent?   @relation(fields: [agentId], references: [id])
+  messages    Message[]
+}
+
+model Message {
+  id            String   @id @default(cuid())
+  projectId     String
+  chatSessionId String?
+  agentId       String?
+  content       String
+  type          String   @default("chat") // chat, system, action, code_change, review_comment, test_result, deploy_log
+  metadata      String   @default("{}") // JSON
+  createdAt     DateTime @default(now())
+
+  project       Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chatSession   ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
+  agent         Agent?     @relation(fields: [agentId], references: [id])
 }
 
 model ProjectFile {
