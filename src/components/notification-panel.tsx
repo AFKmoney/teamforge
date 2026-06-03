@@ -137,17 +137,9 @@ export function NotificationBell() {
   const markNotificationRead = useAppStore((s) => s.markNotificationRead)
   const markAllNotificationsRead = useAppStore((s) => s.markAllNotificationsRead)
   const clearNotifications = useAppStore((s) => s.clearNotifications)
-  const generateSeedNotifications = useAppStore((s) => s.generateSeedNotifications)
 
   const unreadCount = notifications.filter((n) => !n.read).length
   const hasUnread = unreadCount > 0
-
-  // Generate seed notifications on first mount if empty
-  useEffect(() => {
-    if (notifications.length === 0) {
-      generateSeedNotifications()
-    }
-  }, [])
 
   const handleMarkAllRead = useCallback(() => {
     markAllNotificationsRead()

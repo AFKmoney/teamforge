@@ -510,7 +510,7 @@ export function IDEEditor() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
           output: `$ bun run build\n⠋ Compiling...\n✓ Compiled successfully in 1.2s\n✓ Build completed\n✓ All checks passed\n\nDone in 2.3s`,
           status: 'success',
           type: 'build',

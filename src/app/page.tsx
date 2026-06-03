@@ -56,9 +56,9 @@ export default function Home() {
   // Start agent orchestrator as fallback polling (reduced to 60s when WS is active)
   useAgentOrchestrator({ pollingInterval: wsConnected ? 60000 : 30000 })
 
-  // Initial data load
+  // Initial data load - dynamically fetch the first project
   useEffect(() => {
-    fetchAll('proj_01')
+    fetchAll()
   }, [fetchAll])
 
   // Update uptime every 30 seconds and track token history

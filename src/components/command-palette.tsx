@@ -47,6 +47,7 @@ export function CommandPalette() {
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
   const setIsRunning = useAppStore((s) => s.setIsRunning)
   const addFile = useAppStore((s) => s.addFile)
+  const currentProject = useAppStore((s) => s.currentProject)
 
   const { theme, setTheme } = useTheme()
 
@@ -174,7 +175,7 @@ export function CommandPalette() {
         // Create a new untitled file
         const newFile = {
           id: `file_${Date.now()}`,
-          projectId: 'proj_01',
+          projectId: currentProject?.id || '',
           path: `untitled-${Date.now()}.ts`,
           content: '',
           language: 'typescript',

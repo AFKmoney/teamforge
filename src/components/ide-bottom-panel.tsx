@@ -43,6 +43,7 @@ import {
   TestTube2,
   Rocket,
   MessageSquare,
+  Plus,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo, useCallback, useRef, useState } from 'react'
@@ -250,9 +251,12 @@ function TasksView() {
   const agents = useAppStore((s) => s.agents)
   const updateTask = useAppStore((s) => s.updateTask)
   const fetchTasks = useAppStore((s) => s.fetchTasks)
+  const currentProject = useAppStore((s) => s.currentProject)
 
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
+  const [showNewTaskInput, setShowNewTaskInput] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -344,6 +348,28 @@ function TasksView() {
     setDragOverColumn(null)
   }, [])
 
+  const handleCreateTask = useCallback(async () => {
+    if (!newTaskTitle.trim() || !currentProject?.id) return
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: currentProject.id,
+          title: newTaskTitle.trim(),
+          status: 'backlog',
+        }),
+      })
+      if (res.ok) {
+        await fetchTasks()
+        setNewTaskTitle('')
+        setShowNewTaskInput(false)
+      }
+    } catch (e) {
+      console.error('Failed to create task:', e)
+    }
+  }, [newTaskTitle, currentProject, fetchTasks])
+
   return (
     <DndContext
       sensors={sensors}
@@ -354,7 +380,38 @@ function TasksView() {
       onDragCancel={handleDragCancel}
     >
       <ScrollArea className="h-full">
-        <div className="flex gap-3 p-3 min-w-max">
+        <div className="p-3">
+          {/* Add task row */}
+          <div className="flex items-center gap-2 mb-3">
+            {showNewTaskInput ? (
+              <div className="flex items-center gap-2 flex-1">
+                <input
+                  type="text"
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newTaskTitle.trim()) handleCreateTask()
+                    if (e.key === 'Escape') { setShowNewTaskInput(false); setNewTaskTitle('') }
+                  }}
+                  placeholder="Task title..."
+                  className="flex-1 h-7 rounded-md border bg-transparent px-3 text-xs outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  autoFocus
+                />
+                <Button size="sm" className="h-7 text-xs gap-1" onClick={handleCreateTask} disabled={!newTaskTitle.trim()}>
+                  <Plus className="size-3" /> Add
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setShowNewTaskInput(false); setNewTaskTitle('') }}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowNewTaskInput(true)}>
+                <Plus className="size-3" /> Add Task
+              </Button>
+            )}
+            <span className="text-[10px] text-muted-foreground ml-auto">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="flex gap-3 min-w-max">
           {KANBAN_COLUMNS.map((col) => (
             <KanbanColumn
               key={col.status}
@@ -366,6 +423,7 @@ function TasksView() {
               isDragOver={dragOverColumn === col.status}
             />
           ))}
+          </div>
         </div>
       </ScrollArea>
       <DragOverlay dropAnimation={null}>
@@ -391,7 +449,7 @@ function BuildView() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
           output: `$ bun run build\n⠋ Compiling TypeScript...\n⠋ Bundling modules...\n✓ Type checking passed\n✓ Build completed in 1.8s\n✓ Output: .next/static\n\nDone in 2.5s`,
           status: 'success',
           type: 'build',

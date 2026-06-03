@@ -121,13 +121,13 @@ export function FileCreationDialog({ open, onOpenChange, initialPath = '', isFol
     setIsCreating(true)
     try {
       const content = isFolder ? '' : getTemplate(path)
-      const language = isFolder ? 'plaintext' : detectedLanguage
+      const language = isFolder ? 'plaintext' : detectedLang
 
-      const res = await fetch('/api/files', {
+      const res = await fetch('/api/vfs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
           path: path.trim(),
           content,
           language,

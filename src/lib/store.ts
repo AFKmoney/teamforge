@@ -260,64 +260,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   clearNotifications: () => set({ notifications: [] }),
   generateSeedNotifications: () => {
-    const now = Date.now()
-    const seeds: Omit<Notification, 'id' | 'read' | 'createdAt'>[] = [
-      {
-        title: 'Build Succeeded',
-        message: 'Production build completed successfully in 2.3s',
-        type: 'success',
-        category: 'build',
-      },
-      {
-        title: 'Task Completed',
-        message: 'Implement user authentication flow has been marked as done',
-        type: 'success',
-        category: 'task',
-      },
-      {
-        title: 'Agent Idle',
-        message: 'CodeBot is now idle and ready for new tasks',
-        type: 'info',
-        category: 'agent',
-      },
-      {
-        title: 'Lint Warning',
-        message: '2 warnings found in src/lib/utils.ts',
-        type: 'warning',
-        category: 'build',
-      },
-      {
-        title: 'New Message',
-        message: 'Architect agent shared design decisions for the API layer',
-        type: 'info',
-        category: 'chat',
-      },
-      {
-        title: 'Deploy Failed',
-        message: 'Staging deployment failed due to missing environment variables',
-        type: 'error',
-        category: 'build',
-      },
-      {
-        title: 'Task Blocked',
-        message: 'Database migration task is blocked by pending review',
-        type: 'warning',
-        category: 'task',
-      },
-      {
-        title: 'System Update',
-        message: 'TeamForge IDE has been updated to version 2.4.0',
-        type: 'info',
-        category: 'system',
-      },
-    ]
-    const notifications: Notification[] = seeds.map((seed, i) => ({
-      ...seed,
-      id: `notif_seed_${i}`,
-      read: i > 4, // first 5 are unread
-      createdAt: new Date(now - (i + 1) * 5 * 60 * 1000).toISOString(), // stagger by 5 min
-    }))
-    set({ notifications })
+    // No-op: removed seed/placeholder notifications
   },
 
   // Loading
@@ -402,20 +345,46 @@ export const useAppStore = create<AppState>((set, get) => ({
   fetchAll: async (projectId) => {
     set({ loading: true })
     try {
-      // Fetch project
-      if (projectId) {
-        const pRes = await fetchWithRetry(`/api/projects/${projectId}`)
+      // Ensure we have a project — if no projectId, fetch or create one
+      let pid = projectId || get().currentProject?.id
+      if (!pid) {
+        // Try to get the first project from the API
+        const projectsRes = await fetchWithRetry('/api/projects')
+        if (projectsRes?.ok) {
+          const projects = await projectsRes.json()
+          if (projects.length > 0) {
+            pid = projects[0].id
+            set({ currentProject: projects[0] })
+          }
+        }
+      } else if (pid) {
+        const pRes = await fetchWithRetry(`/api/projects/${pid}`)
         if (pRes?.ok) set({ currentProject: await pRes.json() })
       }
 
+      // If still no project, we can't fetch project-scoped data
+      if (!pid) {
+        // Fetch at least agents (not project-scoped)
+        const agentsRes = await fetchWithRetry('/api/agents')
+        const agents = agentsRes?.ok ? await agentsRes.json() : []
+        set({
+          agents: deduplicateById(agents),
+          tasks: [],
+          messages: [],
+          files: [],
+          buildLogs: [],
+          activities: [],
+        })
+        return
+      }
+
       // Fetch all in parallel with retry
-      const pid = projectId || get().currentProject?.id
       const [agentsRes, tasksRes, messagesRes, filesRes, logsRes, activitiesRes] = await Promise.all([
         fetchWithRetry('/api/agents'),
-        fetchWithRetry(pid ? `/api/tasks?projectId=${pid}` : '/api/tasks'),
-        fetchWithRetry(pid ? `/api/messages?projectId=${pid}` : '/api/messages'),
-        fetchWithRetry(pid ? `/api/files?projectId=${pid}` : '/api/files'),
-        fetchWithRetry(pid ? `/api/build-logs?projectId=${pid}` : '/api/build-logs'),
+        fetchWithRetry(`/api/tasks?projectId=${pid}`),
+        fetchWithRetry(`/api/messages?projectId=${pid}`),
+        fetchWithRetry(`/api/files?projectId=${pid}`),
+        fetchWithRetry(`/api/build-logs?projectId=${pid}`),
         fetchWithRetry('/api/activities'),
       ])
 

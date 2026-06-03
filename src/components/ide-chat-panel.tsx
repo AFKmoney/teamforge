@@ -321,7 +321,7 @@ export function IDEChatPanel() {
       case 'help':
         addMessage({
           id: `sys_${Date.now()}`,
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
           agentId: null,
           content: `Available commands:\n${SLASH_COMMANDS.map((c) => `  ${c.command} — ${c.description}`).join('\n')}`,
           type: 'system',
@@ -332,7 +332,7 @@ export function IDEChatPanel() {
       case 'status':
         addMessage({
           id: `sys_${Date.now()}`,
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
           agentId: null,
           content: `📊 Project Status:\n• ${agents.length} agents (${onlineCount} active)\n• ${messages.length} messages in chat\n• All systems operational`,
           type: 'system',
@@ -349,7 +349,7 @@ export function IDEChatPanel() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              projectId: currentProject?.id || 'proj_01',
+              projectId: currentProject?.id || '',
               output: '$ bun run test\n⠋ Running test suite...\n✓ 42 tests passed\n✗ 0 tests failed\n✓ Coverage: 87.3%\n\nDone in 4.1s',
               status: 'success',
               type: 'test',
@@ -366,7 +366,7 @@ export function IDEChatPanel() {
         }
         addMessage({
           id: `sys_${Date.now()}`,
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
           agentId: null,
           content: '🧪 Running test suite... Results will appear in the terminal.',
           type: 'system',
@@ -384,7 +384,7 @@ export function IDEChatPanel() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              projectId: currentProject?.id || 'proj_01',
+              projectId: currentProject?.id || '',
               output: '$ bun run deploy\n⠋ Deploying to production...\n✓ Build artifacts uploaded\n✓ CDN cache purged\n✓ Deployment successful\n\nDone in 12.8s',
               status: 'success',
               type: 'deploy',
@@ -401,7 +401,7 @@ export function IDEChatPanel() {
         }
         addMessage({
           id: `sys_${Date.now()}`,
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
           agentId: null,
           content: '🚀 Deploying to production... Check the terminal for progress.',
           type: 'system',
@@ -413,7 +413,7 @@ export function IDEChatPanel() {
       case 'create_file':
         addMessage({
           id: `sys_${Date.now()}`,
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
           agentId: null,
           content: '📝 Use the + button in the sidebar to create a new file, or right-click a folder in the file explorer.',
           type: 'system',
@@ -447,7 +447,7 @@ export function IDEChatPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: msg,
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
         }),
       })
 

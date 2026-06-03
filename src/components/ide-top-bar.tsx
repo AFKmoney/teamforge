@@ -108,7 +108,7 @@ function NewTaskDialog() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
           title: title.trim(),
           description: description.trim(),
           priority,
@@ -284,7 +284,7 @@ function RunAllDropdown() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: currentProject?.id || 'proj_01',
+          projectId: currentProject?.id || '',
           output: result,
           status: type === 'lint' ? 'warning' : 'success',
           type,
