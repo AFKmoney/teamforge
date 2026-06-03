@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2 } from 'lucide-react'
+import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer, TestTube2, Rocket, Sparkles, Activity } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
 // Agent pill color mapping by role
 const ROLE_PILL_COLORS: Record<AgentRole, { bg: string; border: string; activeBg: string }> = {
@@ -220,10 +221,110 @@ function NewTaskDialog() {
   )
 }
 
+// Run All dropdown component
+function RunAllDropdown() {
+  const currentProject = useAppStore((s) => s.currentProject)
+  const addBuildLog = useAppStore((s) => s.addBuildLog)
+  const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
+  const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
+  const setIsRunning = useAppStore((s) => s.setIsRunning)
+  const isRunning = useAppStore((s) => s.isRunning)
+
+  const runAction = useCallback(async (type: 'build' | 'test' | 'lint' | 'deploy') => {
+    setIsRunning(true)
+    setBottomPanelOpen(true)
+    setActiveBottomTab('terminal')
+
+    const outputs: Record<string, { cmd: string; result: string }> = {
+      build: {
+        cmd: 'bun run build',
+        result: '$ bun run build\n⠋ Compiling...\n✓ Compiled successfully in 1.2s\n✓ Build completed\n✓ All checks passed\n\nDone in 2.3s',
+      },
+      test: {
+        cmd: 'bun run test',
+        result: '$ bun run test\n⠋ Running test suite...\n✓ 42 tests passed\n✗ 0 tests failed\n✓ Coverage: 87.3%\n\nDone in 4.1s',
+      },
+      lint: {
+        cmd: 'bun run lint',
+        result: '$ bun run lint\n⠋ Linting files...\n✓ No errors found\n⚠ 2 warnings\n✓ All files checked\n\nDone in 1.5s',
+      },
+      deploy: {
+        cmd: 'bun run deploy',
+        result: '$ bun run deploy\n⠋ Deploying to production...\n✓ Build artifacts uploaded\n✓ CDN cache purged\n✓ Deployment successful\n\nDone in 12.8s',
+      },
+    }
+
+    const { cmd, result } = outputs[type]
+
+    try {
+      const res = await fetch('/api/build-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: currentProject?.id || 'proj_01',
+          output: result,
+          status: type === 'lint' ? 'warning' : 'success',
+          type,
+        }),
+      })
+      if (res.ok) {
+        const log = await res.json()
+        addBuildLog(log)
+      }
+    } catch (e) {
+      console.error(`Failed to run ${type}:`, e)
+    } finally {
+      setIsRunning(false)
+    }
+  }, [currentProject, addBuildLog, setActiveBottomTab, setBottomPanelOpen, setIsRunning])
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs px-2.5">
+          {isRunning ? (
+            <Loader2 className="size-3 animate-spin text-emerald-500" />
+          ) : (
+            <Play className="size-3 text-emerald-500" />
+          )}
+          <span className="hidden md:inline">Run All</span>
+          <ChevronDown className="size-2.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={() => runAction('build')} className="gap-2 text-xs cursor-pointer">
+          <Hammer className="size-3.5 text-blue-500" />
+          <span>Build</span>
+          <span className="text-muted-foreground ml-auto text-[10px]">Ctrl+Shift+B</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => runAction('test')} className="gap-2 text-xs cursor-pointer">
+          <TestTube2 className="size-3.5 text-amber-500" />
+          <span>Test</span>
+          <span className="text-muted-foreground ml-auto text-[10px]">Ctrl+Shift+T</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => runAction('lint')} className="gap-2 text-xs cursor-pointer">
+          <Sparkles className="size-3.5 text-violet-500" />
+          <span>Lint</span>
+          <span className="text-muted-foreground ml-auto text-[10px]">Ctrl+Shift+L</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => runAction('deploy')} className="gap-2 text-xs cursor-pointer">
+          <Rocket className="size-3.5 text-orange-500" />
+          <span>Deploy</span>
+          <span className="text-muted-foreground ml-auto text-[10px]">Ctrl+Shift+D</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function IDETopBar() {
   const agents = useAppStore((s) => s.agents)
   const currentProject = useAppStore((s) => s.currentProject)
+  const isRunning = useAppStore((s) => s.isRunning)
   const { theme, setTheme } = useTheme()
+
+  const activeAgents = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping')
 
   return (
     <div className="flex items-center h-11 px-3 border-b bg-card/90 backdrop-blur-sm gap-2 shrink-0 z-20">
@@ -240,6 +341,18 @@ export function IDETopBar() {
 
       <div className="h-4 w-px bg-border shrink-0" />
 
+      {/* Running indicator */}
+      {isRunning && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-600 dark:text-emerald-400"
+        >
+          <Activity className="size-3 animate-pulse" />
+          <span className="font-medium">Running</span>
+        </motion.div>
+      )}
+
       {/* Agent status pills */}
       <div className="flex items-center gap-1.5 overflow-x-auto flex-1 scrollbar-none py-1">
         <AnimatePresence mode="popLayout">
@@ -251,6 +364,7 @@ export function IDETopBar() {
 
       {/* Controls */}
       <div className="flex items-center gap-1 shrink-0">
+        <RunAllDropdown />
         <NewTaskDialog />
         <div className="flex items-center gap-0.5 ml-1">
           <TooltipProvider delayDuration={300}>

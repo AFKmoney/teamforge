@@ -6,8 +6,9 @@ import { IDESidebar } from '@/components/ide-sidebar'
 import { IDEEditor } from '@/components/ide-editor'
 import { IDEChatPanel } from '@/components/ide-chat-panel'
 import { IDEBottomPanel } from '@/components/ide-bottom-panel'
+import { AgentDetailDialog } from '@/components/agent-detail-dialog'
 import { useAppStore } from '@/lib/store'
-import { useAgentSimulation } from '@/hooks/use-agent-simulation'
+import { useAgentOrchestrator } from '@/hooks/use-agent-orchestrator'
 import { Cpu, Clock, Zap, Heart, Activity, GitBranch } from 'lucide-react'
 import { motion } from 'framer-motion'
 
@@ -24,8 +25,8 @@ export default function Home() {
   const startTime = useRef(Date.now())
   const [uptime, setUptime] = useState('0m')
 
-  // Start agent simulation
-  useAgentSimulation()
+  // Start agent orchestrator (real LLM-powered agent execution)
+  useAgentOrchestrator()
 
   // Initial data load
   useEffect(() => {
@@ -138,13 +139,16 @@ export default function Home() {
         <div className="flex items-center gap-2 ml-auto">
           <span className="font-medium text-foreground/70">TeamForge IDE</span>
           <span className="text-border">|</span>
-          <span>v0.4.0</span>
+          <span>v0.5.0</span>
           <span className="text-border">|</span>
           <span className="flex items-center gap-0.5">
             Made with <Heart className="size-2.5 text-red-500 fill-red-500" />
           </span>
         </div>
       </motion.footer>
+
+      {/* Agent Detail Dialog */}
+      <AgentDetailDialog />
 
       {/* Loading overlay */}
       {loading && (

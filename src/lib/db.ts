@@ -16,7 +16,7 @@ if (globalForPrisma._prismaSchemaVersion !== SCHEMA_VERSION) {
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['query'],
+    log: process.env.PRISMA_LOG === '1' ? ['query'] : ['error'],
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db

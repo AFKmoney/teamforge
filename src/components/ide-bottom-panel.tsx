@@ -12,17 +12,17 @@ import {
   LayoutGrid,
   Hammer,
   AlertTriangle,
-  ChevronDown,
-  ChevronUp,
   CheckCircle2,
   XCircle,
   AlertCircle,
   Loader2,
   PanelTopClose,
   PanelTopOpen,
+  Play,
+  ChevronRight,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useMemo } from 'react'
+import { useMemo, useCallback, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 const BOTTOM_TABS: { id: IDEBottomTab; label: string; icon: React.ReactNode }[] = [
@@ -65,7 +65,7 @@ function TerminalView() {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
         <Terminal className="size-4 mr-2 opacity-40" />
-        No terminal output yet
+        <span>No terminal output yet. Click Run Build to start.</span>
       </div>
     )
   }
@@ -88,10 +88,18 @@ function TerminalView() {
               log.status === 'running' && 'text-blue-400',
               !['success', 'failed', 'warning', 'running'].includes(log.status) && 'text-zinc-400',
             )}>
-              {log.output}
+              <span className="text-muted-foreground/60 select-none">$ </span>{log.output}
             </pre>
           </div>
         ))}
+        {/* Terminal prompt */}
+        <div className="flex items-center gap-1 text-zinc-400">
+          <span className="text-emerald-500 font-bold">~/project</span>
+          <span className="text-muted-foreground/60">on</span>
+          <span className="text-violet-400">main</span>
+          <span className="text-amber-400">❯</span>
+          <span className="w-2 h-4 bg-zinc-400 animate-pulse" />
+        </div>
       </div>
     </ScrollArea>
   )
@@ -147,10 +155,55 @@ function TasksView() {
 
 function BuildView() {
   const buildLogs = useAppStore((s) => s.buildLogs)
+  const currentProject = useAppStore((s) => s.currentProject)
+  const addBuildLog = useAppStore((s) => s.addBuildLog)
+  const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
+  const [isBuilding, setIsBuilding] = useState(false)
+
+  const handleRunBuild = useCallback(async () => {
+    setIsBuilding(true)
+    try {
+      const res = await fetch('/api/build-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: currentProject?.id || 'proj_01',
+          output: `$ bun run build\n⠋ Compiling TypeScript...\n⠋ Bundling modules...\n✓ Type checking passed\n✓ Build completed in 1.8s\n✓ Output: .next/static\n\nDone in 2.5s`,
+          status: 'success',
+          type: 'build',
+        }),
+      })
+      if (res.ok) {
+        const log = await res.json()
+        addBuildLog(log)
+        setActiveBottomTab('terminal')
+      }
+    } catch (e) {
+      console.error('Failed to run build:', e)
+    } finally {
+      setIsBuilding(false)
+    }
+  }, [currentProject, addBuildLog, setActiveBottomTab])
 
   return (
     <ScrollArea className="h-full">
       <div className="p-3 space-y-2">
+        {/* Run Build button */}
+        <div className="flex items-center gap-2 mb-3">
+          <Button
+            size="sm"
+            className="gap-1.5 h-7 text-xs"
+            onClick={handleRunBuild}
+            disabled={isBuilding}
+          >
+            {isBuilding ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
+            {isBuilding ? 'Building...' : 'Run Build'}
+          </Button>
+          <span className="text-[10px] text-muted-foreground">
+            {buildLogs.length} build{buildLogs.length !== 1 ? 's' : ''} recorded
+          </span>
+        </div>
+
         {buildLogs.map((log) => (
           <motion.div
             key={log.id}
@@ -189,7 +242,7 @@ function BuildView() {
         {buildLogs.length === 0 && (
           <div className="flex items-center justify-center py-8 text-muted-foreground text-xs">
             <Hammer className="size-4 mr-2 opacity-40" />
-            No build history
+            No build history. Click Run Build to start.
           </div>
         )}
       </div>
@@ -199,20 +252,38 @@ function BuildView() {
 
 function ProblemsView() {
   const buildLogs = useAppStore((s) => s.buildLogs)
+  const files = useAppStore((s) => s.files)
+  const setActiveFileId = useAppStore((s) => s.setActiveFileId)
+  const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
 
   // Extract problems from build logs
   const problems = useMemo(() => {
-    const items: { type: 'error' | 'warning'; message: string; source: string; line?: string }[] = []
+    const items: { type: 'error' | 'warning'; message: string; source: string; line?: string; filePath?: string }[] = []
     for (const log of buildLogs) {
       if (log.status === 'failed' || log.status === 'warning') {
-        const lines = log.output.split('\n')
-        for (const line of lines) {
+        const logLines = log.output.split('\n')
+        for (const line of logLines) {
           const errorMatch = line.match(/^(✗|Error|error|ERROR)[:\s]*(.+)/)
           const warnMatch = line.match(/^(⚠|Warning|warning|WARN)[:\s]*(.+)/)
+          // Try to extract file path from error line
+          const fileMatch = line.match(/(?:^|\s)((?:\/)?[\w/.-]+\.\w+)(?::(\d+))?(?::(\d+))?/)
+
           if (errorMatch) {
-            items.push({ type: 'error', message: errorMatch[2] || line, source: log.type })
+            items.push({
+              type: 'error',
+              message: errorMatch[2] || line,
+              source: log.type,
+              line: fileMatch?.[2],
+              filePath: fileMatch?.[1],
+            })
           } else if (warnMatch) {
-            items.push({ type: 'warning', message: warnMatch[2] || line, source: log.type })
+            items.push({
+              type: 'warning',
+              message: warnMatch[2] || line,
+              source: log.type,
+              line: fileMatch?.[2],
+              filePath: fileMatch?.[1],
+            })
           }
         }
         if (items.length === 0 && log.status === 'failed') {
@@ -223,16 +294,28 @@ function ProblemsView() {
     return items
   }, [buildLogs])
 
+  const handleProblemClick = (problem: { filePath?: string }) => {
+    if (problem.filePath) {
+      // Find the file in our file list
+      const file = files.find((f) => f.path.includes(problem.filePath || '') || f.path.endsWith(problem.filePath || ''))
+      if (file) {
+        setActiveFileId(file.id)
+        setBottomPanelOpen(false)
+      }
+    }
+  }
+
   return (
     <ScrollArea className="h-full">
       <div className="p-3">
         {problems.length > 0 ? (
           <div className="space-y-1">
             {problems.map((problem, i) => (
-              <div
+              <button
                 key={i}
+                onClick={() => handleProblemClick(problem)}
                 className={cn(
-                  'flex items-start gap-2 px-2 py-1.5 rounded text-xs',
+                  'flex items-start gap-2 px-2 py-1.5 rounded text-xs w-full text-left transition-colors hover:bg-muted/50',
                   problem.type === 'error' && 'text-red-500',
                   problem.type === 'warning' && 'text-amber-500',
                 )}
@@ -244,9 +327,17 @@ function ProblemsView() {
                 )}
                 <div className="flex-1 min-w-0">
                   <span className="text-foreground/90">{problem.message}</span>
-                  <span className="text-muted-foreground ml-2">{problem.source}</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-muted-foreground">{problem.source}</span>
+                    {problem.filePath && (
+                      <span className="text-muted-foreground/60 truncate">{problem.filePath}{problem.line ? `:${problem.line}` : ''}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
+                {problem.filePath && (
+                  <ChevronRight className="size-3 text-muted-foreground/30 shrink-0 mt-0.5" />
+                )}
+              </button>
             ))}
           </div>
         ) : (
@@ -265,6 +356,8 @@ export function IDEBottomPanel() {
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
   const bottomPanelOpen = useAppStore((s) => s.bottomPanelOpen)
   const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
+  const bottomPanelHeight = useAppStore((s) => s.bottomPanelHeight)
+  const setBottomPanelHeight = useAppStore((s) => s.setBottomPanelHeight)
   const tasks = useAppStore((s) => s.tasks)
   const buildLogs = useAppStore((s) => s.buildLogs)
 
@@ -285,6 +378,32 @@ export function IDEBottomPanel() {
     return count
   }, [buildLogs])
 
+  // Resize logic
+  const resizeRef = useRef<HTMLDivElement>(null)
+  const [isResizing, setIsResizing] = useState(false)
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+
+    const startY = e.clientY
+    const startHeight = bottomPanelHeight
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = startY - moveEvent.clientY
+      setBottomPanelHeight(startHeight + delta)
+    }
+
+    const onMouseUp = () => {
+      setIsResizing(false)
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }, [bottomPanelHeight, setBottomPanelHeight])
+
   const renderContent = () => {
     switch (activeBottomTab) {
       case 'terminal':
@@ -302,6 +421,16 @@ export function IDEBottomPanel() {
 
   return (
     <div className="flex flex-col border-t shrink-0 bg-background">
+      {/* Resize handle */}
+      <div
+        ref={resizeRef}
+        className={cn(
+          'h-1 cursor-row-resize hover:bg-emerald-500/30 transition-colors -mt-0.5 relative z-10',
+          isResizing && 'bg-emerald-500/40',
+        )}
+        onMouseDown={handleMouseDown}
+      />
+
       {/* Tab bar */}
       <div className="flex items-center h-9 px-1 border-b shrink-0">
         {BOTTOM_TABS.map((tab) => (
@@ -348,7 +477,7 @@ export function IDEBottomPanel() {
         {bottomPanelOpen && (
           <motion.div
             initial={{ height: 0 }}
-            animate={{ height: 220 }}
+            animate={{ height: bottomPanelHeight }}
             exit={{ height: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"

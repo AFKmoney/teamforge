@@ -23,12 +23,30 @@ interface AppState {
   setActiveFileId: (id: string | null) => void
   bottomPanelOpen: boolean
   setBottomPanelOpen: (open: boolean) => void
+  bottomPanelHeight: number
+  setBottomPanelHeight: (h: number) => void
   sidebarCollapsed: boolean
   setSidebarCollapsed: (collapsed: boolean) => void
   rightPanelOpen: boolean
   setRightPanelOpen: (open: boolean) => void
   terminalMinimized: boolean
   setTerminalMinimized: (min: boolean) => void
+
+  // Editor state
+  unsavedFileIds: Set<string>
+  markFileUnsaved: (id: string) => void
+  markFileSaved: (id: string) => void
+  cursorLine: number
+  cursorColumn: number
+  setCursorPosition: (line: number, column: number) => void
+
+  // Agent detail dialog
+  selectedAgentId: string | null
+  setSelectedAgentId: (id: string | null) => void
+
+  // Running state for top bar
+  isRunning: boolean
+  setIsRunning: (running: boolean) => void
 
   // Loading
   loading: boolean
@@ -48,6 +66,9 @@ interface AppState {
   addActivity: (activity: AgentActivity) => void
   updateAgent: (id: string, updates: Partial<Agent>) => void
   updateTask: (id: string, updates: Partial<Task>) => void
+  addFile: (file: ProjectFile) => void
+  removeFile: (id: string) => void
+  updateFileContent: (id: string, content: string) => void
 
   // Fetch helpers
   fetchAgents: () => Promise<void>
@@ -81,12 +102,38 @@ export const useAppStore = create<AppState>((set, get) => ({
   setActiveFileId: (id) => set({ activeFileId: id }),
   bottomPanelOpen: true,
   setBottomPanelOpen: (open) => set({ bottomPanelOpen: open }),
+  bottomPanelHeight: 220,
+  setBottomPanelHeight: (h) => set({ bottomPanelHeight: Math.max(100, Math.min(500, h)) }),
   sidebarCollapsed: false,
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   rightPanelOpen: true,
   setRightPanelOpen: (open) => set({ rightPanelOpen: open }),
   terminalMinimized: false,
   setTerminalMinimized: (min) => set({ terminalMinimized: min }),
+
+  // Editor state
+  unsavedFileIds: new Set<string>(),
+  markFileUnsaved: (id) => set((s) => {
+    const next = new Set(s.unsavedFileIds)
+    next.add(id)
+    return { unsavedFileIds: next }
+  }),
+  markFileSaved: (id) => set((s) => {
+    const next = new Set(s.unsavedFileIds)
+    next.delete(id)
+    return { unsavedFileIds: next }
+  }),
+  cursorLine: 1,
+  cursorColumn: 1,
+  setCursorPosition: (line, column) => set({ cursorLine: line, cursorColumn: column }),
+
+  // Agent detail dialog
+  selectedAgentId: null,
+  setSelectedAgentId: (id) => set({ selectedAgentId: id }),
+
+  // Running state
+  isRunning: false,
+  setIsRunning: (running) => set({ isRunning: running }),
 
   // Loading
   loading: false,
@@ -109,6 +156,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   updateTask: (id, updates) => set((s) => ({
     tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+  })),
+  addFile: (file) => set((s) => ({ files: [...s.files, file] })),
+  removeFile: (id) => set((s) => ({ files: s.files.filter((f) => f.id !== id) })),
+  updateFileContent: (id, content) => set((s) => ({
+    files: s.files.map((f) => (f.id === id ? { ...f, content } : f)),
   })),
 
   // Fetch helpers
