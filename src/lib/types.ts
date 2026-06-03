@@ -277,3 +277,31 @@ export interface Notification {
   read: boolean
   source?: string
 }
+
+// ---------------------------------------------------------------------------
+// Page Navigation
+// ---------------------------------------------------------------------------
+
+export type Page =
+  | 'dashboard'
+  | 'agents'
+  | 'evolution'
+  | 'memory'
+  | 'knowledge'
+  | 'research'
+  | 'benchmarks'
+  | 'safety'
+  | 'chat'
+  | 'activity'
+  | 'settings'
+  | 'topology'
+  | 'insights'
+
+// ---------------------------------------------------------------------------
+// Recent Page History
+// ---------------------------------------------------------------------------
+
+export interface RecentPage {
+  page: Page
+  visitedAt: string
+}

@@ -53,6 +53,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { PageHeader } from '@/components/page-header'
 import type { EvolutionEvent, EvolutionType, EvolutionStatus, RiskLevel } from '@/lib/types'
 
@@ -328,9 +329,9 @@ function SideBySideDiffPanel({
       <Separator />
 
       {/* Side-by-side diff panels */}
-      <div className="grid grid-cols-2 gap-0 rounded-lg border border-border overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-0 rounded-lg border border-border overflow-x-auto">
         {/* Before panel */}
-        <div className="border-r border-border">
+        <div className="md:border-r border-b md:border-b-0 border-border">
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/5 border-b border-border">
             <span className="inline-block size-2 rounded bg-red-500/30" />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Before</span>
@@ -430,7 +431,7 @@ function DiffViewerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl w-[calc(100vw-2rem)] max-h-[95vh] md:max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <div className="flex items-center gap-2 flex-wrap">
             <DialogTitle className="text-lg">{event.title}</DialogTitle>
@@ -938,9 +939,12 @@ export function EvolutionPanel() {
         setFormDesc('')
         setFormRisk('low')
         await fetchEvents()
+        toastSuccess('Improvement proposed', `"${formTitle}" has been submitted for review.`)
+      } else {
+        toastError('Failed to propose', 'Could not submit the improvement. Please try again.')
       }
     } catch {
-      // silently fail
+      toastError('Failed to propose', 'A network error occurred.')
     } finally {
       setSubmitting(false)
     }
@@ -948,6 +952,13 @@ export function EvolutionPanel() {
 
   // Status transition actions
   const handleStatusChange = async (id: string, newStatus: EvolutionStatus) => {
+    const statusLabels: Record<EvolutionStatus, string> = {
+      proposed: 'proposed',
+      testing: 'moved to testing',
+      validated: 'validated',
+      deployed: 'deployed',
+      rejected: 'rejected',
+    }
     try {
       const res = await fetch(`/api/evolution/${id}`, {
         method: 'PATCH',
@@ -956,9 +967,12 @@ export function EvolutionPanel() {
       })
       if (res.ok) {
         await fetchEvents()
+        toastSuccess('Status updated', `Evolution event ${statusLabels[newStatus]}.`)
+      } else {
+        toastError('Failed to update status', 'Could not change the event status.')
       }
     } catch {
-      // silently fail
+      toastError('Failed to update status', 'A network error occurred.')
     }
   }
 
@@ -1015,7 +1029,7 @@ export function EvolutionPanel() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 overflow-x-hidden">
       {/* Header */}
       <PageHeader
         icon={Dna}
@@ -1023,9 +1037,9 @@ export function EvolutionPanel() {
         title="Evolution Engine"
         badge={<Badge variant="secondary" className="text-sm">{evolutionEvents.length}</Badge>}
         actions={
-          <Button size="sm" onClick={() => setProposeOpen(true)}>
+          <Button size="sm" onClick={() => setProposeOpen(true)} className="min-h-[44px]">
             <Plus className="size-4 mr-1" />
-            Propose Improvement
+            <span className="hidden sm:inline">Propose </span>Improvement
           </Button>
         }
       />
@@ -1064,7 +1078,7 @@ export function EvolutionPanel() {
 
       {/* Status Filter Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex-wrap h-auto">
+        <TabsList className="flex-wrap h-auto overflow-x-auto max-w-full">
           <TabsTrigger value="all">All ({evolutionEvents.length})</TabsTrigger>
           <TabsTrigger value="proposed">Proposed ({countByStatus('proposed')})</TabsTrigger>
           <TabsTrigger value="testing">Testing ({countByStatus('testing')})</TabsTrigger>
@@ -1241,7 +1255,7 @@ export function EvolutionPanel() {
 
       {/* Propose Improvement Dialog */}
       <Dialog open={proposeOpen} onOpenChange={setProposeOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md w-[calc(100vw-2rem)]">
           <DialogHeader>
             <DialogTitle>Propose Improvement</DialogTitle>
             <DialogDescription>Suggest a new evolution improvement</DialogDescription>

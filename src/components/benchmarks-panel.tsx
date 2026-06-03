@@ -43,6 +43,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
+import { toastSuccess } from '@/lib/toast-utils'
 import { useAppStore } from '@/lib/store'
 import type { Benchmark } from '@/lib/types'
 import { PageHeader } from '@/components/page-header'
@@ -260,7 +261,7 @@ export function BenchmarksPanel() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-72 w-full" />
+        <Skeleton className="h-48 md:h-72 w-full" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-24 w-full" />
@@ -271,7 +272,7 @@ export function BenchmarksPanel() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-hidden">
       {/* Header */}
       <PageHeader
         icon={BarChart3}
@@ -299,6 +300,7 @@ export function BenchmarksPanel() {
                   'Created At': b.createdAt,
                 }))
                 exportToCSV(data, 'benchmarks')
+                toastSuccess('Export complete', 'Benchmarks exported as CSV.')
               }}>
                 <FileSpreadsheet className="mr-2 size-4" />
                 Export as CSV
@@ -316,6 +318,7 @@ export function BenchmarksPanel() {
                   createdAt: b.createdAt,
                 }))
                 exportToJSON(data, 'benchmarks')
+                toastSuccess('Export complete', 'Benchmarks exported as JSON.')
               }}>
                 <FileJson className="mr-2 size-4" />
                 Export as JSON
@@ -327,7 +330,7 @@ export function BenchmarksPanel() {
 
       {/* Summary Stats Row */}
       <motion.div
-        className="grid grid-cols-3 gap-3"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -373,7 +376,7 @@ export function BenchmarksPanel() {
         onValueChange={setCategory}
         className="w-full"
       >
-        <TabsList className="flex h-auto flex-wrap gap-1 bg-transparent p-0">
+        <TabsList className="flex h-auto flex-wrap gap-1 bg-transparent p-0 overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
           {CATEGORIES.map((cat) => (
             <TabsTrigger
               key={cat}
@@ -395,7 +398,7 @@ export function BenchmarksPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-72">
+            <div className="h-48 md:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={chartData}

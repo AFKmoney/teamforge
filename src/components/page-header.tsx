@@ -85,7 +85,7 @@ export function PageHeader({
       initial="hidden"
       animate="visible"
       className={cn(
-        'flex flex-col sm:flex-row sm:items-center justify-between gap-4',
+        'flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4',
         className
       )}
     >
@@ -101,7 +101,7 @@ export function PageHeader({
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold text-foreground">{title}</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">{title}</h2>
             {badge}
           </div>
           {description && (
@@ -112,7 +112,7 @@ export function PageHeader({
 
       {/* Right: actions */}
       {actions && (
-        <div className="flex items-center gap-2 shrink-0">{actions}</div>
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap">{actions}</div>
       )}
     </motion.div>
   )

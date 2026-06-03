@@ -13,6 +13,8 @@ import {
   RotateCcw,
   Check,
   Activity,
+  Sparkles,
+  HelpCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,6 +32,7 @@ import {
 import { Slider } from '@/components/ui/slider'
 import { useAppStore } from '@/lib/store'
 import type { SystemSettings } from '@/lib/types'
+import { toastSuccess } from '@/lib/toast-utils'
 import { useTheme } from 'next-themes'
 import { PageHeader } from '@/components/page-header'
 
@@ -51,6 +54,7 @@ export function SettingsPanel() {
   const handleSave = () => {
     setSettings(localSettings)
     setSaved(true)
+    toastSuccess('Settings saved', 'Your configuration changes have been applied.')
     setTimeout(() => setSaved(false), 2000)
   }
 
@@ -67,6 +71,7 @@ export function SettingsPanel() {
     }
     setLocalSettings(defaults)
     setSettings(defaults)
+    toastSuccess('Settings reset', 'All settings have been restored to their defaults.')
   }
 
   const updateSetting = <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {
@@ -74,7 +79,7 @@ export function SettingsPanel() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-4 md:space-y-6 max-w-4xl overflow-x-hidden">
       {/* Header */}
       <PageHeader
         icon={Settings}
@@ -119,13 +124,13 @@ export function SettingsPanel() {
             <CardDescription>Customize the look and feel of the interface</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <Label className="text-sm font-medium">Theme</Label>
                 <p className="text-xs text-muted-foreground">Choose your preferred color scheme</p>
               </div>
               <Select value={theme} onValueChange={setTheme}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-full sm:w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -134,6 +139,42 @@ export function SettingsPanel() {
                   <SelectItem value="system">System</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Help & Tour */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, delay: 0.03 }}
+      >
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <HelpCircle className="size-4 text-emerald-500" />
+              <CardTitle className="text-base">Help & Tour</CardTitle>
+            </div>
+            <CardDescription>Get familiar with the EvoAI dashboard</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <Label className="text-sm font-medium">Guided Tour</Label>
+                <p className="text-xs text-muted-foreground">
+                  Take a walkthrough of all the main features and panels
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={() => useAppStore.getState().startTour()}
+              >
+                <Sparkles className="size-3.5" />
+                Restart Tour
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -154,7 +195,7 @@ export function SettingsPanel() {
             <CardDescription>Control real-time data simulation for the dashboard</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <Label className="text-sm font-medium">Real-Time Simulation</Label>
                 <p className="text-xs text-muted-foreground">
@@ -181,7 +222,7 @@ export function SettingsPanel() {
             <Separator />
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <Label className="text-sm font-medium">Simulation Speed</Label>
                 <Badge variant="secondary">{simulationSpeed}x</Badge>
               </div>
@@ -204,7 +245,7 @@ export function SettingsPanel() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <Label className="text-sm font-medium">Last Update</Label>
                 <p className="text-xs text-muted-foreground">When the simulation last produced new data</p>
@@ -234,7 +275,7 @@ export function SettingsPanel() {
             <CardDescription>Control how the system evolves and improves itself</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <Label className="text-sm font-medium">Auto-Evolution</Label>
                 <p className="text-xs text-muted-foreground">Allow the system to automatically evolve</p>
@@ -248,7 +289,7 @@ export function SettingsPanel() {
             <Separator />
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <Label className="text-sm font-medium">Evolution Interval</Label>
                 <Badge variant="secondary">{localSettings.evolutionIntervalMinutes} min</Badge>
               </div>
@@ -264,7 +305,7 @@ export function SettingsPanel() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <Label className="text-sm font-medium">Max Risk Level</Label>
                 <p className="text-xs text-muted-foreground">Highest risk level allowed for auto-deployment</p>
@@ -273,7 +314,7 @@ export function SettingsPanel() {
                 value={localSettings.maxRiskLevel}
                 onValueChange={(val) => updateSetting('maxRiskLevel', val)}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-full sm:w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -304,7 +345,7 @@ export function SettingsPanel() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <Label className="text-sm font-medium">Max Concurrent Agents</Label>
                 <Badge variant="secondary">{localSettings.maxConcurrentAgents}</Badge>
               </div>
@@ -336,7 +377,7 @@ export function SettingsPanel() {
             <CardDescription>Configure safety guardrails and compliance rules</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <Label className="text-sm font-medium">Strict Safety Mode</Label>
                 <p className="text-xs text-muted-foreground">Require human approval for all high-risk changes</p>
@@ -349,7 +390,7 @@ export function SettingsPanel() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <Label className="text-sm font-medium">Research Laboratory</Label>
                 <p className="text-xs text-muted-foreground">Allow the system to conduct autonomous research</p>
@@ -379,7 +420,7 @@ export function SettingsPanel() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <Label className="text-sm font-medium">Memory Retention</Label>
                 <Badge variant="secondary">{localSettings.memoryRetentionDays} days</Badge>
               </div>
@@ -395,7 +436,7 @@ export function SettingsPanel() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <Label className="text-sm font-medium">Log Verbosity</Label>
                 <p className="text-xs text-muted-foreground">Control the detail level of system logs</p>
@@ -404,7 +445,7 @@ export function SettingsPanel() {
                 value={localSettings.logVerbosity}
                 onValueChange={(val) => updateSetting('logVerbosity', val)}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-full sm:w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -433,7 +474,7 @@ export function SettingsPanel() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Version</p>
                 <p className="text-sm font-medium">1.0.0</p>

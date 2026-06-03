@@ -14,6 +14,7 @@ import {
   Clock,
   Zap,
   ArrowRight,
+  ArrowUpRight,
   Cpu,
   HardDrive,
   Wifi,
@@ -25,6 +26,9 @@ import {
   XCircle,
   ChevronRight,
   Gauge,
+  BarChart3,
+  Coins,
+  HeartPulse,
 } from 'lucide-react'
 import {
   Card,
@@ -38,6 +42,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/page-header'
+import { TourWelcomeCard } from '@/components/onboarding-tour'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -432,20 +437,96 @@ const typeColorMap: Record<string, string> = {
 }
 
 // ---------------------------------------------------------------------------
-// Metric Card Skeleton
+// Enhanced Metric Card Skeleton (with shimmer)
 // ---------------------------------------------------------------------------
 
 function MetricCardSkeleton() {
   return (
-    <Card className="py-4">
-      <CardHeader className="pb-0 pt-0 px-4">
-        <Skeleton className="h-4 w-24 mb-1" />
-      </CardHeader>
-      <CardContent className="px-4">
-        <Skeleton className="h-8 w-16 mb-1" />
-        <Skeleton className="h-3 w-32" />
-      </CardContent>
+    <Card className="p-5 overflow-hidden">
+      <div className="flex items-start gap-3">
+        {/* Circle icon placeholder */}
+        <div className="size-10 rounded-full animate-shimmer shrink-0" />
+        <div className="flex-1 space-y-2">
+          {/* Title line */}
+          <div className="h-3.5 w-24 animate-shimmer rounded" />
+          {/* Value line */}
+          <div className="h-7 w-16 animate-shimmer rounded" style={{ animationDelay: '0.15s' }} />
+          {/* Description line */}
+          <div className="h-3 w-32 animate-shimmer rounded" style={{ animationDelay: '0.3s' }} />
+        </div>
+        {/* Sparkline placeholder */}
+        <div className="size-6 animate-shimmer rounded shrink-0" style={{ animationDelay: '0.45s' }} />
+      </div>
     </Card>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Chart Skeleton (with shimmer gradient)
+// ---------------------------------------------------------------------------
+
+function ChartSkeleton() {
+  return (
+    <div className="relative h-[200px] md:h-[250px] w-full overflow-hidden rounded-md">
+      <div className="animate-shimmer absolute inset-0 rounded-md" />
+      {/* Fake axis lines */}
+      <div className="absolute left-0 right-0 top-4 bottom-4 flex flex-col justify-between px-8 py-2">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-px w-full bg-muted-foreground/5" />
+        ))}
+      </div>
+      {/* Fake chart area */}
+      <div className="absolute inset-x-8 bottom-8 top-8">
+        <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 200 80">
+          <path
+            d="M0,60 Q25,45 50,50 T100,30 T150,35 T200,20"
+            fill="none"
+            className="stroke-muted-foreground/10"
+            strokeWidth="2"
+          />
+          <path
+            d="M0,40 Q25,50 50,35 T100,45 T150,30 T200,40"
+            fill="none"
+            className="stroke-muted-foreground/10"
+            strokeWidth="2"
+          />
+        </svg>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Gauge Skeleton (pulsing circle placeholder)
+// ---------------------------------------------------------------------------
+
+function GaugeSkeleton() {
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="size-[72px] rounded-full animate-shimmer" />
+      <div className="h-3 w-12 animate-shimmer rounded" style={{ animationDelay: '0.2s' }} />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Activity Feed Skeleton (5 rows with varying widths)
+// ---------------------------------------------------------------------------
+
+function ActivityFeedSkeleton() {
+  const widths = ['w-full', 'w-4/5', 'w-full', 'w-3/4', 'w-full']
+  return (
+    <div className="space-y-1">
+      {widths.map((w, i) => (
+        <div key={i} className="flex items-center gap-3 py-3 px-4">
+          <div className="size-4 rounded-full animate-shimmer shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className={cn('h-3 animate-shimmer rounded', w)} style={{ animationDelay: `${i * 0.1}s` }} />
+            <div className={cn('h-2.5 animate-shimmer rounded', i % 2 === 0 ? 'w-2/3' : 'w-1/2')} style={{ animationDelay: `${i * 0.1 + 0.05}s` }} />
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -481,6 +562,45 @@ function LiveIndicator({ isLive, onClick }: { isLive: boolean; onClick: () => vo
 }
 
 // ---------------------------------------------------------------------------
+// Metric card accent color mapping for hover border-bottom
+// ---------------------------------------------------------------------------
+
+const metricCardAccentMap: Record<string, { border: string; hoverBorder: string; icon: string }> = {
+  agents: {
+    border: 'border-l-emerald-500',
+    hoverBorder: 'hover:border-b-2 hover:border-b-emerald-500/40',
+    icon: 'text-emerald-500 dark:text-emerald-400',
+  },
+  memories: {
+    border: 'border-l-violet-500',
+    hoverBorder: 'hover:border-b-2 hover:border-b-violet-500/40',
+    icon: 'text-violet-500 dark:text-violet-400',
+  },
+  evolution: {
+    border: 'border-l-amber-500',
+    hoverBorder: 'hover:border-b-2 hover:border-b-amber-500/40',
+    icon: 'text-amber-500 dark:text-amber-400',
+  },
+  safety: {
+    border: 'border-l-emerald-500',
+    hoverBorder: 'hover:border-b-2 hover:border-b-emerald-500/40',
+    icon: 'text-emerald-600 dark:text-emerald-400',
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Quick Stats icon badge configuration
+// ---------------------------------------------------------------------------
+
+const quickStatIconConfig: Record<string, { icon: React.ComponentType<{ className?: string }>; bg: string }> = {
+  benchmark: { icon: BarChart3, bg: 'bg-emerald-500/10' },
+  tokens: { icon: Coins, bg: 'bg-violet-500/10' },
+  tasks: { icon: Clock, bg: 'bg-amber-500/10' },
+  safety: { icon: AlertTriangle, bg: 'bg-rose-500/10' },
+  status: { icon: HeartPulse, bg: 'bg-emerald-500/10' },
+}
+
+// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
@@ -495,6 +615,7 @@ export function DashboardOverview() {
   const setIsLoading = useAppStore((s) => s.setIsLoading)
   const setSimulationSpeed = useAppStore((s) => s.setSimulationSpeed)
   const simulationSpeed = useAppStore((s) => s.simulationSpeed)
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage)
 
   const [chartData, setChartData] = useState<Array<Record<string, unknown>>>([])
   const [latestEvents, setLatestEvents] = useState<EvolutionEvent[]>([])
@@ -615,6 +736,7 @@ export function DashboardOverview() {
     : 0
 
   const statusBreakdown = data?.evolutionStatusBreakdown ?? {}
+  const totalEvolutionEvents = Object.values(statusBreakdown).reduce((a, b) => a + (b as number), 0) as number
 
   // Use simulation-driven gauge values when simulating, fallback to static
   const gaugeValues = useMemo(() => {
@@ -673,7 +795,7 @@ export function DashboardOverview() {
 
   return (
     <motion.div
-      className="space-y-6"
+      className="space-y-6 md:space-y-8 overflow-x-hidden"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -714,14 +836,17 @@ export function DashboardOverview() {
               className="gap-2"
             >
               <RefreshCw className={cn('size-4', loading && 'animate-spin')} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
           </>
         }
       />
 
+      {/* Welcome Card for First-Time Users */}
+      <TourWelcomeCard />
+
       {/* Top Row: Key Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
         {loading ? (
           <>
             <MetricCardSkeleton />
@@ -733,27 +858,38 @@ export function DashboardOverview() {
           <>
             {/* Active Agents */}
             <motion.div variants={itemVariants}>
-              <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 bg-card/80 backdrop-blur-sm border-border/50 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:scale-[1.02]">
+              <Card
+                className={cn(
+                  'relative overflow-hidden border-l-4 bg-card/80 backdrop-blur-sm border-border/50',
+                  'shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-all duration-300',
+                  'hover:scale-[1.02] hover:-translate-y-0.5',
+                  'hover:ring-1 hover:ring-primary/10',
+                  'cursor-pointer group',
+                  metricCardAccentMap.agents.border,
+                  metricCardAccentMap.agents.hoverBorder,
+                )}
+                onClick={() => setCurrentPage('agents')}
+              >
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
-                <CardHeader className="pb-0 pt-4 px-4 relative">
-                  <CardDescription className="flex items-center gap-2">
+                <CardHeader className="pb-0 pt-5 px-5 relative">
+                  <CardDescription className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <span className="relative">
-                      <Users className="size-4 text-emerald-500 dark:text-emerald-400" />
+                      <Users className={cn('size-4', metricCardAccentMap.agents.icon)} />
                       <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 animate-pulse" />
                     </span>
                     Active Agents
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="px-4 pb-4 relative">
+                <CardContent className="px-5 pb-5 relative">
                   <div className="flex items-end justify-between">
                     <div>
-                      <div className="text-2xl font-bold text-foreground">
+                      <div className="text-2xl md:text-3xl font-bold text-foreground tracking-tight" style={{ letterSpacing: '-0.02em' }}>
                         <CountUp target={simAdjustedActiveAgents} duration={1} />
-                        <span className="text-sm font-normal text-muted-foreground">
+                        <span className="text-sm font-medium text-muted-foreground">
                           /<CountUp target={data?.agentCount ?? 0} duration={1} />
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground/70 mt-0.5">
                         {data?.agentCount
                           ? `${Math.round((simAdjustedActiveAgents / data.agentCount) * 100)}% utilization`
                           : 'No agents registered'}
@@ -761,56 +897,82 @@ export function DashboardOverview() {
                     </div>
                     <MiniSparkline data={sparklineData.agents} color="emerald" />
                   </div>
+                  {/* Hover arrow */}
+                  <ArrowUpRight className="absolute bottom-3 right-3 size-4 text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </CardContent>
               </Card>
             </motion.div>
 
             {/* Total Memories */}
             <motion.div variants={itemVariants}>
-              <Card className="relative overflow-hidden border-l-4 border-l-violet-500 bg-card/80 backdrop-blur-sm border-border/50 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:scale-[1.02]">
+              <Card
+                className={cn(
+                  'relative overflow-hidden border-l-4 bg-card/80 backdrop-blur-sm border-border/50',
+                  'shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-all duration-300',
+                  'hover:scale-[1.02] hover:-translate-y-0.5',
+                  'hover:ring-1 hover:ring-primary/10',
+                  'cursor-pointer group',
+                  metricCardAccentMap.memories.border,
+                  metricCardAccentMap.memories.hoverBorder,
+                )}
+                onClick={() => setCurrentPage('memory')}
+              >
                 <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-transparent pointer-events-none" />
-                <CardHeader className="pb-0 pt-4 px-4 relative">
-                  <CardDescription className="flex items-center gap-2">
+                <CardHeader className="pb-0 pt-5 px-5 relative">
+                  <CardDescription className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <span className="relative">
-                      <Database className="size-4 text-violet-500 dark:text-violet-400" />
+                      <Database className={cn('size-4', metricCardAccentMap.memories.icon)} />
                       <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-violet-500 animate-pulse" />
                     </span>
                     Total Memories
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="px-4 pb-4 relative">
+                <CardContent className="px-5 pb-5 relative">
                   <div className="flex items-end justify-between">
                     <div>
-                      <div className="text-2xl font-bold text-foreground">
+                      <div className="text-2xl md:text-3xl font-bold text-foreground tracking-tight" style={{ letterSpacing: '-0.02em' }}>
                         <CountUp target={simAdjustedMemories} duration={1.4} />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground/70 mt-0.5">
                         Working, episodic, semantic & more
                       </p>
                     </div>
                     <MiniSparkline data={sparklineData.memories} color="violet" />
                   </div>
+                  {/* Hover arrow */}
+                  <ArrowUpRight className="absolute bottom-3 right-3 size-4 text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </CardContent>
               </Card>
             </motion.div>
 
             {/* Evolution Events */}
             <motion.div variants={itemVariants}>
-              <Card className="relative overflow-hidden border-l-4 border-l-amber-500 bg-card/80 backdrop-blur-sm border-border/50 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:scale-[1.02]">
+              <Card
+                className={cn(
+                  'relative overflow-hidden border-l-4 bg-card/80 backdrop-blur-sm border-border/50',
+                  'shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-all duration-300',
+                  'hover:scale-[1.02] hover:-translate-y-0.5',
+                  'hover:ring-1 hover:ring-primary/10',
+                  'cursor-pointer group',
+                  metricCardAccentMap.evolution.border,
+                  metricCardAccentMap.evolution.hoverBorder,
+                )}
+                onClick={() => setCurrentPage('evolution')}
+              >
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-transparent pointer-events-none" />
-                <CardHeader className="pb-0 pt-4 px-4 relative">
-                  <CardDescription className="flex items-center gap-2">
+                <CardHeader className="pb-0 pt-5 px-5 relative">
+                  <CardDescription className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <span className="relative">
-                      <Dna className="size-4 text-amber-500 dark:text-amber-400" />
+                      <Dna className={cn('size-4', metricCardAccentMap.evolution.icon)} />
                       <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-amber-500 animate-pulse" />
                     </span>
                     Evolution Events
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="px-4 pb-4 relative">
+                <CardContent className="px-5 pb-5 relative">
                   <div className="flex items-end justify-between">
                     <div>
-                      <div className="text-2xl font-bold text-foreground">
+                      <div className="text-2xl md:text-3xl font-bold text-foreground tracking-tight" style={{ letterSpacing: '-0.02em' }}>
                         <CountUp target={simAdjustedEvolution} duration={1.2} />
                       </div>
                       <div className="flex flex-wrap gap-1 mt-1">
@@ -818,25 +980,39 @@ export function DashboardOverview() {
                           <span
                             key={status}
                             className={cn(
-                              'text-[10px] px-1.5 py-0.5 rounded-full font-medium',
+                              'text-xs text-muted-foreground/70 px-1.5 py-0.5 rounded-full font-medium',
                               statusColors[status] ?? 'bg-muted text-muted-foreground'
                             )}
                           >
-                            {status}: {count}
+                            {status}: {count as number}
                           </span>
                         ))}
                       </div>
                     </div>
                     <MiniSparkline data={sparklineData.evolution} color="amber" />
                   </div>
+                  {/* Hover arrow */}
+                  <ArrowUpRight className="absolute bottom-3 right-3 size-4 text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </CardContent>
               </Card>
             </motion.div>
 
             {/* Safety Score */}
             <motion.div variants={itemVariants}>
-              <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-border/50 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:scale-[1.02]"
-                style={{ borderLeftWidth: '4px', borderLeftColor: simAdjustedSafety > 90 ? '#10b981' : simAdjustedSafety > 70 ? '#f59e0b' : '#ef4444' }}
+              <Card
+                className={cn(
+                  'relative overflow-hidden bg-card/80 backdrop-blur-sm border-border/50',
+                  'shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-all duration-300',
+                  'hover:scale-[1.02] hover:-translate-y-0.5',
+                  'hover:ring-1 hover:ring-primary/10',
+                  'cursor-pointer group',
+                  simAdjustedSafety > 90
+                    ? 'border-l-4 border-l-emerald-500 hover:border-b-2 hover:border-b-emerald-500/40'
+                    : simAdjustedSafety > 70
+                      ? 'border-l-4 border-l-amber-500 hover:border-b-2 hover:border-b-amber-500/40'
+                      : 'border-l-4 border-l-red-500 hover:border-b-2 hover:border-b-red-500/40',
+                )}
+                onClick={() => setCurrentPage('safety')}
               >
                 <div
                   className="absolute inset-0 pointer-events-none"
@@ -848,8 +1024,8 @@ export function DashboardOverview() {
                         : 'linear-gradient(to bottom right, rgba(239,68,68,0.05), transparent)',
                   }}
                 />
-                <CardHeader className="pb-0 pt-4 px-4 relative">
-                  <CardDescription className="flex items-center gap-2">
+                <CardHeader className="pb-0 pt-5 px-5 relative">
+                  <CardDescription className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <span className="relative">
                       <Shield className={cn('size-4', safetyScoreColor(simAdjustedSafety))} />
                       <span className={cn(
@@ -860,14 +1036,14 @@ export function DashboardOverview() {
                     Safety Score
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="px-4 pb-4 relative">
+                <CardContent className="px-5 pb-5 relative">
                   <div className="flex items-end justify-between">
                     <div>
-                      <div className={cn('text-2xl font-bold', safetyScoreColor(simAdjustedSafety))}>
+                      <div className={cn('text-2xl md:text-3xl font-bold tracking-tight', safetyScoreColor(simAdjustedSafety))} style={{ letterSpacing: '-0.02em' }}>
                         <CountUp target={simAdjustedSafety} duration={1.5} />
-                        <span className="text-sm">%</span>
+                        <span className="text-sm font-medium">%</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground/70 mt-0.5">
                         {data?.unresolvedSafetyCount
                           ? `${data.unresolvedSafetyCount} unresolved event${data.unresolvedSafetyCount > 1 ? 's' : ''}`
                           : 'All events resolved'}
@@ -875,6 +1051,8 @@ export function DashboardOverview() {
                     </div>
                     <MiniSparkline data={sparklineData.safety} color="rose" />
                   </div>
+                  {/* Hover arrow */}
+                  <ArrowUpRight className="absolute bottom-3 right-3 size-4 text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </CardContent>
               </Card>
             </motion.div>
@@ -887,8 +1065,9 @@ export function DashboardOverview() {
 
       {/* System Health Gauges */}
       <motion.div variants={itemVariants}>
-        <Card className="shadow-sm bg-gradient-to-br from-card to-muted/30 border-border/50">
-          <CardHeader className="pb-2">
+        <Card className="shadow-md bg-gradient-to-br from-card via-card to-muted/30 border-border/50">
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-emerald-500/[0.02] via-transparent to-sky-500/[0.02] pointer-events-none" />
+          <CardHeader className="pb-2 relative">
             <CardTitle className="text-base flex items-center gap-2">
               <Activity className="size-4 text-muted-foreground" />
               System Health
@@ -899,11 +1078,11 @@ export function DashboardOverview() {
             {loading ? (
               <div className="flex items-center justify-around py-4">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="size-24 rounded-full" />
+                  <GaugeSkeleton key={i} />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
                 <CircularGauge value={gaugeValues.cpu} label="CPU" icon={Cpu} />
                 <CircularGauge value={gaugeValues.memory} label="Memory" icon={HardDrive} />
                 <CircularGauge value={gaugeValues.network} label="Network I/O" icon={Wifi} />
@@ -918,23 +1097,23 @@ export function DashboardOverview() {
       <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* System Performance Chart */}
         <motion.div variants={itemVariants}>
-          <Card className="shadow-sm bg-card/80 backdrop-blur-sm border-border/50">
-            <CardHeader>
+          <Card className="shadow-sm border-border/30 bg-card/80 backdrop-blur-sm">
+            <CardHeader className="p-5 pb-0">
               <CardTitle className="text-base">System Performance</CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm font-medium text-muted-foreground">
                 Task success rate & cost over the last 24 hours
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5">
               {loading ? (
-                <Skeleton className="h-[250px] w-full" />
+                <ChartSkeleton />
               ) : chartData.length > 0 ? (
                 <ChartContainer
                   config={performanceChartConfig}
-                  className="h-[250px] w-full"
+                  className="h-[200px] md:h-[250px] w-full"
                 >
                   <LineChart
                     data={chartData}
@@ -971,7 +1150,7 @@ export function DashboardOverview() {
                   </LineChart>
                 </ChartContainer>
               ) : (
-                <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm">
+                <div className="h-[200px] md:h-[250px] flex items-center justify-center text-muted-foreground text-sm">
                   No metric data available yet
                 </div>
               )}
@@ -981,30 +1160,37 @@ export function DashboardOverview() {
 
         {/* Evolution Pipeline */}
         <motion.div variants={itemVariants}>
-          <Card className="shadow-sm bg-card/80 backdrop-blur-sm border-border/50">
-            <CardHeader>
-              <CardTitle className="text-base">Evolution Pipeline</CardTitle>
-              <CardDescription>
-                Current status of evolution events across stages
-              </CardDescription>
+          <Card className="shadow-sm border-border/30 bg-gradient-to-br from-card via-card to-amber-500/[0.02] bg-card/80 backdrop-blur-sm">
+            <CardHeader className="p-5 pb-0 relative">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-base">Evolution Pipeline</CardTitle>
+                  <CardDescription className="text-sm font-medium text-muted-foreground">
+                    Current status of evolution events across stages
+                  </CardDescription>
+                </div>
+                {/* Total events counter badge */}
+                <Badge variant="secondary" className="text-xs font-medium shrink-0">
+                  {totalEvolutionEvents} events
+                </Badge>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5">
               {loading ? (
-                <Skeleton className="h-[250px] w-full" />
+                <ChartSkeleton />
               ) : (
-                <div className="flex flex-col items-center justify-center gap-4 h-[250px]">
-                  <div className="flex items-center gap-2 flex-wrap justify-center">
+                <div className="flex flex-col items-center justify-center gap-5 h-[200px] md:h-[250px]">
+                  <div className="flex items-center gap-3 flex-wrap justify-center">
                     {(['proposed', 'testing', 'validated', 'deployed'] as const).map(
                       (stage, i) => {
                         const stageCount = statusBreakdown[stage] ?? 0
-                        const totalEvents = Object.values(statusBreakdown).reduce((a, b) => a + (b as number), 0) as number
-                        const pct = totalEvents > 0 ? Math.round((stageCount / totalEvents) * 100) : 0
+                        const pct = totalEvolutionEvents > 0 ? Math.round((stageCount / totalEvolutionEvents) * 100) : 0
                         const isActive = stageCount > 0
                         return (
-                          <div key={stage} className="flex items-center gap-2">
+                          <div key={stage} className="flex items-center gap-3">
                             <div
                               className={cn(
-                                'flex flex-col items-center gap-1 rounded-lg border px-4 py-3 min-w-[90px] transition-all relative overflow-hidden',
+                                'flex flex-col items-center gap-1.5 rounded-lg border px-5 py-4 min-w-[100px] transition-all relative overflow-hidden',
                                 isActive
                                   ? 'border-emerald-500/30 bg-emerald-500/5'
                                   : 'border-border bg-muted/30'
@@ -1019,17 +1205,20 @@ export function DashboardOverview() {
                               </span>
                               <span
                                 className={cn(
-                                  'text-xl font-bold relative z-10',
+                                  'text-2xl font-bold tracking-tight relative z-10',
                                   isActive ? 'text-foreground' : 'text-muted-foreground'
                                 )}
+                                style={{ letterSpacing: '-0.02em' }}
                               >
                                 {stageCount}
                               </span>
-                              {isActive && (
-                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium relative z-10">
-                                  {pct}%
-                                </span>
-                              )}
+                              {/* Percentage label below each stage count */}
+                              <span className={cn(
+                                'text-[10px] font-medium relative z-10',
+                                isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground/50'
+                              )}>
+                                {pct}% of total
+                              </span>
                             </div>
                             {i < 3 && (
                               <div className="flex items-center gap-0.5 shrink-0">
@@ -1046,11 +1235,11 @@ export function DashboardOverview() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <div className="h-px w-8 bg-border" />
                     <div
                       className={cn(
-                        'flex flex-col items-center gap-1 rounded-lg border px-4 py-3 min-w-[90px] transition-all',
+                        'flex flex-col items-center gap-1.5 rounded-lg border px-5 py-4 min-w-[100px] transition-all',
                         (statusBreakdown['rejected'] ?? 0) > 0
                           ? 'border-red-500/30 bg-red-500/5'
                           : 'border-border bg-muted/30'
@@ -1059,13 +1248,25 @@ export function DashboardOverview() {
                       <span className="text-xs text-muted-foreground">Rejected</span>
                       <span
                         className={cn(
-                          'text-xl font-bold',
+                          'text-2xl font-bold tracking-tight',
                           (statusBreakdown['rejected'] ?? 0) > 0
                             ? 'text-red-600 dark:text-red-400'
                             : 'text-muted-foreground'
                         )}
+                        style={{ letterSpacing: '-0.02em' }}
                       >
                         {statusBreakdown['rejected'] ?? 0}
+                      </span>
+                      <span className={cn(
+                        'text-[10px] font-medium',
+                        (statusBreakdown['rejected'] ?? 0) > 0
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-muted-foreground/50'
+                      )}>
+                        {totalEvolutionEvents > 0
+                          ? `${Math.round(((statusBreakdown['rejected'] ?? 0) / totalEvolutionEvents) * 100)}% of total`
+                          : '0% of total'
+                        }
                       </span>
                     </div>
                   </div>
@@ -1080,11 +1281,11 @@ export function DashboardOverview() {
       <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
       {/* Third Row: Activity Feed + Recent Evolution + Quick Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Activity Feed */}
         <motion.div variants={itemVariants}>
-          <Card className="shadow-sm h-full bg-card/80 backdrop-blur-sm border-border/50">
-            <CardHeader className="pb-2">
+          <Card className="shadow-sm h-full bg-card/80 backdrop-blur-sm border-border/30">
+            <CardHeader className="pb-2 p-5">
               <CardTitle className="text-base flex items-center gap-2">
                 <Zap className="size-4 text-muted-foreground" />
                 Activity Feed
@@ -1098,17 +1299,13 @@ export function DashboardOverview() {
                   </span>
                 )}
               </CardTitle>
-              <CardDescription>Recent system events</CardDescription>
+              <CardDescription className="text-sm font-medium text-muted-foreground">Recent system events</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5 pt-0">
               {loading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
+                <ActivityFeedSkeleton />
               ) : (
-                <ScrollArea className="max-h-96">
+                <ScrollArea className="max-h-64 md:max-h-96">
                   <div className="space-y-1">
                     <AnimatePresence mode="popLayout">
                       {activityItems.map((item, index) => {
@@ -1124,7 +1321,7 @@ export function DashboardOverview() {
                             exit="exit"
                             transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                             className={cn(
-                              'flex items-start gap-3 rounded-lg p-2.5 hover:bg-accent/30 transition-colors group',
+                              'flex items-start gap-3 rounded-lg py-3 px-4 hover:bg-accent/30 hover:shadow-sm transition-all group',
                               index % 2 === 0 ? 'bg-muted/20' : 'bg-transparent',
                               isSimItem && 'border-l-2 border-l-emerald-500/30'
                             )}
@@ -1140,7 +1337,7 @@ export function DashboardOverview() {
                                 )}>
                                   {item.type}
                                 </span>
-                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                <span className="text-[10px] text-muted-foreground/70 whitespace-nowrap">
                                   {timeAgo(item.timestamp)}
                                 </span>
                               </div>
@@ -1173,12 +1370,12 @@ export function DashboardOverview() {
 
         {/* Recent Evolution Events */}
         <motion.div variants={itemVariants}>
-          <Card className="shadow-sm h-full bg-card/80 backdrop-blur-sm border-border/50">
-            <CardHeader className="pb-2">
+          <Card className="shadow-sm h-full bg-card/80 backdrop-blur-sm border-border/30">
+            <CardHeader className="pb-2 p-5">
               <CardTitle className="text-base">Recent Evolution Events</CardTitle>
-              <CardDescription>Latest changes in the evolution pipeline</CardDescription>
+              <CardDescription className="text-sm font-medium text-muted-foreground">Latest changes in the evolution pipeline</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5 pt-0">
               {loading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -1186,12 +1383,12 @@ export function DashboardOverview() {
                   ))}
                 </div>
               ) : latestEvents.length > 0 ? (
-                <ScrollArea className="max-h-96">
+                <ScrollArea className="max-h-64 md:max-h-96">
                   <div className="space-y-2">
                     {latestEvents.map((event) => (
                       <div
                         key={event.id}
-                        className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent/30 transition-colors"
+                        className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent/30 hover:shadow-sm transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="flex flex-col gap-1 min-w-0">
@@ -1227,7 +1424,7 @@ export function DashboardOverview() {
                               +{event.improvementPercent}%
                             </span>
                           )}
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          <span className="text-xs text-muted-foreground/70 whitespace-nowrap">
                             {timeAgo(event.createdAt)}
                           </span>
                         </div>
@@ -1246,12 +1443,17 @@ export function DashboardOverview() {
 
         {/* Quick Stats */}
         <motion.div variants={itemVariants}>
-          <Card className="shadow-sm h-full bg-card/80 backdrop-blur-sm border-border/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Quick Stats</CardTitle>
-              <CardDescription>System performance snapshot</CardDescription>
+          <Card className="shadow-sm h-full bg-card/80 backdrop-blur-sm border-border/30">
+            <CardHeader className="pb-2 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Quick Stats</CardTitle>
+                  <CardDescription className="text-sm font-medium text-muted-foreground">System performance snapshot</CardDescription>
+                </div>
+                <span className="text-xs text-muted-foreground/70 font-medium">Last 24h</span>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5 pt-0">
               {loading ? (
                 <div className="space-y-4">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -1259,12 +1461,14 @@ export function DashboardOverview() {
                   ))}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-0">
                   {/* Average Benchmark Score */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 py-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground flex items-center gap-2">
-                        <Zap className="size-3.5" />
+                        <span className={cn('size-6 rounded-md flex items-center justify-center', quickStatIconConfig.benchmark.bg)}>
+                          {(() => { const Ic = quickStatIconConfig.benchmark.icon; return <Ic className="size-3.5 text-emerald-600 dark:text-emerald-400" /> })()}
+                        </span>
                         Avg Benchmark
                       </span>
                       <div className="flex items-center gap-2">
@@ -1272,8 +1476,9 @@ export function DashboardOverview() {
                         <span className="font-medium text-foreground">
                           {(data?.avgBenchmarkScore ?? 0).toFixed(1)}
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
-                          ↑ 3.2%
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
+                          <TrendingUp className="size-2.5" />
+                          3.2%
                         </span>
                       </div>
                     </div>
@@ -1286,9 +1491,11 @@ export function DashboardOverview() {
                   <Separator />
 
                   {/* Total Tokens Used */}
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-sm py-3">
                     <span className="text-muted-foreground flex items-center gap-2">
-                      <Database className="size-3.5" />
+                      <span className={cn('size-6 rounded-md flex items-center justify-center', quickStatIconConfig.tokens.bg)}>
+                        {(() => { const Ic = quickStatIconConfig.tokens.icon; return <Ic className="size-3.5 text-violet-600 dark:text-violet-400" /> })()}
+                      </span>
                       Tokens Used
                     </span>
                     <div className="flex items-center gap-2">
@@ -1296,15 +1503,21 @@ export function DashboardOverview() {
                       <span className="font-medium text-foreground">
                         {formatNumber(data?.totalTokensUsed ?? 0)}
                       </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium flex items-center gap-0.5">
+                        <TrendingDown className="size-2.5" />
+                        1.1%
+                      </span>
                     </div>
                   </div>
 
                   <Separator />
 
                   {/* Total Tasks Completed */}
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-sm py-3">
                     <span className="text-muted-foreground flex items-center gap-2">
-                      <Clock className="size-3.5" />
+                      <span className={cn('size-6 rounded-md flex items-center justify-center', quickStatIconConfig.tasks.bg)}>
+                        {(() => { const Ic = quickStatIconConfig.tasks.icon; return <Ic className="size-3.5 text-amber-600 dark:text-amber-400" /> })()}
+                      </span>
                       Tasks Completed
                     </span>
                     <div className="flex items-center gap-2">
@@ -1312,15 +1525,21 @@ export function DashboardOverview() {
                       <span className="font-medium text-foreground">
                         {formatNumber(data?.totalTasksCompleted ?? 0)}
                       </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
+                        <TrendingUp className="size-2.5" />
+                        8.5%
+                      </span>
                     </div>
                   </div>
 
                   <Separator />
 
                   {/* Unresolved Safety Events */}
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-sm py-3">
                     <span className="text-muted-foreground flex items-center gap-2">
-                      <AlertTriangle className="size-3.5" />
+                      <span className={cn('size-6 rounded-md flex items-center justify-center', quickStatIconConfig.safety.bg)}>
+                        {(() => { const Ic = quickStatIconConfig.safety.icon; return <Ic className="size-3.5 text-rose-600 dark:text-rose-400" /> })()}
+                      </span>
                       Safety Events
                     </span>
                     {(data?.unresolvedSafetyCount ?? 0) > 0 ? (
@@ -1340,15 +1559,18 @@ export function DashboardOverview() {
                   <Separator />
 
                   {/* System Uptime */}
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-sm py-3">
                     <span className="text-muted-foreground flex items-center gap-2">
+                      <span className={cn('size-6 rounded-md flex items-center justify-center', quickStatIconConfig.status.bg)}>
+                        {(() => { const Ic = quickStatIconConfig.status.icon; return <Ic className="size-3.5 text-emerald-600 dark:text-emerald-400" /> })()}
+                      </span>
+                      System Status
+                    </span>
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                       <span className="relative flex size-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                         <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
                       </span>
-                      System Status
-                    </span>
-                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
                       Online
                     </span>
                   </div>
@@ -1356,20 +1578,20 @@ export function DashboardOverview() {
                   <Separator />
 
                   {/* Trend indicators with delta badges */}
-                  <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="grid grid-cols-2 gap-3 pt-3">
                     <div className="rounded-lg border border-border/50 p-2.5 text-center hover:bg-muted/20 transition-colors">
                       <div className="flex items-center justify-center gap-1 text-emerald-600 dark:text-emerald-400">
                         <TrendingUp className="size-3.5" />
                         <span className="text-sm font-medium">+3.2%</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Benchmark</p>
+                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">Benchmark</p>
                     </div>
                     <div className="rounded-lg border border-border/50 p-2.5 text-center hover:bg-muted/20 transition-colors">
                       <div className="flex items-center justify-center gap-1 text-amber-600 dark:text-amber-400">
                         <TrendingDown className="size-3.5" />
                         <span className="text-sm font-medium">-1.1%</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Cost</p>
+                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">Cost</p>
                     </div>
                   </div>
                 </div>

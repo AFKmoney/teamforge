@@ -72,6 +72,7 @@ import { useAppStore } from '@/lib/store'
 import type { Agent, AgentRole, AgentStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
@@ -585,9 +586,12 @@ export function AgentsPanel() {
         setCreateOpen(false)
         resetCreateForm()
         await fetchAgents()
+        toastSuccess('Agent created', `"${formName}" has been created successfully.`)
+      } else {
+        toastError('Failed to create agent', 'Could not create the agent. Please try again.')
       }
     } catch {
-      // silently fail
+      toastError('Failed to create agent', 'A network error occurred.')
     } finally {
       setSubmitting(false)
     }
@@ -651,9 +655,12 @@ export function AgentsPanel() {
       if (res.ok) {
         setEditOpen(false)
         await fetchAgents()
+        toastSuccess('Agent updated', `"${editName}" has been updated successfully.`)
+      } else {
+        toastError('Failed to update agent', 'Could not update the agent. Please try again.')
       }
     } catch {
-      // silently fail
+      toastError('Failed to update agent', 'A network error occurred.')
     } finally {
       setSubmitting(false)
     }
@@ -662,14 +669,19 @@ export function AgentsPanel() {
   const toggleAgentStatus = async (agent: Agent) => {
     const newStatus: AgentStatus = agent.status === 'active' || agent.status === 'busy' ? 'idle' : 'active'
     try {
-      await fetch(`/api/agents/${agent.id}`, {
+      const res = await fetch(`/api/agents/${agent.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       })
-      await fetchAgents()
+      if (res.ok) {
+        await fetchAgents()
+        toastSuccess('Agent status changed', `"${agent.name}" is now ${newStatus}.`)
+      } else {
+        toastError('Failed to change status', 'Could not update agent status.')
+      }
     } catch {
-      // silently fail
+      toastError('Failed to change status', 'A network error occurred.')
     }
   }
 
@@ -848,7 +860,7 @@ export function AgentsPanel() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0"
+                className="min-h-[44px] min-w-[44px] h-11 w-11 p-0"
                 title="View Details"
                 onClick={(e) => { e.stopPropagation(); openDetail(agent) }}
               >
@@ -857,7 +869,7 @@ export function AgentsPanel() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0"
+                className="min-h-[44px] min-w-[44px] h-11 w-11 p-0"
                 title="Edit Agent"
                 onClick={(e) => { e.stopPropagation(); openEdit(agent) }}
               >
@@ -866,7 +878,7 @@ export function AgentsPanel() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0"
+                className="min-h-[44px] min-w-[44px] h-11 w-11 p-0"
                 title={agent.status === 'active' || agent.status === 'busy' ? 'Deactivate' : 'Activate'}
                 onClick={(e) => { e.stopPropagation(); toggleAgentStatus(agent) }}
               >
@@ -881,7 +893,8 @@ export function AgentsPanel() {
 
   const renderListView = () => (
     <div className="rounded-md border">
-      <div className="grid grid-cols-6 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground border-b bg-muted/30">
+      {/* Desktop table header */}
+      <div className="hidden md:grid grid-cols-6 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground border-b bg-muted/30">
         <span>Name</span>
         <span>Role</span>
         <span>Status</span>
@@ -902,25 +915,29 @@ export function AgentsPanel() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="grid grid-cols-6 gap-4 px-4 py-3 text-sm items-center border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors"
+              className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4 px-4 py-3 text-sm items-center border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors"
               onClick={() => openDetail(agent)}
             >
               <span className="font-medium truncate text-foreground">{agent.name}</span>
-              <span>
+              <span className="flex items-center gap-1.5 justify-end md:justify-start">
                 <Badge variant="outline" className={cn('text-xs', ROLE_BADGE_BG[agent.role] ?? '')}>
                   <RoleIcon className={cn('size-3 mr-1', roleCfg.color)} />
-                  {roleCfg.label}
+                  <span className="hidden md:inline">{roleCfg.label}</span>
                 </Badge>
+                <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium md:hidden', statusCfg.labelBg)}>
+                  {renderStatusDot(agent.status)}
+                  {statusCfg.label}
+                </span>
               </span>
-              <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium w-fit', statusCfg.labelBg)}>
+              <span className={cn('hidden md:inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium w-fit', statusCfg.labelBg)}>
                 {renderStatusDot(agent.status)}
                 {statusCfg.label}
               </span>
               <span className={cn('font-medium', successRateTextColor(agent.successRate))}>
                 {(agent.successRate * 100).toFixed(0)}%
               </span>
-              <span className="text-foreground">{agent.tasksCompleted.toLocaleString()}</span>
-              <span className="text-foreground">{formatTokens(agent.tokensUsed)}</span>
+              <span className="text-foreground hidden md:block">{agent.tasksCompleted.toLocaleString()}</span>
+              <span className="text-foreground hidden md:block">{formatTokens(agent.tokensUsed)}</span>
             </motion.div>
           )
         })}
@@ -936,7 +953,7 @@ export function AgentsPanel() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 overflow-x-hidden">
       {/* Header */}
       <PageHeader
         icon={Users}
@@ -967,7 +984,7 @@ export function AgentsPanel() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
                   <Download className="size-4" />
-                  Export
+                  <span className="hidden sm:inline">Export</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -986,6 +1003,7 @@ export function AgentsPanel() {
                     'Created At': a.createdAt,
                   }))
                   exportToCSV(data, 'agents')
+                  toastSuccess('Export complete', 'Agents exported as CSV.')
                 }}>
                   <FileSpreadsheet className="mr-2 size-4" />
                   Export as CSV
@@ -1005,15 +1023,16 @@ export function AgentsPanel() {
                     createdAt: a.createdAt,
                   }))
                   exportToJSON(data, 'agents')
+                  toastSuccess('Export complete', 'Agents exported as JSON.')
                 }}>
                   <FileJson className="mr-2 size-4" />
                   Export as JSON
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button size="sm" onClick={() => { resetCreateForm(); setCreateOpen(true) }}>
+            <Button size="sm" onClick={() => { resetCreateForm(); setCreateOpen(true) }} className="min-h-[44px]">
               <Plus className="size-4 mr-1" />
-              Create Agent
+              <span className="hidden sm:inline">Create </span>Agent
             </Button>
           </>
         }
@@ -1022,7 +1041,7 @@ export function AgentsPanel() {
       {/* Status Summary — Mini-cards with icons */}
       <div className="space-y-3">
         <ScrollArea className="w-full">
-          <div className="flex gap-3 pb-2 min-w-max">
+          <div className="flex gap-3 pb-2">
             {(['active', 'busy', 'idle', 'error', 'offline'] as AgentStatus[]).map((status) => {
               const cfg = STATUS_SUMMARY_CONFIG[status]
               const count = statusCounts[status] ?? 0
@@ -1131,7 +1150,7 @@ export function AgentsPanel() {
 
       {/* Agent Detail Dialog — Tabbed layout */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] md:max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-foreground">{selectedAgent?.name ?? 'Agent Details'}</DialogTitle>
             <DialogDescription>Full agent information</DialogDescription>
@@ -1182,7 +1201,7 @@ export function AgentsPanel() {
                   )}
 
                   {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4 rounded-lg border border-border bg-muted/30 p-4">
+                  <div className="grid grid-cols-3 gap-2 md:gap-4 rounded-lg border border-border bg-muted/30 p-3 md:p-4">
                     <div>
                       <h4 className="text-xs font-medium text-muted-foreground">Success Rate</h4>
                       <p className={cn('text-lg font-semibold', successRateTextColor(selectedAgent.successRate))}>
@@ -1384,7 +1403,7 @@ export function AgentsPanel() {
                     <h4 className="text-sm font-medium mb-2 text-foreground">Agent Configuration</h4>
                     <JsonViewer data={selectedAgent.config} />
                   </div>
-                  <div className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-muted/30 p-4 text-sm">
+                  <div className="grid grid-cols-2 gap-2 md:gap-4 rounded-lg border border-border bg-muted/30 p-3 md:p-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Created</span>
                       <p className="font-medium text-foreground">{new Date(selectedAgent.createdAt).toLocaleDateString()}</p>
@@ -1456,7 +1475,7 @@ export function AgentsPanel() {
 
       {/* Create Agent Dialog — Enhanced with templates, validation, preview */}
       <Dialog open={createOpen} onOpenChange={(open) => { if (!open) resetCreateForm(); setCreateOpen(open) }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] md:max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Create Agent</DialogTitle>
             <DialogDescription>Add a new agent to the system</DialogDescription>

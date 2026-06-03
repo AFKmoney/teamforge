@@ -981,7 +981,7 @@ export function TopologyPanel() {
   const zoomPercent = Math.round(zoom * 100)
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 overflow-x-hidden">
       {/* Header */}
       <PageHeader
         icon={Network}
@@ -1016,7 +1016,7 @@ export function TopologyPanel() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-5 w-5"
+              className="h-8 w-8 min-h-[44px] min-w-[44px]"
               onClick={() => setSearchQuery('')}
             >
               <X className="h-3 w-3" />
@@ -1072,20 +1072,20 @@ export function TopologyPanel() {
         })}
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row gap-4">
         {/* SVG Diagram */}
         <Card className="flex-1 overflow-hidden">
           <CardContent className="p-0 relative">
             <div
               ref={svgContainerRef}
               className="relative overflow-hidden"
-              style={{ height: 560, minHeight: 400 }}
+              style={{ height: 280, minHeight: 220 }}
             >
               <svg
                 width="100%"
                 height="100%"
                 viewBox={`0 0 ${VIEWBOX_W} ${VIEWBOX_H}`}
-                className="select-none bg-muted/30 dark:bg-muted/20"
+                className="select-none bg-muted/30 dark:bg-muted/20 max-h-[280px] md:max-h-[380px]"
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -1410,7 +1410,7 @@ export function TopologyPanel() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-9 w-9 md:h-7 md:w-7 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
                           onClick={handleZoomIn}
                           disabled={zoom >= MAX_ZOOM}
                         >
@@ -1429,7 +1429,7 @@ export function TopologyPanel() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-9 w-9 md:h-7 md:w-7 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
                           onClick={handleZoomOut}
                           disabled={zoom <= MIN_ZOOM}
                         >
@@ -1446,7 +1446,7 @@ export function TopologyPanel() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-9 w-9 md:h-7 md:w-7 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
                           onClick={handleFitToScreen}
                         >
                           <Maximize className="h-3.5 w-3.5" />
@@ -1460,7 +1460,7 @@ export function TopologyPanel() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-9 w-9 md:h-7 md:w-7 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
                           onClick={handleResetView}
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
@@ -1472,8 +1472,8 @@ export function TopologyPanel() {
                 </TooltipProvider>
               </div>
 
-              {/* Minimap - Bottom Left */}
-              <div className="absolute bottom-3 left-3 rounded-lg border border-border bg-card/95 backdrop-blur-sm shadow-md overflow-hidden">
+              {/* Minimap - Bottom Left - Hidden on mobile */}
+              <div className="absolute bottom-3 left-3 rounded-lg border border-border bg-card/95 backdrop-blur-sm shadow-md overflow-hidden hidden md:block">
                 <svg
                   ref={minimapRef}
                   width={150}

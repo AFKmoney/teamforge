@@ -53,6 +53,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
@@ -348,9 +349,12 @@ export function MemoryPanel() {
         setFormContent('')
         setFormImportance([0.5])
         fetchMemories(activeTab)
+        toastSuccess('Memory added', 'New memory has been stored successfully.')
+      } else {
+        toastError('Failed to add memory', 'Could not store the memory. Please try again.')
       }
     } catch {
-      // silent
+      toastError('Failed to add memory', 'A network error occurred.')
     } finally {
       setSubmitting(false)
     }
@@ -367,7 +371,7 @@ export function MemoryPanel() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 overflow-x-hidden">
       {/* Header */}
       <PageHeader
         icon={Database}
@@ -397,6 +401,7 @@ export function MemoryPanel() {
                     'Updated At': m.updatedAt,
                   }))
                   exportToCSV(data, 'memories')
+                  toastSuccess('Export complete', 'Memories exported as CSV.')
                 }}>
                   <FileSpreadsheet className="mr-2 size-4" />
                   Export as CSV
@@ -415,6 +420,7 @@ export function MemoryPanel() {
                     updatedAt: m.updatedAt,
                   }))
                   exportToJSON(data, 'memories')
+                  toastSuccess('Export complete', 'Memories exported as JSON.')
                 }}>
                   <FileJson className="mr-2 size-4" />
                   Export as JSON
@@ -428,7 +434,7 @@ export function MemoryPanel() {
                   Add Memory
                 </Button>
               </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="w-[calc(100vw-2rem)]">
             <DialogHeader>
               <DialogTitle>Add Memory</DialogTitle>
               <DialogDescription>

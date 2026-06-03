@@ -224,7 +224,7 @@ export function ResearchPanel() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-hidden">
       {/* Header */}
       <PageHeader
         icon={FlaskConical}

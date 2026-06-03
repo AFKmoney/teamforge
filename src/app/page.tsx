@@ -13,17 +13,74 @@ import { SafetyPanel } from '@/components/safety-panel'
 import { ChatPanel } from '@/components/chat-panel'
 import { SettingsPanel } from '@/components/settings-panel'
 import { TopologyPanel } from '@/components/topology-panel'
+import { InsightsPanel } from '@/components/insights-panel'
 import { ActivityPanel } from '@/components/activity-panel'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { PanelErrorFallback } from '@/components/panel-error-fallback'
+import { Toaster } from '@/components/ui/sonner'
 import { useAppStore, type Page } from '@/lib/store'
 import { useRealtimeService } from '@/hooks/use-realtime'
 import { CommandPalette, CommandPaletteBadge } from '@/components/command-palette'
 import { Cpu, Heart } from 'lucide-react'
+import { OnboardingTour, TourHelpButton } from '@/components/onboarding-tour'
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 
 // Navigation shortcut mapping (Alt+1 through Alt+9)
 const SHORTCUT_PAGES: Page[] = [
   'dashboard', 'agents', 'evolution', 'memory', 'knowledge',
   'topology', 'research', 'benchmarks', 'safety',
 ]
+
+// Page display names and section mapping for breadcrumbs
+const PAGE_NAMES: Record<Page, string> = {
+  dashboard: 'Dashboard',
+  agents: 'Agents',
+  evolution: 'Evolution',
+  memory: 'Memory',
+  knowledge: 'Knowledge',
+  topology: 'Topology',
+  insights: 'Insights',
+  research: 'Research',
+  benchmarks: 'Benchmarks',
+  safety: 'Safety',
+  chat: 'Chat',
+  activity: 'Activity',
+  settings: 'Settings',
+}
+
+const PAGE_SECTIONS: Record<Page, string> = {
+  dashboard: 'Overview',
+  agents: 'Core Systems',
+  evolution: 'Core Systems',
+  memory: 'Core Systems',
+  knowledge: 'Intelligence',
+  topology: 'Intelligence',
+  insights: 'Intelligence',
+  research: 'Intelligence',
+  benchmarks: 'Quality',
+  safety: 'Quality',
+  chat: 'Tools',
+  activity: 'Overview',
+  settings: 'Tools',
+}
+
+// Helper to wrap a panel with ErrorBoundary
+function withErrorBoundary(panel: React.ReactNode, name: string) {
+  return (
+    <ErrorBoundary
+      fallback={(props) => <PanelErrorFallback {...props} panelName={name} />}
+    >
+      {panel}
+    </ErrorBoundary>
+  )
+}
 
 export default function Home() {
   const currentPage = useAppStore((s) => s.currentPage)
@@ -86,31 +143,33 @@ export default function Home() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardOverview />
+        return withErrorBoundary(<DashboardOverview />, 'Dashboard')
       case 'agents':
-        return <AgentsPanel />
+        return withErrorBoundary(<AgentsPanel />, 'Agents')
       case 'evolution':
-        return <EvolutionPanel />
+        return withErrorBoundary(<EvolutionPanel />, 'Evolution')
       case 'memory':
-        return <MemoryPanel />
+        return withErrorBoundary(<MemoryPanel />, 'Memory')
       case 'knowledge':
-        return <KnowledgePanel />
+        return withErrorBoundary(<KnowledgePanel />, 'Knowledge')
       case 'research':
-        return <ResearchPanel />
+        return withErrorBoundary(<ResearchPanel />, 'Research')
       case 'benchmarks':
-        return <BenchmarksPanel />
+        return withErrorBoundary(<BenchmarksPanel />, 'Benchmarks')
       case 'safety':
-        return <SafetyPanel />
+        return withErrorBoundary(<SafetyPanel />, 'Safety')
       case 'chat':
-        return <ChatPanel />
+        return withErrorBoundary(<ChatPanel />, 'Chat')
       case 'activity':
-        return <ActivityPanel />
+        return withErrorBoundary(<ActivityPanel />, 'Activity')
       case 'settings':
-        return <SettingsPanel />
+        return withErrorBoundary(<SettingsPanel />, 'Settings')
       case 'topology':
-        return <TopologyPanel />
+        return withErrorBoundary(<TopologyPanel />, 'Topology')
+      case 'insights':
+        return withErrorBoundary(<InsightsPanel />, 'Insights')
       default:
-        return <DashboardOverview />
+        return withErrorBoundary(<DashboardOverview />, 'Dashboard')
     }
   }
 
@@ -119,16 +178,47 @@ export default function Home() {
       <div className="flex flex-1">
         <DashboardSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          {/* Header with ⌘K badge */}
-          <header className="flex items-center justify-between border-b bg-background/50 backdrop-blur-sm px-4 md:px-6 py-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Cpu className="size-4 text-emerald-500" />
-              <span className="font-medium text-foreground">EvoAI</span>
+          {/* Header with Breadcrumbs */}
+          <header className="flex items-center justify-between border-b bg-background/50 backdrop-blur-sm px-3 sm:px-4 md:px-6 py-2">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink
+                    className="flex items-center gap-1.5 cursor-pointer"
+                    onClick={() => setCurrentPage('dashboard')}
+                  >
+                    <Cpu className="size-3.5 text-emerald-500" />
+                    EvoAI
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink
+                    className="cursor-pointer"
+                    onClick={() => {
+                      // Navigate to the first page in the same section
+                      const section = PAGE_SECTIONS[currentPage]
+                      const sectionFirstPage = (Object.entries(PAGE_SECTIONS) as [Page, string][])
+                        .find(([, s]) => s === section)?.[0]
+                      if (sectionFirstPage) setCurrentPage(sectionFirstPage)
+                    }}
+                  >
+                    {PAGE_SECTIONS[currentPage]}
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{PAGE_NAMES[currentPage]}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <div className="flex items-center gap-2">
+              <TourHelpButton />
+              <CommandPaletteBadge />
             </div>
-            <CommandPaletteBadge />
           </header>
-          <main className="flex-1 overflow-auto">
-            <div className="p-4 md:p-6 lg:p-8">
+          <main className="flex-1 overflow-auto overflow-x-hidden" data-tour="main-content">
+            <div className="p-3 sm:p-4 md:p-6 lg:p-8 max-w-full">
               {renderPage()}
             </div>
           </main>
@@ -159,6 +249,8 @@ export default function Home() {
         </div>
       </div>
       <CommandPalette />
+      <OnboardingTour />
+      <Toaster position="bottom-right" richColors />
     </div>
   )
 }

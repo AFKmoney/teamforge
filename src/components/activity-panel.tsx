@@ -718,7 +718,7 @@ export function ActivityPanel() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-6"
+      className="space-y-4 md:space-y-6 overflow-x-hidden"
     >
       {/* Header */}
       <PageHeader
@@ -865,7 +865,7 @@ export function ActivityPanel() {
       </motion.div>
 
       {/* Summary Metrics Row */}
-      <motion.div variants={containerVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div variants={containerVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <motion.div variants={cardVariants}>
           <Card className="border-l-4 border-l-blue-500">
             <CardContent className="p-4">
@@ -932,7 +932,7 @@ export function ActivityPanel() {
       </motion.div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
         {/* Performance Trends — Area Chart */}
         <motion.div variants={cardVariants} className="lg:col-span-2">
           <Card>
@@ -940,7 +940,7 @@ export function ActivityPanel() {
               <div className="flex items-center justify-between gap-3 mb-4">
                 <h3 className="text-sm font-semibold text-foreground">Performance Trends ({TIME_RANGE_CONFIG[timeRange].label})</h3>
               </div>
-              <div className="h-[300px]">
+              <div className="h-[200px] md:h-[300px]">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} animationDuration={chartAnimated ? 1200 : 0}>
@@ -1013,7 +1013,7 @@ export function ActivityPanel() {
           <Card className="h-full">
             <CardContent className="p-4 md:p-6">
               <h3 className="text-sm font-semibold text-foreground mb-4">Events by Type</h3>
-              <div className="h-[300px]">
+              <div className="h-[200px] md:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={eventCountsByType}
@@ -1304,7 +1304,7 @@ export function ActivityPanel() {
                       Showing {pageStart}–{pageEnd} of {filteredActivities.length} items
                     </span>
                     <Pagination>
-                      <PaginationContent>
+                      <PaginationContent className="flex-wrap gap-1">
                         <PaginationItem>
                           <PaginationPrevious
                             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -1315,7 +1315,7 @@ export function ActivityPanel() {
                         </PaginationItem>
                         {getPageNumbers().map((page, i) =>
                           page === 'ellipsis' ? (
-                            <PaginationItem key={`ellipsis-${i}`}>
+                            <PaginationItem key={`ellipsis-${i}`} className="hidden sm:block">
                               <PaginationEllipsis />
                             </PaginationItem>
                           ) : (

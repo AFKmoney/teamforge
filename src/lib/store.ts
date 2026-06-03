@@ -18,25 +18,12 @@ import type {
   SystemMetric,
   SystemSettings,
   Notification,
+  RecentPage,
+  Page,
 } from '@/lib/types'
 
-// ---------------------------------------------------------------------------
-// Page navigation
-// ---------------------------------------------------------------------------
-
-export type Page =
-  | 'dashboard'
-  | 'agents'
-  | 'evolution'
-  | 'memory'
-  | 'knowledge'
-  | 'research'
-  | 'benchmarks'
-  | 'safety'
-  | 'chat'
-  | 'activity'
-  | 'settings'
-  | 'topology'
+// Re-export Page for convenience
+export type { Page }
 
 // ---------------------------------------------------------------------------
 // Store interface
@@ -47,6 +34,11 @@ interface AppState {
   currentPage: Page
   sidebarOpen: boolean
   sidebarCollapsed: boolean
+
+  // Onboarding Tour
+  tourActive: boolean
+  tourStep: number
+  tourCompleted: boolean
 
   // Data
   dashboardData: DashboardData | null
@@ -77,6 +69,9 @@ interface AppState {
   simulationSpeed: number
   lastSimulationUpdate: Date | null
 
+  // Recent pages history
+  recentPages: RecentPage[]
+
   // Loading state
   isLoading: boolean
 
@@ -84,6 +79,7 @@ interface AppState {
   setCurrentPage: (page: Page) => void
   setSidebarOpen: (open: boolean) => void
   setSidebarCollapsed: (collapsed: boolean) => void
+  clearRecentPages: () => void
 
   // Actions — Data setters
   setDashboardData: (data: DashboardData) => void
@@ -129,6 +125,13 @@ interface AppState {
 
   // Actions — Loading
   setIsLoading: (loading: boolean) => void
+
+  // Actions — Tour
+  startTour: () => void
+  nextTourStep: () => void
+  prevTourStep: () => void
+  endTour: () => void
+  completeTour: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -182,10 +185,31 @@ export const useAppStore = create<AppState>((set) => ({
   // Loading default
   isLoading: false,
 
+  // Recent pages default
+  recentPages: [],
+
+  // Tour defaults
+  tourActive: false,
+  tourStep: 0,
+  tourCompleted: (() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('evoai-tour-completed') === 'true'
+    }
+    return false
+  })(),
+
   // Navigation actions
-  setCurrentPage: (page) => set({ currentPage: page }),
+  setCurrentPage: (page) =>
+    set((state) => {
+      const now = new Date().toISOString()
+      // Remove any existing entry for this page, then prepend
+      const filtered = state.recentPages.filter((r) => r.page !== page)
+      const updatedRecent = [{ page, visitedAt: now }, ...filtered].slice(0, 5)
+      return { currentPage: page, recentPages: updatedRecent }
+    }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  clearRecentPages: () => set({ recentPages: [] }),
 
   // Data setter actions
   setDashboardData: (data) => set({ dashboardData: data }),
@@ -360,4 +384,16 @@ export const useAppStore = create<AppState>((set) => ({
 
   // Loading action
   setIsLoading: (loading) => set({ isLoading: loading }),
+
+  // Tour actions
+  startTour: () => set({ tourActive: true, tourStep: 0 }),
+  nextTourStep: () => set((state) => ({ tourStep: state.tourStep + 1 })),
+  prevTourStep: () => set((state) => ({ tourStep: Math.max(0, state.tourStep - 1) })),
+  endTour: () => set({ tourActive: false }),
+  completeTour: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('evoai-tour-completed', 'true')
+    }
+    set({ tourActive: false, tourCompleted: true })
+  },
 }))

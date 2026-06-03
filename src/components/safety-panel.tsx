@@ -35,6 +35,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useAppStore } from '@/lib/store'
 import type { SafetyEvent, ConstitutionalRule, Severity } from '@/lib/types'
 import { PageHeader } from '@/components/page-header'
@@ -261,9 +262,15 @@ export function SafetyPanel() {
           setRules((prev) =>
             prev.map((r) => (r.id === id ? { ...r, active } : r))
           )
+          toastSuccess(
+            active ? 'Rule enabled' : 'Rule disabled',
+            active ? 'Constitutional rule has been activated.' : 'Constitutional rule has been deactivated.'
+          )
+        } else {
+          toastError('Failed to toggle rule', 'Could not update the constitutional rule.')
         }
-      } catch (err) {
-        console.error(err)
+      } catch {
+        toastError('Failed to toggle rule', 'A network error occurred.')
       }
     },
     []
@@ -275,7 +282,7 @@ export function SafetyPanel() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 overflow-x-auto">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-24" />
           ))}
@@ -287,7 +294,7 @@ export function SafetyPanel() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-hidden">
       {/* Header */}
       <PageHeader
         icon={Shield}
@@ -316,6 +323,7 @@ export function SafetyPanel() {
                     'Updated At': e.updatedAt,
                   }))
                   exportToCSV(data, 'safety-events')
+                  toastSuccess('Export complete', 'Safety events exported as CSV.')
                 }}>
                   <FileSpreadsheet className="mr-2 size-4" />
                   Export as CSV
@@ -334,6 +342,7 @@ export function SafetyPanel() {
                     updatedAt: e.updatedAt,
                   }))
                   exportToJSON(data, 'safety-events')
+                  toastSuccess('Export complete', 'Safety events exported as JSON.')
                 }}>
                   <FileJson className="mr-2 size-4" />
                   Export as JSON
@@ -354,9 +363,9 @@ export function SafetyPanel() {
       {/* Safety Score Gauge + Quick Stats */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center gap-6 flex-wrap">
+          <div className="flex items-center gap-6 flex-wrap justify-center md:justify-start">
             <SafetyScoreGauge score={safetyScore} label="Safety Score" />
-            <div className="flex flex-col gap-3 flex-1 min-w-[200px]">
+            <div className="flex flex-col gap-3 flex-1 min-w-0 md:min-w-[200px]">
               <div className="flex items-center gap-2">
                 <Activity className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Total Events</span>
@@ -393,7 +402,7 @@ export function SafetyPanel() {
           </span>
         </div>
         <motion.div
-          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid gap-3 grid-cols-1 sm:grid-cols-2"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -511,7 +520,7 @@ export function SafetyPanel() {
             </CardContent>
           </Card>
         ) : (
-          <ScrollArea className="max-h-[500px]">
+          <ScrollArea className="max-h-64 md:max-h-[500px]">
             <div className="relative space-y-0">
               {/* Timeline line */}
               <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-border" />

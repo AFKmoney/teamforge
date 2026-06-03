@@ -54,6 +54,7 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
+import { toastSuccess } from '@/lib/toast-utils'
 import type { ChatMessage, ChatConversation } from '@/lib/types'
 import { PageHeader } from '@/components/page-header'
 
@@ -602,6 +603,7 @@ export function ChatPanel() {
     clearChatHistory()
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(CURRENT_CONV_KEY)
+    toastSuccess('History cleared', 'All conversation history has been removed.')
   }, [clearChatHistory])
 
   // ------- animation variants -------
@@ -642,7 +644,7 @@ export function ChatPanel() {
               animate={{ width: 260, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.25, ease: 'easeInOut' }}
-              className="overflow-hidden border-r border-border/50 flex flex-col bg-card/30"
+              className="overflow-hidden border-r border-border/50 flex-col bg-card/30 hidden md:flex"
             >
               <div className="p-3 flex items-center justify-between border-b border-border/40">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -720,7 +722,7 @@ export function ChatPanel() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="min-h-[44px] min-w-[44px] h-11 w-11"
                       onClick={() => setHistoryOpen(!historyOpen)}
                     >
                       <History className="h-4 w-4" />
@@ -735,7 +737,7 @@ export function ChatPanel() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="min-h-[44px] min-w-[44px] h-11 w-11"
                       onClick={() => createNewConversation()}
                     >
                       <Plus className="h-4 w-4" />
@@ -747,20 +749,20 @@ export function ChatPanel() {
                 {/* Export Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] h-11 w-11">
                       <Download className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
-                      onClick={() => exportAsMarkdown(chatMessages)}
+                      onClick={() => { exportAsMarkdown(chatMessages); toastSuccess('Export complete', 'Conversation exported as Markdown.') }}
                       disabled={chatMessages.length === 0}
                     >
                       <FileText className="h-4 w-4 mr-2" />
                       Export as Markdown
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => exportAsJSON(chatMessages)}
+                      onClick={() => { exportAsJSON(chatMessages); toastSuccess('Export complete', 'Conversation exported as JSON.') }}
                       disabled={chatMessages.length === 0}
                     >
                       <FileJson className="h-4 w-4 mr-2" />
@@ -770,6 +772,7 @@ export function ChatPanel() {
                       onClick={async () => {
                         await copyConversationAsText(chatMessages)
                         setCopiedAll(true)
+                        toastSuccess('Copied to clipboard', 'Conversation copied as text.')
                         setTimeout(() => setCopiedAll(false), 2000)
                       }}
                       disabled={chatMessages.length === 0}
@@ -790,7 +793,7 @@ export function ChatPanel() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive/70 hover:text-destructive"
+                      className="min-h-[44px] min-w-[44px] h-11 w-11 text-destructive/70 hover:text-destructive"
                       onClick={handleClearAll}
                       disabled={chatMessages.length === 0}
                     >
@@ -831,7 +834,7 @@ export function ChatPanel() {
                     </p>
 
                     {/* Suggested prompts — 3x2 grid */}
-                    <div className="grid grid-cols-3 gap-3 w-full max-w-2xl">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full max-w-2xl">
                       {SUGGESTED_PROMPTS.map((prompt, idx) => (
                         <motion.button
                           key={prompt.label}
@@ -876,14 +879,14 @@ export function ChatPanel() {
                       )}
                     >
                       {msg.role === 'assistant' && (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 mt-0.5">
+                        <div className="flex h-9 w-9 md:h-8 md:w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 mt-0.5">
                           <Bot className="h-4 w-4 text-primary" />
                         </div>
                       )}
 
                       <div
                         className={cn(
-                          'group relative max-w-[80%]',
+                          'group relative max-w-[85%] md:max-w-[80%]',
                           msg.role === 'user'
                             ? 'rounded-2xl rounded-br-md bg-primary text-primary-foreground shadow-md shadow-primary/20'
                             : 'rounded-2xl rounded-bl-md bg-muted/70 text-foreground border border-border/30 shadow-sm'
@@ -984,7 +987,7 @@ export function ChatPanel() {
                       </div>
 
                       {msg.role === 'user' && (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary mt-0.5">
+                        <div className="flex h-9 w-9 md:h-8 md:w-8 shrink-0 items-center justify-center rounded-full bg-primary mt-0.5">
                           <User className="h-4 w-4 text-primary-foreground" />
                         </div>
                       )}
@@ -1000,7 +1003,7 @@ export function ChatPanel() {
                     transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                     className="flex gap-2.5 items-end"
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 mt-0.5">
+                    <div className="flex h-9 w-9 md:h-8 md:w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 mt-0.5">
                       <Bot className="h-4 w-4 text-primary" />
                     </div>
                     <div className="rounded-2xl rounded-bl-md bg-muted/70 border border-border/30 px-4 py-3.5 flex items-center gap-3">
