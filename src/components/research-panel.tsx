@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useAppStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 import type { Experiment, ExperimentStatus } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -43,31 +44,35 @@ import type { Experiment, ExperimentStatus } from '@/lib/types'
 
 const STATUS_CONFIG: Record<
   ExperimentStatus,
-  { color: string; bg: string; icon: React.ElementType; label: string }
+  { color: string; bg: string; icon: React.ElementType; label: string; border: string }
 > = {
   draft: {
-    color: 'text-slate-600',
-    bg: 'bg-slate-100',
+    color: 'text-muted-foreground',
+    bg: 'bg-muted',
     icon: FileText,
     label: 'Draft',
+    border: 'border-l-muted-foreground/40',
   },
   running: {
-    color: 'text-amber-600',
-    bg: 'bg-amber-50',
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-50 dark:bg-amber-500/10',
     icon: Loader2,
     label: 'Running',
+    border: 'border-l-amber-500',
   },
   completed: {
-    color: 'text-green-600',
-    bg: 'bg-green-50',
+    color: 'text-green-600 dark:text-green-400',
+    bg: 'bg-green-50 dark:bg-green-500/10',
     icon: CheckCircle2,
     label: 'Completed',
+    border: 'border-l-green-500',
   },
   failed: {
-    color: 'text-red-600',
-    bg: 'bg-red-50',
+    color: 'text-red-600 dark:text-red-400',
+    bg: 'bg-red-50 dark:bg-red-500/10',
     icon: XCircle,
     label: 'Failed',
+    border: 'border-l-red-500',
   },
 }
 
@@ -114,6 +119,27 @@ function relativeTime(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
   return `${days}d ago`
+}
+
+// ---------------------------------------------------------------------------
+// Animation variants
+// ---------------------------------------------------------------------------
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08 },
+  },
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 300, damping: 24 },
+  },
 }
 
 // ---------------------------------------------------------------------------
@@ -201,14 +227,14 @@ export function ResearchPanel() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50">
-            <FlaskConical className="h-5 w-5 text-emerald-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+            <FlaskConical className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold text-foreground">
               Research Laboratory
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               {experiments.length} experiments
             </p>
           </div>
@@ -226,7 +252,7 @@ export function ResearchPanel() {
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
                   Title
                 </label>
                 <Input
@@ -238,7 +264,7 @@ export function ResearchPanel() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
                   Hypothesis
                 </label>
                 <Textarea
@@ -251,7 +277,7 @@ export function ResearchPanel() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
                   Methodology
                 </label>
                 <Textarea
@@ -310,11 +336,12 @@ export function ResearchPanel() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div
-                          className={`flex h-8 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors ${
+                          className={cn(
+                            'flex h-8 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
                             isActive
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-slate-100 text-slate-400'
-                          }`}
+                              ? 'bg-gradient-to-r from-emerald-500/15 to-teal-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
+                              : 'bg-muted text-muted-foreground'
+                          )}
                         >
                           {stage}
                         </div>
@@ -326,9 +353,12 @@ export function ResearchPanel() {
                   </TooltipProvider>
                   {i < PIPELINE_STAGES.length - 1 && (
                     <div
-                      className={`h-0.5 w-4 ${
-                        i < maxStage ? 'bg-emerald-400' : 'bg-slate-200'
-                      }`}
+                      className={cn(
+                        'h-0.5 w-4 transition-colors',
+                        i < maxStage
+                          ? 'bg-gradient-to-r from-emerald-400 to-teal-400'
+                          : 'bg-border'
+                      )}
                     />
                   )}
                 </div>
@@ -339,16 +369,21 @@ export function ResearchPanel() {
       </Card>
 
       {/* Experiments list */}
-      <div className="space-y-3">
+      <motion.div
+        className="space-y-3"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
         {experiments.length === 0 && (
           <Card>
-            <CardContent className="py-12 text-center text-slate-500">
+            <CardContent className="py-12 text-center text-muted-foreground">
               No experiments yet. Create one to get started.
             </CardContent>
           </Card>
         )}
         <AnimatePresence>
-          {experiments.map((exp) => {
+          {experiments.map((exp, index) => {
             const cfg = STATUS_CONFIG[exp.status as ExperimentStatus] ?? STATUS_CONFIG.draft
             const Icon = cfg.icon
             const isExpanded = expandedId === exp.id
@@ -357,45 +392,52 @@ export function ResearchPanel() {
             return (
               <motion.div
                 key={exp.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
+                variants={cardVariants}
+                custom={index}
+                initial="hidden"
+                animate="show"
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                <Card className="overflow-hidden">
+                <Card className={cn(
+                  'overflow-hidden border-l-4 transition-shadow hover:shadow-md hover:shadow-muted-foreground/5',
+                  cfg.border
+                )}>
                   <CardContent className="p-4">
                     {/* Top row */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-slate-900 truncate">
+                          <h3 className="font-medium text-foreground truncate">
                             {exp.title}
                           </h3>
                           <Badge
                             variant="secondary"
-                            className={`${cfg.bg} ${cfg.color} shrink-0 gap-1`}
+                            className={cn('shrink-0 gap-1', cfg.bg, cfg.color)}
                           >
-                            <Icon className={`h-3 w-3 ${exp.status === 'running' ? 'animate-spin' : ''}`} />
+                            <Icon className={cn('h-3 w-3', exp.status === 'running' && 'animate-spin')} />
                             {cfg.label}
                           </Badge>
                         </div>
-                        <p className="mt-1 text-sm text-slate-500 line-clamp-1">
+                        <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
                           {exp.hypothesis}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {exp.score !== null && (
                           <div className="flex items-center gap-1.5">
-                            <Progress
-                              value={exp.score ?? 0}
-                              className="h-2 w-16"
-                            />
-                            <span className="text-xs font-medium text-slate-600">
+                            <div className="relative h-2 w-16 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+                                style={{ width: `${exp.score ?? 0}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-medium text-muted-foreground">
                               {exp.score}%
                             </span>
                           </div>
                         )}
-                        <span className="flex items-center gap-1 text-xs text-slate-400">
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground/70">
                           <Clock className="h-3 w-3" />
                           {relativeTime(exp.createdAt)}
                         </span>
@@ -430,19 +472,19 @@ export function ResearchPanel() {
                         >
                           <div className="mt-4 space-y-3">
                             <div>
-                              <h4 className="text-xs font-semibold uppercase text-slate-500 mb-1">
+                              <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-1">
                                 Hypothesis
                               </h4>
-                              <p className="text-sm text-slate-700">
+                              <p className="text-sm text-foreground/80 leading-relaxed">
                                 {exp.hypothesis}
                               </p>
                             </div>
                             <Separator />
                             <div>
-                              <h4 className="text-xs font-semibold uppercase text-slate-500 mb-1">
+                              <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-1">
                                 Methodology
                               </h4>
-                              <p className="text-sm text-slate-700">
+                              <p className="text-sm text-foreground/80 leading-relaxed">
                                 {exp.methodology}
                               </p>
                             </div>
@@ -450,10 +492,10 @@ export function ResearchPanel() {
                               <>
                                 <Separator />
                                 <div>
-                                  <h4 className="text-xs font-semibold uppercase text-slate-500 mb-1">
+                                  <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-1">
                                     Results
                                   </h4>
-                                  <pre className="rounded-md bg-slate-50 p-3 text-xs text-slate-700 overflow-auto max-h-40">
+                                  <pre className="rounded-md bg-muted/60 p-3 text-xs text-foreground/80 overflow-auto max-h-40 border border-border/30">
                                     {JSON.stringify(exp.results, null, 2)}
                                   </pre>
                                 </div>
@@ -463,10 +505,10 @@ export function ResearchPanel() {
                               <>
                                 <Separator />
                                 <div>
-                                  <h4 className="text-xs font-semibold uppercase text-slate-500 mb-1">
+                                  <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-1">
                                     Conclusion
                                   </h4>
-                                  <p className="text-sm text-slate-700">
+                                  <p className="text-sm text-foreground/80 leading-relaxed">
                                     {exp.conclusion}
                                   </p>
                                 </div>
@@ -482,7 +524,7 @@ export function ResearchPanel() {
             )
           })}
         </AnimatePresence>
-      </div>
+      </motion.div>
     </div>
   )
 }

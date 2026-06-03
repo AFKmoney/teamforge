@@ -46,6 +46,8 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from '@/components/ui/collapsible'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
 import type { EvolutionEvent, EvolutionType, EvolutionStatus, RiskLevel } from '@/lib/types'
 
@@ -79,28 +81,56 @@ function safeJsonParse<T>(value: string | T[] | Record<string, unknown> | undefi
 // ---------------------------------------------------------------------------
 
 const TYPE_BADGE: Record<EvolutionType, { bg: string; label: string }> = {
-  prompt: { bg: 'bg-amber-500/10 text-amber-600 border-amber-500/20', label: 'Prompt' },
-  workflow: { bg: 'bg-teal-500/10 text-teal-600 border-teal-500/20', label: 'Workflow' },
-  architecture: { bg: 'bg-purple-500/10 text-purple-600 border-purple-500/20', label: 'Architecture' },
-  tool: { bg: 'bg-green-500/10 text-green-600 border-green-500/20', label: 'Tool' },
+  prompt: { bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', label: 'Prompt' },
+  workflow: { bg: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20', label: 'Workflow' },
+  architecture: { bg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20', label: 'Architecture' },
+  tool: { bg: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20', label: 'Tool' },
 }
 
 const STATUS_BADGE: Record<EvolutionStatus, { bg: string; label: string }> = {
-  proposed: { bg: 'bg-blue-500/10 text-blue-600 border-blue-500/20', label: 'Proposed' },
-  testing: { bg: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20', label: 'Testing' },
-  validated: { bg: 'bg-green-500/10 text-green-600 border-green-500/20', label: 'Validated' },
-  deployed: { bg: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', label: 'Deployed' },
-  rejected: { bg: 'bg-red-500/10 text-red-600 border-red-500/20', label: 'Rejected' },
+  proposed: { bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20', label: 'Proposed' },
+  testing: { bg: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20', label: 'Testing' },
+  validated: { bg: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20', label: 'Validated' },
+  deployed: { bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', label: 'Deployed' },
+  rejected: { bg: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20', label: 'Rejected' },
 }
 
 const RISK_BADGE: Record<RiskLevel, { bg: string; label: string }> = {
-  low: { bg: 'bg-green-500/10 text-green-600 border-green-500/20', label: 'Low' },
-  medium: { bg: 'bg-amber-500/10 text-amber-600 border-amber-500/20', label: 'Medium' },
-  high: { bg: 'bg-orange-500/10 text-orange-600 border-orange-500/20', label: 'High' },
-  critical: { bg: 'bg-red-500/10 text-red-600 border-red-500/20', label: 'Critical' },
+  low: { bg: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20', label: 'Low' },
+  medium: { bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', label: 'Medium' },
+  high: { bg: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20', label: 'High' },
+  critical: { bg: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20', label: 'Critical' },
+}
+
+/** Left border color accent for event cards based on status */
+const STATUS_BORDER: Record<EvolutionStatus, string> = {
+  proposed: 'border-l-blue-500',
+  testing: 'border-l-amber-500',
+  validated: 'border-l-green-500',
+  deployed: 'border-l-emerald-500',
+  rejected: 'border-l-red-500',
 }
 
 const EVOLUTION_PHASES = ['Observe', 'Analyze', 'Hypothesize', 'Implement', 'Evaluate', 'Deploy'] as const
+
+// ---------------------------------------------------------------------------
+// Animation variants
+// ---------------------------------------------------------------------------
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 12, scale: 0.97 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      delay: i * 0.06,
+      duration: 0.35,
+      ease: 'easeOut',
+    },
+  }),
+  exit: { opacity: 0, y: -8, scale: 0.97, transition: { duration: 0.2 } },
+}
 
 // ---------------------------------------------------------------------------
 // Raw event type from API
@@ -296,8 +326,10 @@ export function EvolutionPanel() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Dna className="size-6 text-emerald-600" />
-          <h2 className="text-2xl font-bold tracking-tight">Evolution Engine</h2>
+          <div className="flex items-center justify-center size-10 rounded-lg bg-emerald-500/10">
+            <Dna className="size-5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Evolution Engine</h2>
           <Badge variant="secondary" className="text-sm">{evolutionEvents.length}</Badge>
         </div>
         <Button size="sm" onClick={() => setProposeOpen(true)}>
@@ -311,19 +343,21 @@ export function EvolutionPanel() {
         {EVOLUTION_PHASES.map((phase, idx) => (
           <div key={phase} className="flex items-center gap-1 shrink-0">
             <div
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-500 ${
+              className={cn(
+                'px-3 py-2 rounded-lg text-sm font-medium transition-all duration-500',
                 idx === activePhase
-                  ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-300'
+                  ? 'bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/30 shadow-sm'
                   : 'bg-muted text-muted-foreground'
-              }`}
+              )}
             >
               {phase}
             </div>
             {idx < EVOLUTION_PHASES.length - 1 && (
               <ArrowRight
-                className={`size-4 shrink-0 transition-colors duration-500 ${
+                className={cn(
+                  'size-4 shrink-0 transition-colors duration-500',
                   idx === activePhase ? 'text-emerald-500' : 'text-muted-foreground/50'
-                }`}
+                )}
               />
             )}
           </div>
@@ -333,7 +367,7 @@ export function EvolutionPanel() {
       {/* Current phase indicator */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <span className="inline-block size-2 rounded-full bg-emerald-500 animate-pulse" />
-        Current phase: <span className="font-medium text-emerald-700">{EVOLUTION_PHASES[activePhase]}</span>
+        Current phase: <span className="font-medium text-emerald-700 dark:text-emerald-400">{EVOLUTION_PHASES[activePhase]}</span>
       </div>
 
       {/* Status Filter Tabs */}
@@ -354,144 +388,157 @@ export function EvolutionPanel() {
             </div>
           )}
 
-          {filteredEvents.map((event) => {
-            const typeCfg = TYPE_BADGE[event.type] ?? TYPE_BADGE.prompt
-            const statusCfg = STATUS_BADGE[event.status] ?? STATUS_BADGE.proposed
-            const riskCfg = RISK_BADGE[event.riskLevel] ?? RISK_BADGE.low
-            const isExpanded = expandedEvents[event.id] ?? false
+          <AnimatePresence mode="popLayout">
+            {filteredEvents.map((event, index) => {
+              const typeCfg = TYPE_BADGE[event.type] ?? TYPE_BADGE.prompt
+              const statusCfg = STATUS_BADGE[event.status] ?? STATUS_BADGE.proposed
+              const riskCfg = RISK_BADGE[event.riskLevel] ?? RISK_BADGE.low
+              const borderClass = STATUS_BORDER[event.status] ?? STATUS_BORDER.proposed
+              const isExpanded = expandedEvents[event.id] ?? false
 
-            return (
-              <Card key={event.id}>
-                <CardContent className="p-4 space-y-3">
-                  {/* Top row: badges + timestamp */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className={`text-xs ${typeCfg.bg}`}>
-                      {typeCfg.label}
-                    </Badge>
-                    <Badge variant="outline" className={`text-xs ${statusCfg.bg}`}>
-                      {statusCfg.label}
-                    </Badge>
-                    <Badge variant="outline" className={`text-xs ${riskCfg.bg}`}>
-                      {riskCfg.label} Risk
-                    </Badge>
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      {timeAgo(event.createdAt)}
-                    </span>
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="font-medium">{event.title}</h3>
-
-                  {/* Description */}
-                  <p className={`text-sm text-muted-foreground ${isExpanded ? '' : 'line-clamp-2'}`}>
-                    {event.description}
-                  </p>
-
-                  {/* Improvement % */}
-                  {event.improvementPercent !== 0 && (
-                    <div className="flex items-center gap-1 text-sm font-medium">
-                      {event.improvementPercent > 0 ? (
-                        <>
-                          <ArrowUp className="size-4 text-green-600" />
-                          <span className="text-green-600">+{event.improvementPercent.toFixed(0)}%</span>
-                        </>
-                      ) : (
-                        <>
-                          <ArrowDown className="size-4 text-red-600" />
-                          <span className="text-red-600">{event.improvementPercent.toFixed(0)}%</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Collapsible Before/After */}
-                  <Collapsible open={isExpanded} onOpenChange={() => toggleExpand(event.id)}>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
-                        {isExpanded ? (
-                          <ChevronDown className="size-3" />
-                        ) : (
-                          <ChevronRight className="size-3" />
-                        )}
-                        Before / After
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                        <div>
-                          <h4 className="text-xs font-medium text-muted-foreground mb-1">Before</h4>
-                          <pre className="text-xs bg-muted/50 rounded-md p-3 overflow-x-auto max-h-48">
-                            {JSON.stringify(event.beforeState, null, 2)}
-                          </pre>
-                        </div>
-                        <div>
-                          <h4 className="text-xs font-medium text-muted-foreground mb-1">After</h4>
-                          <pre className="text-xs bg-muted/50 rounded-md p-3 overflow-x-auto max-h-48">
-                            {JSON.stringify(event.afterState, null, 2)}
-                          </pre>
-                        </div>
+              return (
+                <motion.div
+                  key={event.id}
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  custom={index}
+                  layout
+                >
+                  <Card className={cn('border-l-4', borderClass, 'transition-shadow hover:shadow-md')}>
+                    <CardContent className="p-4 space-y-3">
+                      {/* Top row: badges + timestamp */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className={cn('text-xs', typeCfg.bg)}>
+                          {typeCfg.label}
+                        </Badge>
+                        <Badge variant="outline" className={cn('text-xs', statusCfg.bg)}>
+                          {statusCfg.label}
+                        </Badge>
+                        <Badge variant="outline" className={cn('text-xs', riskCfg.bg)}>
+                          {riskCfg.label} Risk
+                        </Badge>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {timeAgo(event.createdAt)}
+                        </span>
                       </div>
-                    </CollapsibleContent>
-                  </Collapsible>
 
-                  {/* Action buttons */}
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {event.status === 'proposed' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleStatusChange(event.id, 'testing')}
-                      >
-                        Approve for Testing
-                      </Button>
-                    )}
-                    {event.status === 'testing' && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-green-500/30 text-green-600 hover:bg-green-500/10"
-                          onClick={() => handleStatusChange(event.id, 'validated')}
-                        >
-                          <Check className="size-3.5 mr-1" />
-                          Validate
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-red-500/30 text-red-600 hover:bg-red-500/10"
-                          onClick={() => handleStatusChange(event.id, 'rejected')}
-                        >
-                          <X className="size-3.5 mr-1" />
-                          Reject
-                        </Button>
-                      </>
-                    )}
-                    {event.status === 'validated' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleStatusChange(event.id, 'deployed')}
-                      >
-                        Deploy
-                      </Button>
-                    )}
-                    {event.status === 'deployed' && (
-                      <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20" variant="outline">
-                        <Check className="size-3 mr-1" />
-                        Deployed
-                      </Badge>
-                    )}
-                    {event.status === 'rejected' && (
-                      <Badge className="bg-red-500/10 text-red-600 border-red-500/20" variant="outline">
-                        <X className="size-3 mr-1" />
-                        Rejected
-                      </Badge>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+                      {/* Title */}
+                      <h3 className="font-medium text-foreground">{event.title}</h3>
+
+                      {/* Description */}
+                      <p className={cn('text-sm text-muted-foreground', isExpanded ? '' : 'line-clamp-2')}>
+                        {event.description}
+                      </p>
+
+                      {/* Improvement % */}
+                      {event.improvementPercent !== 0 && (
+                        <div className="flex items-center gap-1 text-sm font-medium">
+                          {event.improvementPercent > 0 ? (
+                            <>
+                              <ArrowUp className="size-4 text-green-600 dark:text-green-400" />
+                              <span className="text-green-600 dark:text-green-400">+{event.improvementPercent.toFixed(0)}%</span>
+                            </>
+                          ) : (
+                            <>
+                              <ArrowDown className="size-4 text-red-600 dark:text-red-400" />
+                              <span className="text-red-600 dark:text-red-400">{event.improvementPercent.toFixed(0)}%</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Collapsible Before/After */}
+                      <Collapsible open={isExpanded} onOpenChange={() => toggleExpand(event.id)}>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
+                            {isExpanded ? (
+                              <ChevronDown className="size-3" />
+                            ) : (
+                              <ChevronRight className="size-3" />
+                            )}
+                            Before / After
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                            <div>
+                              <h4 className="text-xs font-medium text-muted-foreground mb-1">Before</h4>
+                              <pre className="text-xs bg-muted/50 rounded-md p-3 overflow-x-auto max-h-48 text-foreground">
+                                {JSON.stringify(event.beforeState, null, 2)}
+                              </pre>
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-medium text-muted-foreground mb-1">After</h4>
+                              <pre className="text-xs bg-muted/50 rounded-md p-3 overflow-x-auto max-h-48 text-foreground">
+                                {JSON.stringify(event.afterState, null, 2)}
+                              </pre>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+
+                      {/* Action buttons */}
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {event.status === 'proposed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleStatusChange(event.id, 'testing')}
+                          >
+                            Approve for Testing
+                          </Button>
+                        )}
+                        {event.status === 'testing' && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-green-500/30 text-green-600 dark:text-green-400 hover:bg-green-500/10"
+                              onClick={() => handleStatusChange(event.id, 'validated')}
+                            >
+                              <Check className="size-3.5 mr-1" />
+                              Validate
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                              onClick={() => handleStatusChange(event.id, 'rejected')}
+                            >
+                              <X className="size-3.5 mr-1" />
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        {event.status === 'validated' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleStatusChange(event.id, 'deployed')}
+                          >
+                            Deploy
+                          </Button>
+                        )}
+                        {event.status === 'deployed' && (
+                          <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" variant="outline">
+                            <Check className="size-3 mr-1" />
+                            Deployed
+                          </Badge>
+                        )}
+                        {event.status === 'rejected' && (
+                          <Badge className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20" variant="outline">
+                            <X className="size-3 mr-1" />
+                            Rejected
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
         </TabsContent>
       </Tabs>
 

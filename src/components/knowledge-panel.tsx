@@ -23,6 +23,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useAppStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 import type { KnowledgeNode, KnowledgeEdge } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -256,12 +257,12 @@ export function KnowledgePanel() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100">
-            <Network className="h-5 w-5 text-slate-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-500/10">
+            <Network className="h-5 w-5 text-teal-600 dark:text-teal-400" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">Knowledge Graph</h2>
-            <p className="text-sm text-slate-500">
+            <h2 className="text-xl font-semibold text-foreground">Knowledge Graph</h2>
+            <p className="text-sm text-muted-foreground">
               {nodes.length} nodes &middot; {edges.length} edges
             </p>
           </div>
@@ -277,7 +278,7 @@ export function KnowledgePanel() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" className="h-8 w-8 bg-white" onClick={handleZoomIn}>
+                    <Button variant="outline" size="icon" className="h-8 w-8 bg-card" onClick={handleZoomIn}>
                       <ZoomIn className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
@@ -287,7 +288,7 @@ export function KnowledgePanel() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" className="h-8 w-8 bg-white" onClick={handleZoomOut}>
+                    <Button variant="outline" size="icon" className="h-8 w-8 bg-card" onClick={handleZoomOut}>
                       <ZoomOut className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
@@ -297,7 +298,7 @@ export function KnowledgePanel() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" className="h-8 w-8 bg-white" onClick={handleReset}>
+                    <Button variant="outline" size="icon" className="h-8 w-8 bg-card" onClick={handleReset}>
                       <Maximize2 className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
@@ -311,12 +312,32 @@ export function KnowledgePanel() {
               width="100%"
               height="500"
               viewBox="0 0 800 600"
-              className="select-none cursor-grab active:cursor-grabbing bg-slate-50/50"
+              className="select-none cursor-grab active:cursor-grabbing bg-muted/50 dark:bg-muted/30"
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
             >
+              <defs>
+                {/* Animated dash for hovered connection lines */}
+                <style>{`
+                  @keyframes dash-flow {
+                    to { stroke-dashoffset: -20; }
+                  }
+                  .edge-animated {
+                    animation: dash-flow 0.6s linear infinite;
+                  }
+                `}</style>
+                {/* Glow filter for selected nodes */}
+                <filter id="glow-selected" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <filter id="glow-hover" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
               <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
                 {/* Edges */}
                 {layoutEdges.map((edge, i) => {
@@ -325,6 +346,8 @@ export function KnowledgePanel() {
                   if (!source || !target) return null
                   const isHighlighted =
                     hoveredNodeId === edge.source || hoveredNodeId === edge.target
+                  const isRelatedToSelected =
+                    selectedNodeId === edge.source || selectedNodeId === edge.target
                   return (
                     <line
                       key={`edge-${i}`}
@@ -334,8 +357,12 @@ export function KnowledgePanel() {
                       y2={target.y}
                       stroke={EDGE_COLORS[edge.relation] ?? '#9ca3af'}
                       strokeWidth={isHighlighted ? 2.5 : 1.2}
-                      opacity={hoveredNodeId ? (isHighlighted ? 1 : 0.15) : 0.6}
-                      className="transition-all duration-200"
+                      opacity={hoveredNodeId ? (isHighlighted ? 1 : 0.15) : isRelatedToSelected ? 0.8 : 0.6}
+                      strokeDasharray={isHighlighted ? '6 4' : 'none'}
+                      className={cn(
+                        'transition-all duration-200',
+                        isHighlighted && 'edge-animated'
+                      )}
                     />
                   )
                 })}
@@ -359,13 +386,41 @@ export function KnowledgePanel() {
                       onMouseEnter={() => setHoveredNodeId(node.id)}
                       onMouseLeave={() => setHoveredNodeId(null)}
                     >
+                      {/* Glow ring for selected node */}
+                      {isSelected && (
+                        <circle
+                          cx={node.x}
+                          cy={node.y}
+                          r={28}
+                          fill="none"
+                          stroke={NODE_COLORS[node.type] ?? '#475569'}
+                          strokeWidth={2}
+                          opacity={0.3}
+                          filter="url(#glow-selected)"
+                          className="transition-all duration-300"
+                        />
+                      )}
+                      {/* Glow ring for hovered node */}
+                      {isHovered && !isSelected && (
+                        <circle
+                          cx={node.x}
+                          cy={node.y}
+                          r={25}
+                          fill="none"
+                          stroke={NODE_COLORS[node.type] ?? '#475569'}
+                          strokeWidth={1.5}
+                          opacity={0.2}
+                          filter="url(#glow-hover)"
+                          className="transition-all duration-200"
+                        />
+                      )}
                       <circle
                         cx={node.x}
                         cy={node.y}
                         r={isSelected ? 22 : isHovered ? 20 : 16}
                         fill={NODE_COLORS[node.type] ?? '#475569'}
                         opacity={dimmed ? 0.2 : 1}
-                        stroke={isSelected ? '#0f172a' : 'white'}
+                        stroke={isSelected ? 'hsl(var(--foreground))' : 'hsl(var(--card))'}
                         strokeWidth={isSelected ? 3 : 2}
                         className="transition-all duration-200"
                       />
@@ -374,7 +429,7 @@ export function KnowledgePanel() {
                         y={node.y + 28}
                         textAnchor="middle"
                         fontSize="11"
-                        fill="#334155"
+                        fill="hsl(var(--muted-foreground))"
                         fontWeight={isSelected ? 600 : 400}
                         opacity={dimmed ? 0.2 : 1}
                         className="transition-opacity duration-200 pointer-events-none"
@@ -390,10 +445,10 @@ export function KnowledgePanel() {
             </svg>
 
             {/* Legend */}
-            <div className="border-t bg-white px-4 py-3">
+            <div className="border-t bg-card px-4 py-3">
               <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
                 <div className="flex items-center gap-4">
-                  <span className="font-medium text-slate-600">Nodes:</span>
+                  <span className="font-medium text-muted-foreground">Nodes:</span>
                   {Object.entries(NODE_COLORS).map(([type, color]) => (
                     <span key={type} className="flex items-center gap-1">
                       <span
@@ -406,7 +461,7 @@ export function KnowledgePanel() {
                 </div>
                 <Separator orientation="vertical" className="h-4" />
                 <div className="flex items-center gap-4">
-                  <span className="font-medium text-slate-600">Edges:</span>
+                  <span className="font-medium text-muted-foreground">Edges:</span>
                   {Object.entries(EDGE_COLORS).map(([rel, color]) => (
                     <span key={rel} className="flex items-center gap-1">
                       <span
@@ -460,17 +515,22 @@ export function KnowledgePanel() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {selectedNode.description && (
-                    <p className="text-sm text-slate-600">{selectedNode.description}</p>
+                    <div>
+                      <h4 className="mb-1.5 text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                        Description
+                      </h4>
+                      <p className="text-sm text-foreground/80 leading-relaxed">{selectedNode.description}</p>
+                    </div>
                   )}
 
                   {/* Connections */}
                   {connectedEdges.length > 0 && (
                     <div>
-                      <h4 className="mb-2 text-xs font-semibold uppercase text-slate-500">
+                      <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground tracking-wider">
                         Connections
                       </h4>
                       <ScrollArea className="max-h-40">
-                        <div className="space-y-1.5">
+                        <div className="space-y-1">
                           {connectedEdges.map((e) => {
                             const isSource = e.sourceId === selectedNodeId
                             const otherId = isSource ? e.targetId : e.sourceId
@@ -478,10 +538,10 @@ export function KnowledgePanel() {
                             return (
                               <button
                                 key={e.id}
-                                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50 transition-colors"
+                                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted/60 transition-colors"
                                 onClick={() => setSelectedNodeId(otherId)}
                               >
-                                <ChevronRight className="h-3 w-3 text-slate-400" />
+                                <ChevronRight className="h-3 w-3 text-muted-foreground" />
                                 <span
                                   className="h-2 w-2 rounded-full shrink-0"
                                   style={{
@@ -489,10 +549,10 @@ export function KnowledgePanel() {
                                       NODE_COLORS[other?.type ?? 'concept'] ?? '#475569',
                                   }}
                                 />
-                                <span className="truncate">{other?.label ?? otherId}</span>
+                                <span className="truncate text-foreground/80">{other?.label ?? otherId}</span>
                                 <Badge
                                   variant="outline"
-                                  className="ml-auto text-[10px] px-1 py-0"
+                                  className="ml-auto text-[10px] px-1.5 py-0 border-border/50"
                                   style={{ color: EDGE_COLORS[e.relation] ?? '#64748b' }}
                                 >
                                   {e.relation}
@@ -509,11 +569,11 @@ export function KnowledgePanel() {
                   {selectedNode.data &&
                     Object.keys(selectedNode.data).length > 0 && (
                       <div>
-                        <h4 className="mb-2 text-xs font-semibold uppercase text-slate-500">
+                        <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground tracking-wider">
                           Data
                         </h4>
                         <ScrollArea className="max-h-40">
-                          <pre className="rounded-md bg-slate-50 p-2 text-xs text-slate-700 overflow-auto">
+                          <pre className="rounded-md bg-muted/60 p-3 text-xs text-foreground/80 overflow-auto border border-border/30">
                             {JSON.stringify(selectedNode.data, null, 2)}
                           </pre>
                         </ScrollArea>

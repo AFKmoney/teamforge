@@ -13,7 +13,12 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Menu,
+  Sun,
+  Moon,
+  Monitor,
+  Settings,
 } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { useAppStore, type Page } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -31,6 +36,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { Cpu } from 'lucide-react'
@@ -45,7 +56,77 @@ const navItems: { page: Page; label: string; icon: React.ComponentType<{ classNa
   { page: 'benchmarks', label: 'Benchmarks', icon: BarChart3 },
   { page: 'safety', label: 'Safety', icon: Shield },
   { page: 'chat', label: 'Chat', icon: MessageSquare },
+  { page: 'settings', label: 'Settings', icon: Settings },
 ]
+
+function ThemeToggle({ collapsed }: { collapsed?: boolean }) {
+  const { setTheme, theme } = useTheme()
+
+  const toggleButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-8 text-muted-foreground hover:text-foreground"
+      onClick={() => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'dark' : 'dark')}
+    >
+      <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+      <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  )
+
+  if (collapsed) {
+    return (
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground">
+                  <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="right">
+                <DropdownMenuItem onClick={() => setTheme('light')}>
+                  <Sun className="mr-2 size-4" /> Light
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('dark')}>
+                  <Moon className="mr-2 size-4" /> Dark
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('system')}>
+                  <Monitor className="mr-2 size-4" /> System
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            Theme
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        {toggleButton}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onClick={() => setTheme('light')}>
+          <Sun className="mr-2 size-4" /> Light
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('dark')}>
+          <Moon className="mr-2 size-4" /> Dark
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('system')}>
+          <Monitor className="mr-2 size-4" /> System
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 function SidebarNavContent({
   collapsed,
@@ -70,7 +151,7 @@ function SidebarNavContent({
               'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 w-full',
               'hover:bg-accent/50 hover:text-accent-foreground',
               isActive
-                ? 'bg-accent text-accent-foreground border-l-2 border-l-emerald-500'
+                ? 'bg-accent text-accent-foreground shadow-sm border-l-2 border-l-emerald-500'
                 : 'text-muted-foreground border-l-2 border-l-transparent',
               collapsed && 'justify-center px-2'
             )}
@@ -123,7 +204,7 @@ export function DashboardSidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="fixed top-3 left-3 z-40 md:hidden"
+            className="fixed top-3 left-3 z-40 md:hidden bg-background/80 backdrop-blur-sm border shadow-sm"
           >
             <Menu className="size-5" />
             <span className="sr-only">Toggle sidebar</span>
@@ -152,7 +233,7 @@ export function DashboardSidebar() {
             />
           </ScrollArea>
           <Separator />
-          <div className="p-4">
+          <div className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span className="relative flex size-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -160,6 +241,7 @@ export function DashboardSidebar() {
               </span>
               <span>System Online</span>
             </div>
+            <ThemeToggle />
           </div>
         </SheetContent>
       </Sheet>
@@ -170,7 +252,7 @@ export function DashboardSidebar() {
   return (
     <aside
       className={cn(
-        'hidden md:flex flex-col border-r bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 transition-all duration-300 shrink-0',
+        'hidden md:flex flex-col border-r bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-all duration-300 shrink-0',
         sidebarCollapsed ? 'w-16' : 'w-60'
       )}
     >
@@ -205,27 +287,33 @@ export function DashboardSidebar() {
       {/* Bottom section */}
       <div className={cn('p-3 flex flex-col gap-2', sidebarCollapsed && 'items-center px-2')}>
         {!sidebarCollapsed ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="relative flex size-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full size-2.5 bg-emerald-500" />
-            </span>
-            <span>System Online</span>
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="relative flex size-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full size-2.5 bg-emerald-500" />
+              </span>
+              <span>System Online</span>
+            </div>
+            <ThemeToggle />
           </div>
         ) : (
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="relative flex size-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full size-2.5 bg-emerald-500" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8}>
-                System Online
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex flex-col gap-2 items-center">
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="relative flex size-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full size-2.5 bg-emerald-500" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8}>
+                  System Online
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <ThemeToggle collapsed />
+          </div>
         )}
         <Button
           variant="ghost"

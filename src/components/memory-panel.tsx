@@ -13,7 +13,6 @@ import { useAppStore } from '@/lib/store'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -42,17 +41,19 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const TYPE_CONFIG: Record<MemoryType, { label: string; badgeClass: string }> = {
-  working: { label: 'Working', badgeClass: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' },
-  episodic: { label: 'Episodic', badgeClass: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
-  semantic: { label: 'Semantic', badgeClass: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
-  procedural: { label: 'Procedural', badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
-  evolution: { label: 'Evolution', badgeClass: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
+const TYPE_CONFIG: Record<MemoryType, { label: string; badgeClass: string; borderTop: string }> = {
+  working: { label: 'Working', badgeClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20', borderTop: 'border-t-sky-500' },
+  episodic: { label: 'Episodic', badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20', borderTop: 'border-t-purple-500' },
+  semantic: { label: 'Semantic', badgeClass: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20', borderTop: 'border-t-green-500' },
+  procedural: { label: 'Procedural', badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', borderTop: 'border-t-amber-500' },
+  evolution: { label: 'Evolution', badgeClass: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20', borderTop: 'border-t-red-500' },
 }
 
 const ALL_TABS: { key: string; label: string }[] = [
@@ -92,6 +93,22 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(days / 30)}mo ago`
 }
 
+/** Returns a gradient CSS class based on importance value */
+function importanceGradient(value: number): string {
+  if (value >= 0.8) return 'from-red-500 to-red-400'
+  if (value >= 0.6) return 'from-amber-500 to-orange-400'
+  if (value >= 0.4) return 'from-amber-400 to-yellow-300'
+  return 'from-green-500 to-emerald-400'
+}
+
+/** Returns text color based on importance value */
+function importanceTextColor(value: number): string {
+  if (value >= 0.8) return 'text-red-600 dark:text-red-400'
+  if (value >= 0.6) return 'text-amber-600 dark:text-amber-400'
+  if (value >= 0.4) return 'text-yellow-600 dark:text-yellow-400'
+  return 'text-green-600 dark:text-green-400'
+}
+
 interface ParsedMemory extends Omit<Memory, 'metadata'> {
   metadata: Record<string, unknown>
   agent?: { id: string; name: string } | null
@@ -107,83 +124,113 @@ function parseMemory(raw: Record<string, unknown>): ParsedMemory {
 }
 
 // ---------------------------------------------------------------------------
+// Animation variants
+// ---------------------------------------------------------------------------
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 16, scale: 0.96 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      delay: i * 0.05,
+      duration: 0.35,
+      ease: 'easeOut',
+    },
+  }),
+  exit: { opacity: 0, scale: 0.96, transition: { duration: 0.2 } },
+}
+
+// ---------------------------------------------------------------------------
 // Memory Card
 // ---------------------------------------------------------------------------
 
-function MemoryCard({ memory }: { memory: ParsedMemory }) {
+function MemoryCard({ memory, index }: { memory: ParsedMemory; index: number }) {
   const [expanded, setExpanded] = useState(false)
   const typeCfg = TYPE_CONFIG[memory.type as MemoryType] ?? TYPE_CONFIG.working
   const importancePercent = Math.round(memory.importance * 100)
 
-  const importanceColor =
-    memory.importance >= 0.8
-      ? 'text-red-600 dark:text-red-400'
-      : memory.importance >= 0.5
-        ? 'text-amber-600 dark:text-amber-400'
-        : 'text-green-600 dark:text-green-400'
-
   return (
-    <Card className="transition-shadow hover:shadow-md">
-      <CardContent className="p-4">
-        <div className="flex flex-col gap-3">
-          {/* Top row */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Badge className={typeCfg.badgeClass}>{typeCfg.label}</Badge>
-              {memory.category && memory.category !== 'general' && (
-                <Badge variant="outline" className="text-xs">
-                  {memory.category}
-                </Badge>
+    <motion.div
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      custom={index}
+      layout
+    >
+      <Card className={cn(
+        'border-t-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5',
+        typeCfg.borderTop
+      )}>
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-3">
+            {/* Top row */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Badge className={cn('text-xs', typeCfg.badgeClass)}>{typeCfg.label}</Badge>
+                {memory.category && memory.category !== 'general' && (
+                  <Badge variant="outline" className="text-xs">
+                    {memory.category}
+                  </Badge>
+                )}
+              </div>
+              <span className="text-[10px] text-muted-foreground shrink-0">
+                {timeAgo(memory.createdAt)}
+              </span>
+            </div>
+
+            {/* Content preview */}
+            <Collapsible open={expanded} onOpenChange={setExpanded}>
+              <p className="text-sm text-foreground line-clamp-2">{memory.content}</p>
+              <CollapsibleContent>
+                <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{memory.content}</p>
+              </CollapsibleContent>
+              {memory.content.length > 120 && (
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-xs h-6 px-2 mt-1">
+                    <ChevronRight className={cn('size-3 mr-1 transition-transform', expanded ? 'rotate-90' : '')} />
+                    {expanded ? 'Show less' : 'Show more'}
+                  </Button>
+                </CollapsibleTrigger>
+              )}
+            </Collapsible>
+
+            {/* Importance meter with gradient */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground shrink-0">Importance</span>
+              <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    'h-full rounded-full bg-gradient-to-r transition-all duration-500',
+                    importanceGradient(memory.importance)
+                  )}
+                  style={{ width: `${importancePercent}%` }}
+                />
+              </div>
+              <span className={cn('text-xs font-medium', importanceTextColor(memory.importance))}>
+                {(memory.importance).toFixed(1)}
+              </span>
+            </div>
+
+            {/* Bottom row */}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+              <span className="flex items-center gap-1">
+                <Eye className="size-3" />
+                {memory.accessCount} accesses
+              </span>
+              {memory.agent && (
+                <>
+                  <Separator orientation="vertical" className="h-3" />
+                  <span>Agent: {memory.agent.name}</span>
+                </>
               )}
             </div>
-            <span className="text-[10px] text-muted-foreground shrink-0">
-              {timeAgo(memory.createdAt)}
-            </span>
           </div>
-
-          {/* Content preview */}
-          <Collapsible open={expanded} onOpenChange={setExpanded}>
-            <p className="text-sm text-foreground line-clamp-2">{memory.content}</p>
-            <CollapsibleContent>
-              <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{memory.content}</p>
-            </CollapsibleContent>
-            {memory.content.length > 120 && (
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-xs h-6 px-2 mt-1">
-                  <ChevronRight className={`size-3 mr-1 transition-transform ${expanded ? 'rotate-90' : ''}`} />
-                  {expanded ? 'Show less' : 'Show more'}
-                </Button>
-              </CollapsibleTrigger>
-            )}
-          </Collapsible>
-
-          {/* Importance meter */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground shrink-0">Importance</span>
-            <div className="flex-1">
-              <Progress value={importancePercent} className="h-1.5" />
-            </div>
-            <span className={`text-xs font-medium ${importanceColor}`}>
-              {(memory.importance).toFixed(1)}
-            </span>
-          </div>
-
-          {/* Bottom row */}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-            <span className="flex items-center gap-1">
-              <Eye className="size-3" />
-              {memory.accessCount} accesses
-            </span>
-            {memory.agent && (
-              <>
-                <Separator orientation="vertical" className="h-3" />
-                <span>Agent: {memory.agent.name}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </motion.div>
   )
 }
 
@@ -303,9 +350,6 @@ export function MemoryPanel() {
   for (const key of Object.keys(TYPE_CONFIG)) {
     typeCounts[key] = 0
   }
-  // We need the full set for counts. Use the store memories when tab is "all"
-  // For simplicity, we count from the currently loaded data
-  // When "all" tab is active, parsedMemories has everything
   for (const m of activeTab === 'all' ? parsedMemories : parsedMemories) {
     typeCounts[m.type as string] = (typeCounts[m.type as string] || 0) + 1
     typeCounts.all++
@@ -316,8 +360,10 @@ export function MemoryPanel() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Database className="size-5 text-muted-foreground" />
-          <h2 className="text-xl font-semibold">Memory System</h2>
+          <div className="flex items-center justify-center size-10 rounded-lg bg-violet-500/10">
+            <Database className="size-5 text-violet-600 dark:text-violet-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground">Memory System</h2>
           <Badge variant="secondary" className="ml-1">
             {typeCounts.all}
           </Badge>
@@ -340,7 +386,7 @@ export function MemoryPanel() {
             </DialogHeader>
             <div className="grid gap-4 py-2">
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Type</label>
+                <label className="text-sm font-medium text-foreground">Type</label>
                 <Select value={formType} onValueChange={(v) => setFormType(v as MemoryType)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
@@ -355,7 +401,7 @@ export function MemoryPanel() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Category</label>
+                <label className="text-sm font-medium text-foreground">Category</label>
                 <Input
                   placeholder="e.g. code-pattern, strategy, error-log"
                   value={formCategory}
@@ -363,7 +409,7 @@ export function MemoryPanel() {
                 />
               </div>
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Content</label>
+                <label className="text-sm font-medium text-foreground">Content</label>
                 <Textarea
                   placeholder="Memory content"
                   value={formContent}
@@ -372,7 +418,7 @@ export function MemoryPanel() {
                 />
               </div>
               <div className="grid gap-2">
-                <label className="text-sm font-medium">
+                <label className="text-sm font-medium text-foreground">
                   Importance: {formImportance[0].toFixed(1)}
                 </label>
                 <Slider
@@ -430,9 +476,11 @@ export function MemoryPanel() {
             ) : (
               <ScrollArea className="max-h-[calc(100vh-20rem)]">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {parsedMemories.map((memory) => (
-                    <MemoryCard key={memory.id} memory={memory} />
-                  ))}
+                  <AnimatePresence mode="popLayout">
+                    {parsedMemories.map((memory, index) => (
+                      <MemoryCard key={memory.id} memory={memory} index={index} />
+                    ))}
+                  </AnimatePresence>
                 </div>
               </ScrollArea>
             )}

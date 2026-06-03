@@ -221,3 +221,30 @@ export interface ChatMessage {
   content: string
   timestamp: string
 }
+
+// ---------------------------------------------------------------------------
+// Activity Log
+// ---------------------------------------------------------------------------
+
+export interface ActivityLog {
+  id: string
+  type: 'agent' | 'evolution' | 'safety' | 'memory' | 'benchmark' | 'system'
+  message: string
+  timestamp: string
+  severity?: 'info' | 'warning' | 'success' | 'error'
+}
+
+// ---------------------------------------------------------------------------
+// System Settings
+// ---------------------------------------------------------------------------
+
+export interface SystemSettings {
+  autoEvolution: boolean
+  maxConcurrentAgents: number
+  safetyStrictMode: boolean
+  evolutionIntervalMinutes: number
+  memoryRetentionDays: number
+  maxRiskLevel: string
+  enableResearchLab: boolean
+  logVerbosity: string
+}

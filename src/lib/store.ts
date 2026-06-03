@@ -15,6 +15,7 @@ import type {
   Memory,
   SafetyEvent,
   SystemMetric,
+  SystemSettings,
 } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -31,6 +32,7 @@ export type Page =
   | 'benchmarks'
   | 'safety'
   | 'chat'
+  | 'settings'
 
 // ---------------------------------------------------------------------------
 // Store interface
@@ -54,6 +56,7 @@ interface AppState {
   experiments: Experiment[]
   metrics: SystemMetric[]
   chatMessages: ChatMessage[]
+  settings: SystemSettings
 
   // Loading state
   isLoading: boolean
@@ -74,6 +77,7 @@ interface AppState {
   setSafetyEvents: (events: SafetyEvent[]) => void
   setExperiments: (experiments: Experiment[]) => void
   setMetrics: (metrics: SystemMetric[]) => void
+  setSettings: (settings: SystemSettings) => void
 
   // Actions — Chat
   addChatMessage: (message: ChatMessage) => void
@@ -104,6 +108,16 @@ export const useAppStore = create<AppState>((set) => ({
   experiments: [],
   metrics: [],
   chatMessages: [],
+  settings: {
+    autoEvolution: true,
+    maxConcurrentAgents: 10,
+    safetyStrictMode: true,
+    evolutionIntervalMinutes: 30,
+    memoryRetentionDays: 90,
+    maxRiskLevel: 'medium',
+    enableResearchLab: true,
+    logVerbosity: 'normal',
+  },
 
   // Loading default
   isLoading: false,
@@ -124,6 +138,7 @@ export const useAppStore = create<AppState>((set) => ({
   setSafetyEvents: (events) => set({ safetyEvents: events }),
   setExperiments: (experiments) => set({ experiments }),
   setMetrics: (metrics) => set({ metrics }),
+  setSettings: (settings) => set({ settings }),
 
   // Chat action — append message
   addChatMessage: (message) =>
