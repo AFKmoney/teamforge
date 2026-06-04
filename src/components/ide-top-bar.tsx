@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer, TestTube2, Rocket, Sparkles, Activity, Settings, FolderOpen, Download, Upload, SaveAll } from 'lucide-react'
+import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer, TestTube2, Rocket, Sparkles, Activity, Settings, FolderOpen, Download, Upload, SaveAll, Shield, ShieldAlert, Command, FilePlus, FolderPlus, Terminal as TerminalIcon, Paintbrush } from 'lucide-react'
 import { NotificationBell } from '@/components/notification-panel'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -357,6 +357,43 @@ function RunAllDropdown() {
     }
   }, [currentProject, addBuildLog, fetchBuildLogs, setActiveBottomTab, setBottomPanelOpen, setIsRunning])
 
+  // Compile action - runs bun run build directly via exec API
+  const handleCompile = useCallback(async () => {
+    setIsRunning(true)
+    setBottomPanelOpen(true)
+    setActiveBottomTab('terminal')
+
+    // Dispatch event to terminal
+    window.dispatchEvent(new CustomEvent('teamforge-terminal-execute', {
+      detail: 'bun run build',
+    }))
+
+    try {
+      const res = await fetch('/api/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command: 'bun run build',
+          cwd: '/home/z/my-project',
+          projectId: currentProject?.id || '',
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json() as { stdout: string; stderr: string; exitCode: number }
+        if (data.exitCode === 0) {
+          toast.success('Compile completed successfully')
+        } else {
+          toast.error('Compile failed')
+        }
+      }
+    } catch (e) {
+      console.error('Failed to compile:', e)
+      toast.error('Failed to compile')
+    } finally {
+      setIsRunning(false)
+    }
+  }, [currentProject, setActiveBottomTab, setBottomPanelOpen, setIsRunning])
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -371,6 +408,11 @@ function RunAllDropdown() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={handleCompile} className="gap-2 text-xs cursor-pointer">
+          <Hammer className="size-3.5 text-emerald-500" />
+          <span>Compile</span>
+          <span className="text-muted-foreground ml-auto text-[10px]">bun run build</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => runAction('build')} className="gap-2 text-xs cursor-pointer">
           <Hammer className="size-3.5 text-blue-500" />
           <span>Build</span>
@@ -413,6 +455,8 @@ export function IDETopBar() {
   const fetchFiles = useAppStore((s) => s.fetchFiles)
   const fetchTasks = useAppStore((s) => s.fetchTasks)
   const fetchBuildLogs = useAppStore((s) => s.fetchBuildLogs)
+  const yoloMode = useAppStore((s) => s.yoloMode)
+  const setYoloMode = useAppStore((s) => s.setYoloMode)
   const unsavedFileIds = useAppStore((s) => s.unsavedFileIds)
   const setCurrentProject = useAppStore((s) => s.setCurrentProject)
   const fetchAll = useAppStore((s) => s.fetchAll)
@@ -537,13 +581,13 @@ export function IDETopBar() {
       const res = await fetch('/api/agent-scheduler', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'play', projectId: currentProject?.id }),
+        body: JSON.stringify({ action: 'play', projectId: currentProject?.id, yoloMode }),
       })
       if (res.ok) {
         const data = await res.json()
         await fetchAgents()
         toast.dismiss('play-all')
-        toast.success(`${data.started || idleOrSleepingAgents.length} agent${(data.started || idleOrSleepingAgents.length) > 1 ? 's' : ''} started${data.assigned ? `, ${data.assigned} tasks assigned` : ''}`)
+        toast.success(`${data.started || idleOrSleepingAgents.length} agent${(data.started || idleOrSleepingAgents.length) > 1 ? 's' : ''} started${data.assigned ? `, ${data.assigned} tasks assigned` : ''}${data.yoloMode ? ' (YOLO)' : ''}`)
       } else {
         toast.dismiss('play-all')
         toast.error('Failed to start agents')
@@ -552,9 +596,9 @@ export function IDETopBar() {
       toast.dismiss('play-all')
       toast.error('Failed to start agents')
     }
-  }, [agents, fetchAgents, currentProject])
+  }, [agents, fetchAgents, currentProject, yoloMode])
 
-  // Stop all active agents - revert tasks to todo, set agents to idle
+  // Stop all active agents
   const handleStopAll = useCallback(async () => {
     const activeAgentsList = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping')
     if (activeAgentsList.length === 0) {
@@ -758,6 +802,102 @@ export function IDETopBar() {
       <div className="flex items-center gap-1 shrink-0">
         <RunAllDropdown />
 
+        {/* Quick Actions Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs px-2.5">
+              <Command className="size-3 text-violet-500" />
+              <span className="hidden lg:inline">Actions</span>
+              <ChevronDown className="size-2.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem
+              onClick={async () => {
+                const path = `untitled-${Date.now()}.ts`
+                try {
+                  const res = await fetch('/api/files', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      projectId: currentProject?.id || '',
+                      path,
+                      content: '',
+                      language: 'typescript',
+                      isDirectory: false,
+                    }),
+                  })
+                  if (res.ok) {
+                    const newFile = await res.json()
+                    useAppStore.getState().addFile(newFile)
+                    useAppStore.getState().setActiveFileId(newFile.id)
+                    await useAppStore.getState().fetchFiles()
+                    toast.success('New file created')
+                  }
+                } catch { /* ignore */ }
+              }}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <FilePlus className="size-3.5 text-emerald-500" />
+              <span>New File</span>
+              <span className="text-muted-foreground ml-auto text-[10px]">Ctrl+N</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                useAppStore.getState().setFileSearchOpen(true)
+              }}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <FolderPlus className="size-3.5 text-amber-500" />
+              <span>New Folder</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => runAction('build')}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <Hammer className="size-3.5 text-blue-500" />
+              <span>Run Build</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => runAction('lint')}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <Sparkles className="size-3.5 text-violet-500" />
+              <span>Run Lint</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => runAction('test')}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <TestTube2 className="size-3.5 text-amber-500" />
+              <span>Run Tests</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setBottomPanelOpen(true)
+                useAppStore.getState().setActiveBottomTab('terminal')
+              }}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <TerminalIcon className="size-3.5 text-emerald-500" />
+              <span>Toggle Terminal</span>
+              <span className="text-muted-foreground ml-auto text-[10px]">Ctrl+J</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                // Format code action - show toast for now
+                toast.info('Format Code: Use Ctrl+Shift+F in the editor')
+              }}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <Paintbrush className="size-3.5 text-pink-500" />
+              <span>Format Code</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* Export button */}
         <TooltipProvider delayDuration={300}>
           <Tooltip>
@@ -869,6 +1009,45 @@ export function IDETopBar() {
               <TooltipContent side="bottom" className="text-xs">Pause All Agents</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          {/* YOLO Mode Toggle */}
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={cn(
+                    'h-7 gap-1 px-2 text-xs font-bold transition-all',
+                    yoloMode
+                      ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 hover:bg-orange-500/25 shadow-sm shadow-orange-500/10'
+                      : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/50',
+                  )}
+                  onClick={() => setYoloMode(!yoloMode)}
+                  suppressHydrationWarning
+                >
+                  {mounted && yoloMode ? (
+                    <ShieldAlert className="size-3.5" />
+                  ) : (
+                    <Shield className="size-3.5" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {mounted && yoloMode ? 'YOLO' : 'YOLO'}
+                  </span>
+                  {mounted && yoloMode && (
+                    <span className="relative flex size-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full size-1.5 bg-orange-500" />
+                    </span>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+                {mounted && yoloMode
+                  ? 'YOLO Mode ON — Agents execute autonomously without confirmation'
+                  : 'Toggle YOLO Mode — Let agents auto-approve and execute tasks'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <div className="h-4 w-px bg-border mx-0.5" />
         <NotificationBell />
@@ -892,6 +1071,7 @@ export function IDETopBar() {
           variant="ghost"
           className="size-7"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          suppressHydrationWarning
         >
           {mounted ? (theme === 'dark' ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />) : <Moon className="size-3.5" />}
         </Button>

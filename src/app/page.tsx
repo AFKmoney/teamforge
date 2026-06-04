@@ -15,7 +15,7 @@ import { GlobalSearchPanel } from '@/components/global-search-panel'
 import { useAppStore } from '@/lib/store'
 import { useAgentOrchestrator } from '@/hooks/use-agent-orchestrator'
 import { useRealtimeWS } from '@/hooks/use-realtime-ws'
-import { Cpu, Clock, Zap, Heart, Activity, GitBranch, Wifi, WifiOff, MessageSquare, Bot } from 'lucide-react'
+import { Cpu, Clock, Zap, Heart, Activity, GitBranch, Wifi, WifiOff, MessageSquare, Bot, ShieldAlert } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -39,6 +39,7 @@ export default function Home() {
   const currentBranch = useAppStore((s) => s.currentBranch)
 
   const aiSettings = useAppStore((s) => s.aiSettings)
+  const yoloMode = useAppStore((s) => s.yoloMode)
   const mounted = useHydrated()
 
   // AI Model display label
@@ -112,10 +113,12 @@ export default function Home() {
   // Hydrate AI settings from localStorage (must run after mount to avoid hydration mismatch)
   const hydrateAISettings = useAppStore((s) => s.hydrateAISettings)
   const hydrateSettings = useAppStore((s) => s.hydrateSettings)
+  const hydrateYoloMode = useAppStore((s) => s.hydrateYoloMode)
   useEffect(() => {
     hydrateAISettings()
     hydrateSettings()
-  }, [hydrateAISettings, hydrateSettings])
+    hydrateYoloMode()
+  }, [hydrateAISettings, hydrateSettings, hydrateYoloMode])
 
   // Initial data load - dynamically fetch the first project
   useEffect(() => {
@@ -455,6 +458,27 @@ export default function Home() {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+
+        {/* YOLO Mode Indicator */}
+        {mounted && yoloMode && (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 text-orange-600 dark:text-orange-400 cursor-default">
+                  <ShieldAlert className="size-3" />
+                  <span className="font-bold tracking-wider">YOLO</span>
+                  <span className="relative flex size-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full size-1.5 bg-orange-500" />
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                YOLO Mode Active — Agents auto-approve and execute tasks without confirmation
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
 
         {/* Right side */}
         <div className="flex items-center gap-2 ml-auto">

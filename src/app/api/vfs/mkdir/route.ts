@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Project ID and directory path are required' }, { status: 400 })
     }
 
-    const createdDirs = []
+    const createdDirs: unknown[] = []
 
     // Create all parent directories and the target directory
     const pathParts = path.split('/').filter(Boolean)

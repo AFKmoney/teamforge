@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import type { GitFileStatus, GitBranch } from '@/lib/types'
+import type { GitFileStatus, GitBranch as GitBranchType } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -18,7 +18,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import {
-  GitBranch,
+  GitBranch as GitBranchIcon,
   GitCommit,
   Plus,
   Trash2,
@@ -97,7 +97,7 @@ function BranchSelector() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs hover:bg-muted/60 transition-colors w-full">
-          <GitBranch className="size-3 text-emerald-500 shrink-0" />
+          <GitBranchIcon className="size-3 text-emerald-500 shrink-0" />
           <span className="text-foreground font-medium truncate">{currentBranch}</span>
           <ChevronDown className="size-3 text-muted-foreground ml-auto shrink-0" />
         </button>
@@ -119,7 +119,7 @@ function BranchSelector() {
                     : 'hover:bg-muted/60 text-foreground/80',
                 )}
               >
-                <GitBranch className="size-3 shrink-0" />
+                <GitBranchIcon className="size-3 shrink-0" />
                 <span className="truncate flex-1">{branch.name}</span>
                 {branch.name === currentBranch && (
                   <Check className="size-3 text-emerald-500 shrink-0" />

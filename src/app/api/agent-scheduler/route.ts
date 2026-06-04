@@ -59,28 +59,29 @@ export async function GET() {
 }
 
 // POST /api/agent-scheduler - Trigger scheduler
-// Accepts: { action: 'tick' | 'play' | 'stop' | 'pause' | 'assign', projectId?, agentId? }
+// Accepts: { action: 'tick' | 'play' | 'stop' | 'pause' | 'assign', projectId?, agentId?, yoloMode? }
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))
-    const { action = 'tick', projectId, agentId } = body as {
+    const { action = 'tick', projectId, agentId, yoloMode = false } = body as {
       action?: string
       projectId?: string
       agentId?: string
+      yoloMode?: boolean
     }
 
     switch (action) {
       case 'play':
-        return handlePlay(projectId)
+        return handlePlay(projectId, yoloMode)
       case 'stop':
         return handleStop(projectId)
       case 'pause':
         return handlePause(projectId)
       case 'assign':
-        return handleAutoAssign(projectId)
+        return handleAutoAssign(projectId, yoloMode)
       case 'tick':
       default:
-        return handleTick(projectId, agentId)
+        return handleTick(projectId, agentId, yoloMode)
     }
   } catch (error) {
     console.error('Scheduler error:', error)
@@ -92,8 +93,9 @@ export async function POST(req: NextRequest) {
 
 /**
  * Play: Start all idle agents → they pick up tasks via auto-assign
+ * When yoloMode is true, auto-assign and immediately start executing tasks
  */
-async function handlePlay(projectId?: string) {
+async function handlePlay(projectId?: string, yoloMode: boolean = false) {
   try {
     // Find all idle and sleeping agents
     const agents = await db.agent.findMany({
@@ -116,7 +118,29 @@ async function handlePlay(projectId?: string) {
     }
 
     // Auto-assign tasks to idle agents
-    const assignResult = await autoAssignTasks(projectId)
+    const assignResult = await autoAssignTasks(projectId, yoloMode)
+
+    // In YOLO mode, immediately execute tasks for all assigned agents
+    if (yoloMode && assignResult.assignments.length > 0) {
+      const executionResults: unknown[] = []
+      for (const assignment of assignResult.assignments) {
+        try {
+          const result = await executeTask(assignment.taskId, assignment.agentId)
+          const data = await result.json()
+          executionResults.push(data)
+        } catch (e) {
+          console.error('YOLO mode auto-execution error:', e)
+        }
+      }
+      return NextResponse.json({
+        message: `Started ${agents.length} agents in YOLO mode`,
+        started: agents.length,
+        assigned: assignResult.assigned,
+        assignments: assignResult.assignments,
+        yoloMode: true,
+        executed: executionResults.length,
+      })
+    }
 
     return NextResponse.json({
       message: `Started ${agents.length} agents`,
@@ -227,18 +251,62 @@ async function handlePause(projectId?: string) {
 /**
  * Auto-assign: Find unassigned tasks and match them to idle agents based on role
  */
-async function handleAutoAssign(projectId?: string) {
-  const result = await autoAssignTasks(projectId)
+async function handleAutoAssign(projectId?: string, yoloMode: boolean = false) {
+  const result = await autoAssignTasks(projectId, yoloMode)
   return NextResponse.json(result)
 }
 
 /**
  * Tick: Find ONE task with an idle agent and execute it
+ * When yoloMode is true, auto-assign and immediately execute all tasks
  */
-async function handleTick(projectId?: string, specificAgentId?: string) {
+async function handleTick(projectId?: string, specificAgentId?: string, yoloMode: boolean = false) {
   try {
     // First, auto-assign any unassigned tasks
-    await autoAssignTasks(projectId)
+    await autoAssignTasks(projectId, yoloMode)
+
+    // In YOLO mode, process all pending tasks (not just one)
+    if (yoloMode) {
+      const allTodoFilter: Record<string, unknown> = {
+        status: 'todo',
+        assigneeId: { not: null },
+      }
+      if (projectId) allTodoFilter.projectId = projectId
+
+      const allPendingTasks = await db.task.findMany({
+        where: allTodoFilter,
+        include: { assignee: true },
+        orderBy: [
+          { priority: 'desc' },
+          { createdAt: 'asc' },
+        ],
+      })
+
+      const executionResults: unknown[] = []
+      for (const pendingTask of allPendingTasks) {
+        if (pendingTask.assigneeId) {
+          const agent = await db.agent.findUnique({ where: { id: pendingTask.assigneeId } })
+          if (agent && agent.status === 'idle') {
+            try {
+              const result = await executeTask(pendingTask.id, agent.id)
+              const data = await result.json()
+              executionResults.push(data)
+            } catch (e) {
+              console.error('YOLO tick execution error:', e)
+            }
+          }
+        }
+      }
+
+      if (executionResults.length > 0) {
+        return NextResponse.json({
+          message: `YOLO mode: executed ${executionResults.length} tasks`,
+          executed: executionResults.length,
+          yoloMode: true,
+          results: executionResults,
+        })
+      }
+    }
 
     // Find ONE task that's in 'todo' status with an assigned agent that is idle
     const taskFilter: Record<string, unknown> = {
@@ -322,7 +390,7 @@ async function handleTick(projectId?: string, specificAgentId?: string) {
 /**
  * Auto-assign unassigned tasks to idle agents based on role compatibility
  */
-async function autoAssignTasks(projectId?: string): Promise<{ assigned: number; assignments: Array<{ taskId: string; taskTitle: string; agentId: string; agentName: string }> }> {
+async function autoAssignTasks(projectId?: string, yoloMode: boolean = false): Promise<{ assigned: number; assignments: Array<{ taskId: string; taskTitle: string; agentId: string; agentName: string }> }> {
   const assignments: Array<{ taskId: string; taskTitle: string; agentId: string; agentName: string }> = []
 
   // Find unassigned todo tasks
@@ -347,6 +415,7 @@ async function autoAssignTasks(projectId?: string): Promise<{ assigned: number; 
   // Find idle agents
   const idleAgents = await db.agent.findMany({
     where: { status: 'idle' },
+    select: { id: true, name: true, role: true, tasksCompleted: true, successRate: true },
   })
 
   if (idleAgents.length === 0) {
@@ -372,8 +441,10 @@ async function autoAssignTasks(projectId?: string): Promise<{ assigned: number; 
         data: {
           agentId: bestAgent.id,
           action: 'task_started',
-          description: `Auto-assigned to task: ${task.title}`,
-          metadata: JSON.stringify({ taskId: task.id, taskType: task.type, action: 'auto_assign' }),
+          description: yoloMode
+            ? `YOLO auto-assigned to task: ${task.title}`
+            : `Auto-assigned to task: ${task.title}`,
+          metadata: JSON.stringify({ taskId: task.id, taskType: task.type, action: yoloMode ? 'yolo_auto_assign' : 'auto_assign', yoloMode }),
         },
       })
       broadcastEvent('activity:new', { agentId: bestAgent.id, action: 'task_started' })
@@ -394,12 +465,14 @@ async function autoAssignTasks(projectId?: string): Promise<{ assigned: number; 
 /**
  * Find the best agent for a task based on role compatibility
  */
+interface AgentPick { id: string; name: string; role: string; tasksCompleted: number; successRate: number }
+
 function findBestAgent(
   taskType: string,
   taskStatus: string,
-  idleAgents: { id: string; role: string; tasksCompleted: number; successRate: number }[],
+  idleAgents: AgentPick[],
   alreadyAssigned: Set<string>,
-): { id: string; role: string; tasksCompleted: number; successRate: number } | null {
+): AgentPick | null {
   // Special handling for in_review tasks → reviewer
   if (taskStatus === 'in_review') {
     const reviewer = idleAgents.find(a => a.role === 'reviewer' && !alreadyAssigned.has(a.id))
@@ -730,7 +803,20 @@ Task description: ${task.description}
 Write REAL, COMPLETE code - no placeholders, no TODOs, no "implementation goes here". The code must be production-ready.`
 }
 
-function parseActions(content: string): Array<Record<string, unknown>> {
+interface ParsedAction {
+  type: string
+  path?: string
+  content?: string
+  status?: string
+  output?: string
+  title?: string
+  description?: string
+  priority?: string
+  taskType?: string
+  language?: string
+}
+
+function parseActions(content: string): ParsedAction[] {
   try {
     // Try to extract JSON from the response
     const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*"actions"[\s\S]*\}/)

@@ -50,6 +50,8 @@ import {
   Sparkles,
   GitBranch,
   GitCommit as GitCommitIcon,
+  X,
+  Copy,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
@@ -163,6 +165,28 @@ function TerminalView() {
     }])
   }, [])
 
+  // Get all output text for copying
+  const getAllOutputText = useCallback(() => {
+    return lines.map((line) => line.content).join('\n')
+  }, [lines])
+
+  // Clear terminal
+  const handleClear = useCallback(() => {
+    setLines([])
+  }, [])
+
+  // Copy output to clipboard
+  const handleCopyOutput = useCallback(async () => {
+    const text = getAllOutputText()
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success('Terminal output copied to clipboard')
+    } catch {
+      toast.error('Failed to copy output')
+    }
+  }, [getAllOutputText])
+
   const handleCommand = useCallback(async (command: string) => {
     const trimmed = command.trim()
     if (!trimmed) return
@@ -209,10 +233,6 @@ function TerminalView() {
     if (trimmed.startsWith('echo ')) {
       addLine('output', trimmed.slice(5))
       return
-    }
-
-    if (trimmed === 'ls' || trimmed.startsWith('ls ')) {
-      // Use the execute API for ls
     }
 
     // Execute via API
@@ -265,6 +285,19 @@ function TerminalView() {
     }
   }, [addLine, cwd])
 
+  // Listen for terminal-execute events from editor/top bar
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<string>
+      const command = customEvent.detail
+      if (command && typeof command === 'string') {
+        handleCommand(command)
+      }
+    }
+    window.addEventListener('teamforge-terminal-execute', handler)
+    return () => window.removeEventListener('teamforge-terminal-execute', handler)
+  }, [handleCommand])
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -302,6 +335,34 @@ function TerminalView() {
 
   return (
     <div className="flex flex-col h-full" onClick={focusInput}>
+      {/* Terminal toolbar */}
+      <div className="flex items-center gap-1 px-3 py-1 border-b border-border/30 bg-muted/10 shrink-0">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-5 text-muted-foreground hover:text-foreground"
+          onClick={(e) => { e.stopPropagation(); handleClear() }}
+          disabled={lines.length === 0}
+          title="Clear terminal"
+        >
+          <X className="size-3" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-5 text-muted-foreground hover:text-foreground"
+          onClick={(e) => { e.stopPropagation(); handleCopyOutput() }}
+          disabled={lines.length === 0}
+          title="Copy output"
+        >
+          <Copy className="size-3" />
+        </Button>
+        <div className="flex-1" />
+        <span className="text-[9px] text-muted-foreground/40 tabular-nums">
+          {lines.length} line{lines.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
       {/* Terminal output area */}
       <div
         ref={scrollRef}

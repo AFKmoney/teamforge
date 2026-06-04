@@ -96,6 +96,16 @@ function saveAISettingsLocal(settings: AISettings) {
   }
 }
 
+// Save YOLO mode to localStorage
+function saveYoloMode(mode: boolean) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem('teamforge-ide-yolo-mode', JSON.stringify(mode))
+  } catch {
+    // ignore storage errors
+  }
+}
+
 // NOTE: We no longer read AI settings from localStorage at store creation time.
 // Instead, we always initialize with DEFAULT_AI_SETTINGS and hydrate from
 // localStorage in a useEffect after mount. This prevents hydration mismatches
@@ -216,6 +226,11 @@ interface AppState {
   updateAISettings: (updates: Partial<AISettings>) => void
   hydrateAISettings: () => void
   hydrateSettings: () => void
+
+  // YOLO mode (autonomous agent execution without confirmation)
+  yoloMode: boolean
+  setYoloMode: (mode: boolean) => void
+  hydrateYoloMode: () => void
 
   // Loading
   loading: boolean
@@ -440,6 +455,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (stored) {
         const persisted = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) }
         set({ settings: persisted })
+      }
+    } catch {
+      // ignore parse errors
+    }
+  },
+
+  // YOLO mode — always start with false to avoid hydration mismatch
+  yoloMode: false,
+  setYoloMode: (mode) => {
+    saveYoloMode(mode)
+    set({ yoloMode: mode })
+  },
+  // Hydrate YOLO mode from localStorage after client mount
+  hydrateYoloMode: () => {
+    if (typeof window === 'undefined') return
+    try {
+      const stored = localStorage.getItem('teamforge-ide-yolo-mode')
+      if (stored) {
+        set({ yoloMode: JSON.parse(stored) as boolean })
       }
     } catch {
       // ignore parse errors

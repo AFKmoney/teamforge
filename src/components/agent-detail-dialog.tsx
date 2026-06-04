@@ -21,6 +21,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from '@/components/ui/tooltip'
+import {
   Activity,
   FileCode2,
   Clock,
@@ -35,10 +41,11 @@ import {
   ChevronDown,
   Check,
   MessageSquare,
+  Timer,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo, useState, useCallback } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, formatRelativeTime } from '@/lib/utils'
 import { toast } from 'sonner'
 
 function StatCard({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) {
@@ -67,6 +74,7 @@ export function AgentDetailDialog() {
   const [isAssigning, setIsAssigning] = useState(false)
   const [assignTaskTitle, setAssignTaskTitle] = useState('')
   const [showAssignTask, setShowAssignTask] = useState(false)
+  const [isSettingStatus, setIsSettingStatus] = useState(false)
 
   const agent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) || null,
@@ -83,13 +91,13 @@ export function AgentDetailDialog() {
     [agent, tasks],
   )
 
-  // Recent activities (last 5)
+  // Recent activities (last 10)
   const recentActivities = useMemo(
     () => agent
       ? activities
           .filter((a) => a.agentId === agent.id)
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 5)
+          .slice(0, 10)
       : [],
     [agent, activities],
   )
@@ -98,38 +106,32 @@ export function AgentDetailDialog() {
   const recentFiles = useMemo(
     () => {
       if (!agent) return []
-      // Get task IDs assigned to this agent
-      const agentTaskIds = new Set(
-        tasks
-          .filter((t) => t.assigneeId === agent.id)
-          .map((t) => t.id)
-      )
       // Get activities for this agent that involve file changes
       const agentFileRelatedActivities = activities.filter(
         (a) => a.agentId === agent.id && (a.action === 'file_created' || a.action === 'file_updated' || a.action === 'code_change')
       )
-      // Get file paths mentioned in agent activities or task descriptions
+      // Get file paths mentioned in agent activities
       const relatedPaths = new Set<string>()
       agentFileRelatedActivities.forEach((a) => {
-        const meta = typeof a.metadata === 'string' ? JSON.parse(a.metadata) : a.metadata
-        if (meta?.path) relatedPaths.add(meta.path)
-        if (meta?.filePath) relatedPaths.add(meta.filePath)
-        if (meta?.files && Array.isArray(meta.files)) {
-          meta.files.forEach((f: string) => relatedPaths.add(f))
+        try {
+          const meta = typeof a.metadata === 'string' ? JSON.parse(a.metadata) : a.metadata
+          if (meta?.path) relatedPaths.add(meta.path)
+          if (meta?.filePath) relatedPaths.add(meta.filePath)
+          if (meta?.files && Array.isArray(meta.files)) {
+            meta.files.forEach((f: string) => relatedPaths.add(f))
+          }
+        } catch {
+          // ignore parse errors
         }
       })
-      // Filter files: show only files related to agent's tasks or activities
+      // Filter files: show only files related to agent's activities
       const filtered = files
-        .filter((f) => !f.isDirectory && (
-          relatedPaths.size === 0 // If no specific paths, show nothing (no relationship)
-            ? false
-            : relatedPaths.has(f.path)
-        ))
+        .filter((f) => !f.isDirectory && relatedPaths.has(f.path))
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         .slice(0, 5)
       return filtered
     },
-    [agent, files, activities, tasks],
+    [agent, files, activities],
   )
 
   // Assigned tasks
@@ -140,8 +142,22 @@ export function AgentDetailDialog() {
     [agent, tasks],
   )
 
+  // Total tasks (including done)
+  const totalAssignedTasks = useMemo(
+    () => agent ? tasks.filter((t) => t.assigneeId === agent.id).length : 0,
+    [agent, tasks],
+  )
+
+  // Compute last active display
+  const lastActiveDisplay = useMemo(() => {
+    if (!agent) return ''
+    if (isActive) return 'Now'
+    return formatRelativeTime(agent.lastActive || agent.updatedAt)
+  }, [agent, isActive])
+
   const handleSetStatus = useCallback(async (newStatus: AgentStatus) => {
     if (!agent) return
+    setIsSettingStatus(true)
     try {
       const res = await fetch(`/api/agents/${agent.id}`, {
         method: 'PATCH',
@@ -151,10 +167,14 @@ export function AgentDetailDialog() {
       if (res.ok) {
         updateAgent(agent.id, { status: newStatus })
         toast.success(`${agent.name} status set to ${AGENT_STATUS_CONFIG[newStatus].label}`)
+      } else {
+        toast.error('Failed to update agent status')
       }
     } catch (e) {
       console.error('Failed to update agent status:', e)
       toast.error('Failed to update agent status')
+    } finally {
+      setIsSettingStatus(false)
     }
   }, [agent, updateAgent])
 
@@ -179,7 +199,6 @@ export function AgentDetailDialog() {
       if (res.ok) {
         const task = await res.json()
         await fetchTasks()
-        // Always set currentTaskId; also set status to thinking if idle/sleeping
         const patchBody: Record<string, string> = { currentTaskId: task.id }
         if (agent.status === 'idle' || agent.status === 'sleeping') {
           patchBody.status = 'thinking'
@@ -255,6 +274,20 @@ export function AgentDetailDialog() {
                       <span className="text-xs text-muted-foreground truncate">{agent.specialty}</span>
                     </>
                   )}
+                  <span className="text-muted-foreground/40">·</span>
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-xs text-muted-foreground/60 flex items-center gap-1 cursor-default">
+                          <Timer className="size-2.5" />
+                          {lastActiveDisplay}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Last active: {new Date(agent.lastActive || agent.updatedAt).toLocaleString()}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             </DialogTitle>
@@ -264,7 +297,7 @@ export function AgentDetailDialog() {
           </DialogHeader>
 
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-2 mt-4">
+          <div className="grid grid-cols-4 gap-2 mt-4">
             <StatCard
               label="Tasks Done"
               value={agent.tasksCompleted}
@@ -282,6 +315,12 @@ export function AgentDetailDialog() {
               value={agent.tokensUsed >= 1000 ? `${(agent.tokensUsed / 1000).toFixed(1)}K` : String(agent.tokensUsed)}
               icon={<Zap className="size-4 text-amber-500" />}
               color="bg-amber-500/10"
+            />
+            <StatCard
+              label="Assigned"
+              value={totalAssignedTasks}
+              icon={<Activity className="size-4 text-blue-500" />}
+              color="bg-blue-500/10"
             />
           </div>
 
@@ -419,52 +458,73 @@ export function AgentDetailDialog() {
 
             {/* Recent Activity */}
             <section>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2">
-                <Clock className="size-3.5 text-blue-500" />
-                Recent Activity
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Clock className="size-3.5 text-blue-500" />
+                  Recent Activity
+                </div>
+                {recentActivities.length > 0 && (
+                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">{recentActivities.length}</Badge>
+                )}
               </div>
               {recentActivities.length > 0 ? (
-                <div className="space-y-1">
+                <div className="space-y-1 max-h-52 overflow-y-auto thin-scrollbar">
                   {recentActivities.map((activity) => (
                     <div key={activity.id} className="flex items-start gap-2.5 p-2 rounded-md text-xs hover:bg-muted/20 transition-colors">
                       <span className={cn('size-1.5 rounded-full mt-1.5 shrink-0', isActive ? 'bg-emerald-500/60' : 'bg-muted-foreground/40')} />
                       <div className="flex-1 min-w-0">
                         <div className="text-foreground/90">{activity.description}</div>
                         <div className="text-[10px] text-muted-foreground mt-0.5">
-                          {new Date(activity.createdAt).toLocaleTimeString()}
+                          {formatRelativeTime(activity.createdAt)} · {new Date(activity.createdAt).toLocaleTimeString()}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-xs text-muted-foreground p-3 text-center bg-muted/15 rounded-lg border border-dashed border-border/60">
+                <div className="text-xs text-muted-foreground p-4 text-center bg-muted/15 rounded-lg border border-dashed border-border/60">
+                  <Activity className="size-5 text-muted-foreground/30 mx-auto mb-1.5" />
                   No recent activity
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">Activity will appear here when the agent performs actions</p>
                 </div>
               )}
             </section>
 
             {/* Recently Modified Files */}
             <section>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2">
-                <FileCode2 className="size-3.5 text-pink-500" />
-                Recently Modified Files
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <FileCode2 className="size-3.5 text-pink-500" />
+                  Modified Files
+                </div>
+                {recentFiles.length > 0 && (
+                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">{recentFiles.length}</Badge>
+                )}
               </div>
               {recentFiles.length > 0 ? (
                 <div className="space-y-1">
                   {recentFiles.map((file) => (
-                    <div key={file.id} className="flex items-center gap-2 p-2 rounded-md text-xs hover:bg-muted/20 transition-colors">
+                    <button
+                      key={file.id}
+                      onClick={() => {
+                        setSelectedAgentId(null)
+                        useAppStore.getState().setActiveFileId(file.id)
+                      }}
+                      className="flex items-center gap-2 p-2 rounded-md text-xs hover:bg-muted/20 transition-colors w-full text-left group"
+                    >
                       <FileCode2 className="size-3 text-muted-foreground shrink-0" />
-                      <span className="text-foreground/80 truncate flex-1">{file.path}</span>
+                      <span className="text-foreground/80 truncate flex-1 group-hover:text-foreground transition-colors">{file.path}</span>
                       <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
-                        {new Date(file.updatedAt).toLocaleTimeString()}
+                        {formatRelativeTime(file.updatedAt)}
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (
-                <div className="text-xs text-muted-foreground p-3 text-center bg-muted/15 rounded-lg border border-dashed border-border/60">
-                  No recently modified files
+                <div className="text-xs text-muted-foreground p-4 text-center bg-muted/15 rounded-lg border border-dashed border-border/60">
+                  <FileCode2 className="size-5 text-muted-foreground/30 mx-auto mb-1.5" />
+                  No modified files
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">Files this agent has worked on will appear here</p>
                 </div>
               )}
             </section>
@@ -499,8 +559,9 @@ export function AgentDetailDialog() {
                 size="sm"
                 variant="outline"
                 className="gap-1.5 h-8 text-xs"
+                disabled={isSettingStatus}
               >
-                <ToggleLeft className="size-3" />
+                {isSettingStatus ? <Loader2 className="size-3 animate-spin" /> : <ToggleLeft className="size-3" />}
                 Set Status
                 <ChevronDown className="size-2.5 ml-0.5" />
               </Button>

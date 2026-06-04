@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create directories first
-    const dirResults = []
+    const dirResults: unknown[] = []
     for (const dirPath of dirsToCreate) {
       const dir = await db.projectFile.upsert({
         where: { projectId_path: { projectId, path: dirPath } },
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create/update files
-    const fileResults = []
+    const fileResults: unknown[] = []
     for (const file of files) {
       const ext = file.path.split('.').pop()?.toLowerCase() || ''
       const langMap: Record<string, string> = {

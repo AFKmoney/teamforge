@@ -45,6 +45,9 @@ import {
   Check,
   Pencil,
   FolderOpen,
+  Terminal,
+  FileEdit,
+  BookOpen,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
@@ -75,6 +78,9 @@ interface SlashCommand {
 
 const SLASH_COMMANDS: SlashCommand[] = [
   { command: '/help', label: 'Help', description: 'Show available commands', icon: <HelpCircle className="size-3 text-blue-500" />, action: 'help' },
+  { command: '/run', label: 'Run Command', description: 'Execute a whitelisted shell command', icon: <Terminal className="size-3 text-emerald-500" />, action: 'run' },
+  { command: '/edit', label: 'Edit File', description: 'AI-assisted file editing', icon: <FileEdit className="size-3 text-violet-500" />, action: 'edit' },
+  { command: '/explain', label: 'Explain File', description: 'Get AI explanation of a file', icon: <BookOpen className="size-3 text-blue-500" />, action: 'explain' },
   { command: '/status', label: 'Status', description: 'Get current project status', icon: <BarChart3 className="size-3 text-emerald-500" />, action: 'status' },
   { command: '/create_file', label: 'Create File', description: 'Create a new file in the project', icon: <FilePlus className="size-3 text-violet-500" />, action: 'create_file' },
   { command: '/run_tests', label: 'Run Tests', description: 'Run the test suite', icon: <TestTube className="size-3 text-amber-500" />, action: 'run_tests' },
@@ -683,6 +689,7 @@ export function IDEChatPanel() {
   const fetchTasks = useAppStore((s) => s.fetchTasks)
   const updateAgent = useAppStore((s) => s.updateAgent)
   const aiSettings = useAppStore((s) => s.aiSettings)
+  const yoloMode = useAppStore((s) => s.yoloMode)
 
   // Chat session state
   const chatSessions = useAppStore((s) => s.chatSessions)
@@ -692,6 +699,7 @@ export function IDEChatPanel() {
   const updateChatSession = useAppStore((s) => s.updateChatSession)
   const fetchMessages = useAppStore((s) => s.fetchMessages)
   const fetchChatSessions = useAppStore((s) => s.fetchChatSessions)
+  const fetchFiles = useAppStore((s) => s.fetchFiles)
 
   const [inputValue, setInputValue] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -821,7 +829,7 @@ export function IDEChatPanel() {
           agentId: null,
           content: `▶️ Task "${runTaskTitle.trim()}" assigned and started${task.assigneeId ? `. Agent is now working on it.` : '.'}`,
           type: 'system',
-          metadata: {},
+          metadata: {} as Record<string, unknown>,
           createdAt: new Date().toISOString(),
         })
         toast.success('Task started successfully')
@@ -900,6 +908,20 @@ export function IDEChatPanel() {
   const executeSlashCommand = useCallback(async (cmd: SlashCommand) => {
     setInputValue('')
 
+    // For /run, /edit, /explain — these are handled server-side via the AI chat API
+    // so we route them through handleSend by setting the input and triggering send
+    if (cmd.action === 'run' || cmd.action === 'edit' || cmd.action === 'explain') {
+      // These commands need arguments, so just set the prefix and let the user type the rest
+      const prefixes: Record<string, string> = {
+        run: '/run ',
+        edit: '/edit ',
+        explain: '/explain ',
+      }
+      setInputValue(prefixes[cmd.action] || '')
+      setTimeout(() => { if (textareaRef.current) textareaRef.current.focus() }, 50)
+      return
+    }
+
     switch (cmd.action) {
       case 'help':
         addMessage({
@@ -908,21 +930,67 @@ export function IDEChatPanel() {
           agentId: null,
           content: `Available commands:\n${SLASH_COMMANDS.map((c) => `  ${c.command} — ${c.description}`).join('\n')}`,
           type: 'system',
-          metadata: {},
+          metadata: {} as Record<string, unknown>,
           createdAt: new Date().toISOString(),
         })
         break
-      case 'status':
-        addMessage({
-          id: `sys_${Date.now()}`,
-          projectId: currentProject?.id || '',
-          agentId: null,
-          content: `📊 Project Status:\n• ${agents.length} agents (${onlineCount} active)\n• ${messages.length} messages in chat\n• All systems operational`,
-          type: 'system',
-          metadata: {},
-          createdAt: new Date().toISOString(),
-        })
+      case 'status': {
+        // Send /status to the AI chat endpoint for a real server-side status
+        setIsSending(true)
+        try {
+          const res = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: '/status',
+              projectId: currentProject?.id || '',
+              chatSessionId: currentChatSessionId || undefined,
+              provider: aiSettings.provider,
+              model: aiSettings.provider === 'openai-compatible'
+                ? (aiSettings.openaiCompatibleModelId || aiSettings.model)
+                : aiSettings.model,
+              nvidiaApiKey: aiSettings.nvidiaApiKey || undefined,
+              openaiCompatibleBaseUrl: aiSettings.openaiCompatibleBaseUrl || undefined,
+              openaiCompatibleApiKey: aiSettings.openaiCompatibleApiKey || undefined,
+              openaiCompatibleModelId: aiSettings.openaiCompatibleModelId || undefined,
+            }),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.message) {
+              const msg = data.message
+              if (typeof msg.metadata === 'string') {
+                try { msg.metadata = JSON.parse(msg.metadata) } catch { msg.metadata = {} }
+              }
+              addMessage(msg)
+            }
+          } else {
+            // Fallback to local status
+            addMessage({
+              id: `sys_${Date.now()}`,
+              projectId: currentProject?.id || '',
+              agentId: null,
+              content: `📊 Project Status:\n• ${agents.length} agents (${onlineCount} active)\n• ${messages.length} messages in chat\n• All systems operational`,
+              type: 'system',
+              metadata: {} as Record<string, unknown>,
+              createdAt: new Date().toISOString(),
+            })
+          }
+        } catch {
+          addMessage({
+            id: `sys_${Date.now()}`,
+            projectId: currentProject?.id || '',
+            agentId: null,
+            content: `📊 Project Status:\n• ${agents.length} agents (${onlineCount} active)\n• ${messages.length} messages in chat\n• All systems operational`,
+            type: 'system',
+            metadata: {} as Record<string, unknown>,
+            createdAt: new Date().toISOString(),
+          })
+        } finally {
+          setIsSending(false)
+        }
         break
+      }
       case 'run_tests': {
         setIsRunning(true)
         setBottomPanelOpen(true)
@@ -979,7 +1047,7 @@ export function IDEChatPanel() {
           agentId: null,
           content: '🧪 Running lint check... Results will appear in the terminal.',
           type: 'system',
-          metadata: {},
+          metadata: {} as Record<string, unknown>,
           createdAt: new Date().toISOString(),
         })
         break
@@ -1040,7 +1108,7 @@ export function IDEChatPanel() {
           agentId: null,
           content: '🚀 Running build... Check the terminal for progress.',
           type: 'system',
-          metadata: {},
+          metadata: {} as Record<string, unknown>,
           createdAt: new Date().toISOString(),
         })
         break
@@ -1050,14 +1118,14 @@ export function IDEChatPanel() {
           id: `sys_${Date.now()}`,
           projectId: currentProject?.id || '',
           agentId: null,
-          content: '📝 Use the + button in the sidebar to create a new file, or right-click a folder in the file explorer.',
+          content: '📝 Use the + button in the sidebar to create a new file, or right-click a folder in the file explorer. You can also use /create_file <path> [content] in the chat.',
           type: 'system',
-          metadata: {},
+          metadata: {} as Record<string, unknown>,
           createdAt: new Date().toISOString(),
         })
         break
     }
-  }, [currentProject, agents, onlineCount, messages, addMessage, addBuildLog, setIsRunning, setBottomPanelOpen, setActiveBottomTab])
+  }, [currentProject, agents, onlineCount, messages, addMessage, addBuildLog, setIsRunning, setBottomPanelOpen, setActiveBottomTab, aiSettings, currentChatSessionId])
 
   // Auto-title update after first AI response
   const autoTitleUpdate = useCallback(async (sessionId: string, firstUserMessage: string) => {
@@ -1079,12 +1147,23 @@ export function IDEChatPanel() {
   const handleSend = useCallback(async () => {
     if (!inputValue.trim() || isSending) return
 
-    // Check if it's a slash command
+    // Check if it's a slash command that should be handled locally
     if (inputValue.startsWith('/')) {
-      const cmd = SLASH_COMMANDS.find((c) => c.command === inputValue.trim())
+      const trimmedInput = inputValue.trim()
+      const cmd = SLASH_COMMANDS.find((c) => c.command === trimmedInput)
       if (cmd) {
         executeSlashCommand(cmd)
         return
+      }
+      // For parameterized commands (/run <cmd>, /edit <path> <instruction>, /explain <path>)
+      // or any /status, /create_file, /deploy, /run_tests — route through the AI chat API
+      const serverHandledCommands = ['/run', '/edit', '/explain', '/status', '/create_file', '/deploy', '/run_tests']
+      const commandPart = trimmedInput.split(/\s+/)[0]
+      if (serverHandledCommands.includes(commandPart)) {
+        // Fall through to the AI chat API send below
+      } else {
+        // Unknown command — just try it via the AI chat API
+        // Fall through
       }
     }
 
@@ -1114,6 +1193,7 @@ export function IDEChatPanel() {
           openaiCompatibleBaseUrl: aiSettings.openaiCompatibleBaseUrl || undefined,
           openaiCompatibleApiKey: aiSettings.openaiCompatibleApiKey || undefined,
           openaiCompatibleModelId: aiSettings.openaiCompatibleModelId || undefined,
+          yoloMode: yoloMode,
         }),
       })
 
@@ -1140,21 +1220,35 @@ export function IDEChatPanel() {
           setCurrentChatSessionId(newSessionId)
         }
 
-        // Add user message
-        if (data.userMessage) {
-          const userMsg = data.userMessage
-          if (typeof userMsg.metadata === 'string') {
-            try { userMsg.metadata = JSON.parse(userMsg.metadata) } catch { userMsg.metadata = {} }
+        // Handle slash command response (returns { message } instead of { userMessage, aiMessage })
+        if (data.message && !data.userMessage) {
+          const sysMsg = data.message
+          if (typeof sysMsg.metadata === 'string') {
+            try { sysMsg.metadata = JSON.parse(sysMsg.metadata) } catch { sysMsg.metadata = {} }
           }
-          addMessage(userMsg)
-        }
-        // Add AI response message
-        if (data.aiMessage) {
-          const aiMsg = data.aiMessage
-          if (typeof aiMsg.metadata === 'string') {
-            try { aiMsg.metadata = JSON.parse(aiMsg.metadata) } catch { aiMsg.metadata = {} }
+          addMessage(sysMsg)
+          // Refresh files if this was an /edit command
+          if (sysMsg.metadata?.command === 'edit' || sysMsg.metadata?.command === 'create_file') {
+            fetchFiles()
           }
-          addMessage(aiMsg)
+        } else {
+          // Standard chat response
+          // Add user message
+          if (data.userMessage) {
+            const userMsg = data.userMessage
+            if (typeof userMsg.metadata === 'string') {
+              try { userMsg.metadata = JSON.parse(userMsg.metadata) } catch { userMsg.metadata = {} }
+            }
+            addMessage(userMsg)
+          }
+          // Add AI response message
+          if (data.aiMessage) {
+            const aiMsg = data.aiMessage
+            if (typeof aiMsg.metadata === 'string') {
+              try { aiMsg.metadata = JSON.parse(aiMsg.metadata) } catch { aiMsg.metadata = {} }
+            }
+            addMessage(aiMsg)
+          }
         }
 
         // Auto-title update: after first AI response in a new session, update the title
@@ -1170,7 +1264,7 @@ export function IDEChatPanel() {
           agentId: null,
           content: `⚠️ Error: ${errorData.error || 'Failed to get AI response'}. Check your AI provider settings.`,
           type: 'system',
-          metadata: {},
+          metadata: {} as Record<string, unknown>,
           createdAt: new Date().toISOString(),
         })
       }
@@ -1180,7 +1274,7 @@ export function IDEChatPanel() {
     } finally {
       setIsSending(false)
     }
-  }, [inputValue, isSending, currentProject, addMessage, executeSlashCommand, aiSettings, currentChatSessionId, chatSessions, addChatSession, setCurrentChatSessionId, autoTitleUpdate])
+  }, [inputValue, isSending, currentProject, addMessage, executeSlashCommand, aiSettings, currentChatSessionId, chatSessions, addChatSession, setCurrentChatSessionId, autoTitleUpdate, fetchFiles])
 
   if (!rightPanelOpen) {
     return (

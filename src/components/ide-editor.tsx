@@ -4,7 +4,7 @@ import { useAppStore } from '@/lib/store'
 import { type ProjectFile } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
-import { X, Code2, Keyboard, Zap, Command, Save, Play, ChevronRight, FileCode2, Clock, Terminal, Search, WrapText } from 'lucide-react'
+import { X, Code2, Keyboard, Zap, Command, Save, Play, ChevronRight, FileCode2, Clock, Terminal, Search, WrapText, Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
@@ -592,7 +592,6 @@ export function IDEEditor() {
     }
     return []
   })
-
   // Close tab context menu when clicking outside
   useEffect(() => {
     if (!tabContextMenu) return
@@ -709,6 +708,92 @@ export function IDEEditor() {
       setIsRunning(false)
     }
   }, [currentProject, addBuildLog, setBottomPanelOpen, setActiveBottomTab, setIsRunning])
+
+  // Run current file handler - determines command based on file type
+  const handleRunFile = useCallback(async () => {
+    if (!activeFile) return
+
+    // Auto-save before running
+    if (unsavedFileIds.has(activeFile.id)) {
+      try {
+        const res = await fetch(`/api/files/${activeFile.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: activeFile.content }),
+        })
+        if (res.ok) {
+          markFileSaved(activeFile.id)
+        }
+      } catch {
+        // Continue even if save fails
+      }
+    }
+
+    const ext = activeFile.path.split('.').pop()?.toLowerCase() || ''
+    let command: string
+
+    switch (ext) {
+      case 'ts':
+      case 'tsx':
+      case 'js':
+      case 'jsx':
+        command = `bun run ${activeFile.path}`
+        break
+      case 'py':
+        command = `python3 ${activeFile.path}`
+        break
+      case 'sh':
+      case 'bash':
+        command = `bash ${activeFile.path}`
+        break
+      case 'prisma':
+        command = `npx prisma validate`
+        break
+      default:
+        // For unknown file types, try bun run
+        command = `bun ${activeFile.path}`
+        break
+    }
+
+    setIsRunning(true)
+    setBottomPanelOpen(true)
+    setActiveBottomTab('terminal')
+
+    // Dispatch a custom event so the terminal can show the command
+    window.dispatchEvent(new CustomEvent('teamforge-terminal-execute', {
+      detail: command,
+    }))
+
+    try {
+      const res = await fetch('/api/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command,
+          cwd: '/home/z/my-project',
+          projectId: currentProject?.id || '',
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json() as { stdout: string; stderr: string; exitCode: number; timedOut: boolean }
+        // The terminal handles display via the custom event, but we also show a toast
+        if (data.exitCode === 0) {
+          toast.success(`File executed successfully`)
+        } else if (data.timedOut) {
+          toast.error('Execution timed out (30s)')
+        } else {
+          toast.error(`Execution failed (exit code ${data.exitCode})`)
+        }
+      } else {
+        toast.error('Failed to execute file')
+      }
+    } catch {
+      toast.error('Failed to execute file')
+    } finally {
+      setIsRunning(false)
+    }
+  }, [activeFile, unsavedFileIds, markFileSaved, currentProject, setBottomPanelOpen, setActiveBottomTab, setIsRunning])
 
   // Handle textarea content change - update store on every keystroke
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -1167,7 +1252,7 @@ export function IDEEditor() {
     }
   }, [activeFile, updateFileContent, markFileUnsaved, settings])
 
-  // Keyboard shortcut: Ctrl+S to save, F5 to run
+  // Keyboard shortcut: Ctrl+S to save, F5 to run build, Ctrl+Enter to run current file
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -1178,10 +1263,15 @@ export function IDEEditor() {
         e.preventDefault()
         handleRun()
       }
+      // Ctrl+Enter to run current file
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        handleRunFile()
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [handleSave, handleRun])
+  }, [handleSave, handleRun, handleRunFile])
 
   const lines = useMemo(() => activeFile?.content?.split('\n') || [], [activeFile?.content])
 
@@ -1344,6 +1434,26 @@ export function IDEEditor() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">Run Build (F5)</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className={cn(
+                    'size-6 hover:bg-emerald-500/10',
+                    isRunning ? 'text-amber-400' : 'text-emerald-600 hover:text-emerald-400',
+                  )}
+                  onClick={handleRunFile}
+                  disabled={isRunning}
+                >
+                  {isRunning ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">Run Current File (Ctrl+Enter)</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 

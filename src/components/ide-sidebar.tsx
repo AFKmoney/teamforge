@@ -49,6 +49,7 @@ import {
   ChevronsUpDown,
   Eye,
   GitBranch,
+  RefreshCw,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
@@ -145,6 +146,12 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+// Format line count for display
+function formatLineInfo(content: string): string {
+  const lines = content.split('\n').length
+  return `${lines}L`
 }
 
 function FileTreeNodeView({
@@ -317,7 +324,7 @@ function FileTreeNodeView({
           )}
           {!isActive && !gitStatus && fileSize > 0 && (
             <span className="text-[9px] text-muted-foreground/40 ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              {formatFileSize(fileSize)}
+              {formatLineInfo(node.file.content)} · {formatFileSize(fileSize)}
             </span>
           )}
         </button>
@@ -865,6 +872,24 @@ export function IDESidebar() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">New Folder</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-5"
+                  onClick={() => {
+                    fetchFiles()
+                    toast.success('File tree refreshed')
+                  }}
+                >
+                  <RefreshCw className="size-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Refresh File Tree</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <TooltipProvider delayDuration={300}>

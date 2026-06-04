@@ -39,11 +39,11 @@ export async function GET(
     }
 
     // Generate ZIP buffer
-    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
+    const zipBuffer = await zip.generateAsync({ type: 'uint8array' })
 
     // Return as downloadable file
     const filename = `${project.name.replace(/[^a-zA-Z0-9-_]/g, '_')}.zip`
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(zipBuffer as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',

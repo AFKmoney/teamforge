@@ -73,7 +73,7 @@ export function GlobalSearchPanel() {
             // Get context: 2 lines before and after
             const contextStart = Math.max(0, i - 2)
             const contextEnd = Math.min(lines.length - 1, i + 2)
-            const context = []
+            const context: string[] = []
             for (let j = contextStart; j <= contextEnd; j++) {
               context.push(lines[j])
             }

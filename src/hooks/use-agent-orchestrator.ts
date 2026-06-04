@@ -13,6 +13,11 @@ import { useAppStore } from '@/lib/store'
  *
  * When agents are running (isRunning=true), the scheduler ticks every
  * 10 seconds to pick up and execute tasks.
+ *
+ * When YOLO mode is active, the scheduler tick interval is reduced to
+ * 5 seconds for faster agent response, and yoloMode is passed to the
+ * scheduler API so it can auto-approve and execute tasks without
+ * requiring confirmation.
  */
 export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
   const currentProject = useAppStore((s) => s.currentProject)
@@ -24,6 +29,7 @@ export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
   const fetchActivities = useAppStore((s) => s.fetchActivities)
   const isRunning = useAppStore((s) => s.isRunning)
   const agents = useAppStore((s) => s.agents)
+  const yoloMode = useAppStore((s) => s.yoloMode)
 
   const pollingInterval = options?.pollingInterval ?? 30000
   const schedulerTickRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -32,6 +38,9 @@ export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
   const hasActiveAgents = agents.some(
     (a) => a.status !== 'idle' && a.status !== 'sleeping'
   )
+
+  // YOLO mode reduces tick interval from 10s to 5s for faster execution
+  const tickInterval = yoloMode ? 5000 : 10000
 
   // Initial data load
   useEffect(() => {
@@ -67,18 +76,18 @@ export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
     if (!projectId) return
 
     try {
-      // Auto-assign tasks first
+      // Auto-assign tasks first (pass yoloMode for auto-accept behavior)
       await fetch('/api/agent-scheduler', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'assign', projectId }),
+        body: JSON.stringify({ action: 'assign', projectId, yoloMode }),
       })
 
-      // Then tick to execute one task
+      // Then tick to execute tasks (pass yoloMode for batch execution)
       await fetch('/api/agent-scheduler', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'tick', projectId }),
+        body: JSON.stringify({ action: 'tick', projectId, yoloMode }),
       })
 
       // Refresh data after tick
@@ -90,7 +99,7 @@ export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
     } catch {
       // Silently ignore scheduler errors
     }
-  }, [currentProject?.id, fetchAgents, fetchTasks, fetchActivities])
+  }, [currentProject?.id, fetchAgents, fetchTasks, fetchActivities, yoloMode])
 
   // Start/stop scheduler based on isRunning state
   useEffect(() => {
@@ -99,8 +108,8 @@ export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
       if (!schedulerTickRef.current) {
         // Trigger immediately
         triggerSchedulerTick()
-        // Then every 10 seconds
-        schedulerTickRef.current = setInterval(triggerSchedulerTick, 10000)
+        // Then every tickInterval (5s YOLO, 10s normal)
+        schedulerTickRef.current = setInterval(triggerSchedulerTick, tickInterval)
       }
     } else {
       // Stop scheduler
@@ -116,5 +125,5 @@ export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
         schedulerTickRef.current = null
       }
     }
-  }, [isRunning, hasActiveAgents, triggerSchedulerTick])
+  }, [isRunning, hasActiveAgents, triggerSchedulerTick, tickInterval])
 }
