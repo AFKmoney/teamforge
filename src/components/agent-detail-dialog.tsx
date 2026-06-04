@@ -519,15 +519,28 @@ export function AgentDetailDialog() {
           {/* Chat with Agent — prominent primary button */}
           <Button
             size="sm"
-            className="gap-1.5 h-9 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-shadow"
+            className="gap-1.5 h-9 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-shadow flex-1"
             onClick={() => {
+              const agentName = agent?.name || 'Agent'
               setSelectedAgentId(null)
+              // Open the right panel (chat panel)
               useAppStore.getState().setRightPanelOpen(true)
-              window.dispatchEvent(new CustomEvent('teamforge-chat-prefill', { detail: `@${agent?.name || 'Agent'} ` }))
+              // Use a longer delay to ensure the chat panel has mounted and the input is available
               setTimeout(() => {
                 const chatInput = document.querySelector<HTMLTextAreaElement>('[data-chat-input]')
-                chatInput?.focus()
-              }, 150)
+                if (chatInput) {
+                  // Set value and focus
+                  const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+                  if (nativeInputValueSetter) {
+                    nativeInputValueSetter.call(chatInput, `@${agentName} `)
+                    chatInput.dispatchEvent(new Event('input', { bubbles: true }))
+                  }
+                  chatInput.focus()
+                } else {
+                  // Fallback: dispatch custom event if input not found yet
+                  window.dispatchEvent(new CustomEvent('teamforge-chat-prefill', { detail: `@${agentName} ` }))
+                }
+              }, 300)
             }}
           >
             <MessageSquare className="size-3.5" />

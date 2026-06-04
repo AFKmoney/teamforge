@@ -2,7 +2,7 @@
  * AI Provider System for TeamForge IDE
  *
  * Supports multiple AI backends:
- * - zai: Default provider using z-ai-web-dev-sdk (deepseek-chat)
+ * - zai: Default provider using z-ai-web-dev-sdk (GLM-4)
  * - nvidia: NVIDIA NIM API (OpenAI-compatible format)
  * - openai-compatible: Any OpenAI-compatible API endpoint
  */
@@ -33,16 +33,22 @@ export interface AIProviderConfig {
 export const AI_PROVIDERS: AIProviderConfig[] = [
   {
     type: 'zai',
-    label: 'Z-AI (Default)',
-    description: 'Built-in AI provider using z-ai-web-dev-sdk. No API key needed.',
+    label: 'Z-AI (GLM)',
+    description: 'Built-in AI provider using z-ai-web-dev-sdk with GLM models. No API key needed.',
     baseUrl: '',
     requiresApiKey: false,
     models: [
       {
-        id: 'deepseek-chat',
-        name: 'DeepSeek Chat',
+        id: 'glm-4',
+        name: 'GLM-4',
         provider: 'zai',
-        description: 'Default model — fast and capable',
+        description: 'Zhipu AI flagship model — powerful and versatile',
+      },
+      {
+        id: 'glm-4-flash',
+        name: 'GLM-4 Flash',
+        provider: 'zai',
+        description: 'Fast GLM-4 variant — quick responses',
       },
     ],
   },
@@ -244,7 +250,7 @@ export function getModelsForProvider(type: AIProviderType): AIModel[] {
 /** Get the default model for a provider */
 export function getDefaultModel(provider: AIProviderType): string {
   const models = getModelsForProvider(provider)
-  return models[0]?.id ?? 'deepseek-chat'
+  return models[0]?.id ?? 'glm-4'
 }
 
 /** Validate an NVIDIA API key format */
@@ -358,7 +364,7 @@ export interface AISettings {
 
 export const DEFAULT_AI_SETTINGS: AISettings = {
   provider: 'zai',
-  model: 'deepseek-chat',
+  model: 'glm-4',
   nvidiaApiKey: '',
   openaiCompatibleBaseUrl: '',
   openaiCompatibleApiKey: '',

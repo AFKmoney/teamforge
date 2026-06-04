@@ -3,377 +3,130 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TeamForge IDE — User Manual</title>
+<title>TeamForge IDE User Manual v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* ─── Page & Print ─── */
+  :root {
+    --emerald-50: #ecfdf5;
+    --emerald-100: #d1fae5;
+    --emerald-200: #a7f3d0;
+    --emerald-400: #34d399;
+    --emerald-500: #10b981;
+    --emerald-600: #059669;
+    --emerald-700: #047857;
+    --emerald-800: #065f46;
+    --emerald-900: #064e3b;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+  }
+
   @page {
-    size: A4;
+    size: 210mm 297mm;
+    margin: 16mm 18mm 14mm 18mm;
+  }
+
+  html, body {
     margin: 0;
-  }
-
-  *, *::before, *::after {
-    box-sizing: border-box;
-  }
-
-  html {
+    padding: 0;
+    background: #ffffff;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--gray-900);
+    font-size: 9.5pt;
+    line-height: 1.42;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  body {
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 11pt;
-    line-height: 1.65;
-    color: #1e293b;
-    background: #f1f5f9;
-  }
-
-  /* ─── Page Container ─── */
-  .page {
-    width: 210mm;
-    min-height: 297mm;
-    margin: 0 auto 24px auto;
-    background: #ffffff;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 2px 16px rgba(0,0,0,.10);
-  }
-
-  .page::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #059669, #10b981, #34d399);
-    z-index: 2;
-  }
-
-  .page-inner {
-    padding: 28mm 24mm 24mm 24mm;
-  }
-
-  .page-break {
-    page-break-after: always;
-  }
-
-  /* ─── Cover Page ─── */
+  /* Cover section */
   .cover {
-    background: linear-gradient(160deg, #022c22 0%, #064e3b 35%, #047857 65%, #10b981 100%);
+    background: linear-gradient(160deg, #064e3b 0%, #047857 40%, #059669 100%);
     color: #ffffff;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
     text-align: center;
-    position: relative;
+    padding: 60mm 30mm 50mm 30mm;
+    margin: -16mm -18mm 0 -18mm;
+    width: calc(100% + 36mm);
+    page-break-after: always;
+    box-sizing: border-box;
   }
 
-  .cover::before {
-    height: 0 !important;
+  .cover .logo {
+    font-size: 13pt;
+    font-weight: 600;
+    letter-spacing: 6pt;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 25mm;
   }
 
-  .cover-decor {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    pointer-events: none;
-  }
-
-  .cover-decor .circle {
-    position: absolute;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,.08);
-  }
-
-  .cover-decor .c1 { width: 600px; height: 600px; top: -180px; right: -120px; }
-  .cover-decor .c2 { width: 400px; height: 400px; bottom: -100px; left: -80px; }
-  .cover-decor .c3 { width: 200px; height: 200px; top: 40%; left: 10%; border-color: rgba(255,255,255,.04); }
-
-  .cover-content {
-    position: relative;
-    z-index: 1;
-  }
-
-  .cover-logo {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 24px auto;
-    background: rgba(255,255,255,.12);
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 36px;
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,.15);
-  }
-
-  .cover h1 {
-    font-size: 42pt;
-    font-weight: 800;
-    letter-spacing: -1.5px;
-    margin: 0 0 8px 0;
+  .cover .title {
+    font-size: 40pt;
+    font-weight: 900;
     line-height: 1.1;
+    margin-bottom: 6mm;
+  }
+
+  .cover .line {
+    width: 55px;
+    height: 3px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 2px;
+    margin: 7mm auto;
   }
 
   .cover .subtitle {
-    font-size: 16pt;
-    font-weight: 400;
-    color: rgba(255,255,255,.82);
-    margin: 0 0 32px 0;
-    letter-spacing: 0.5px;
+    font-size: 15pt;
+    font-weight: 300;
+    opacity: 0.85;
+    margin-bottom: 15mm;
   }
 
-  .cover .manual-badge {
-    display: inline-block;
-    padding: 8px 28px;
-    border: 2px solid rgba(255,255,255,.35);
-    border-radius: 100px;
-    font-size: 11pt;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    color: rgba(255,255,255,.9);
-    margin-bottom: 20px;
+  .cover .desc {
+    font-size: 10pt;
+    font-weight: 300;
+    opacity: 0.7;
+    max-width: 440px;
+    line-height: 1.55;
+    margin: 0 auto 10mm auto;
   }
 
   .cover .version {
-    font-size: 10pt;
-    color: rgba(255,255,255,.55);
-    margin-top: 16px;
-  }
-
-  /* ─── Typography ─── */
-  h1.chapter-title {
-    font-size: 22pt;
-    font-weight: 800;
-    color: #064e3b;
-    margin: 0 0 4px 0;
-    line-height: 1.2;
-    letter-spacing: -0.5px;
-  }
-
-  .chapter-number {
-    font-size: 10pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 2.5px;
-    color: #059669;
-    margin-bottom: 6px;
-    display: block;
-  }
-
-  .chapter-divider {
-    width: 48px;
-    height: 3px;
-    background: linear-gradient(90deg, #059669, #34d399);
-    border: none;
-    margin: 12px 0 20px 0;
-    border-radius: 2px;
-  }
-
-  h2 {
-    font-size: 14pt;
-    font-weight: 700;
-    color: #0f766e;
-    margin: 24px 0 10px 0;
-    line-height: 1.3;
-  }
-
-  h3 {
-    font-size: 12pt;
-    font-weight: 600;
-    color: #1e293b;
-    margin: 18px 0 8px 0;
-  }
-
-  p {
-    margin: 0 0 12px 0;
-  }
-
-  /* ─── Images ─── */
-  .screenshot {
-    margin: 20px 0;
-    text-align: center;
-  }
-
-  .screenshot img {
-    max-width: 100%;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 12px rgba(0,0,0,.08);
-  }
-
-  .screenshot .caption {
-    font-size: 9pt;
-    color: #64748b;
-    margin-top: 8px;
-    font-style: italic;
-  }
-
-  /* ─── Tables ─── */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 16px 0;
-    font-size: 10pt;
-  }
-
-  table thead th {
-    background: #f0fdf4;
-    color: #064e3b;
-    font-weight: 700;
-    text-align: left;
-    padding: 10px 14px;
-    border-bottom: 2px solid #a7f3d0;
-    font-size: 9.5pt;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  table tbody td {
-    padding: 9px 14px;
-    border-bottom: 1px solid #e2e8f0;
-    vertical-align: top;
-  }
-
-  table tbody tr:nth-child(even) {
-    background: #f8fafc;
-  }
-
-  table tbody tr:hover {
-    background: #f0fdf4;
-  }
-
-  /* ─── Callout Boxes ─── */
-  .callout {
-    border-radius: 8px;
-    padding: 14px 18px;
-    margin: 16px 0;
-    font-size: 10pt;
-    line-height: 1.55;
-  }
-
-  .callout-tip {
-    background: #f0fdf4;
-    border-left: 4px solid #10b981;
-  }
-
-  .callout-warning {
-    background: #fffbeb;
-    border-left: 4px solid #f59e0b;
-  }
-
-  .callout-info {
-    background: #eff6ff;
-    border-left: 4px solid #3b82f6;
-  }
-
-  .callout strong {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 10pt;
-  }
-
-  .callout-tip strong { color: #065f46; }
-  .callout-warning strong { color: #92400e; }
-  .callout-info strong { color: #1e40af; }
-
-  /* ─── Agent Cards ─── */
-  .agent-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin: 16px 0;
-  }
-
-  .agent-card {
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 16px;
-    background: #ffffff;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .agent-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-  }
-
-  .agent-card.atlas::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
-  .agent-card.codey::before { background: linear-gradient(90deg, #2563eb, #60a5fa); }
-  .agent-card.prism::before { background: linear-gradient(90deg, #db2777, #f472b6); }
-  .agent-card.flux::before { background: linear-gradient(90deg, #d97706, #fbbf24); }
-  .agent-card.blaze::before { background: linear-gradient(90deg, #dc2626, #f87171); }
-  .agent-card.nova::before { background: linear-gradient(90deg, #059669, #34d399); }
-
-  .agent-card .agent-name {
-    font-weight: 700;
-    font-size: 12pt;
-    margin-bottom: 2px;
-  }
-
-  .agent-card .agent-role {
-    font-size: 9pt;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 600;
-    margin-bottom: 8px;
-  }
-
-  .agent-card .agent-desc {
-    font-size: 9.5pt;
-    color: #475569;
-    line-height: 1.5;
-  }
-
-  /* ─── Keyboard Shortcuts ─── */
-  kbd {
-    display: inline-block;
-    padding: 2px 7px;
-    font-size: 9pt;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px;
-    box-shadow: 0 1px 0 #94a3b8;
-    color: #334155;
+    font-size: 10.5pt;
     font-weight: 500;
+    opacity: 0.55;
+    letter-spacing: 2pt;
   }
 
-  /* ─── Slash Commands ─── */
-  .cmd-list {
+  /* TOC */
+  .toc {
+    page-break-after: always;
+    padding-top: 2mm;
+  }
+
+  .toc-title {
+    font-size: 18pt;
+    font-weight: 800;
+    color: var(--emerald-700);
+    margin: 0 0 5mm 0;
+    padding-bottom: 2.5mm;
+    border-bottom: 2.5px solid var(--emerald-600);
+  }
+
+  .toc-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin: 12px 0;
+    gap: 0 8mm;
   }
 
-  .cmd-item {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    font-size: 9.5pt;
-  }
-
-  .cmd-item code {
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    font-size: 9.5pt;
-    background: #f0fdf4;
-    color: #047857;
-    padding: 2px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-    font-weight: 600;
-  }
-
-  /* ─── TOC ─── */
   .toc-list {
     list-style: none;
     padding: 0;
@@ -381,834 +134,784 @@
   }
 
   .toc-list li {
-    padding: 8px 0;
-    border-bottom: 1px solid #f1f5f9;
+    padding: 2pt 0;
+    font-size: 9.5pt;
     display: flex;
-    justify-content: space-between;
     align-items: baseline;
   }
 
-  .toc-list li:last-child {
-    border-bottom: none;
-  }
-
-  .toc-chapter {
+  .toc-list li.sec {
     font-weight: 700;
-    color: #064e3b;
-    font-size: 11pt;
-  }
-
-  .toc-page {
-    color: #94a3b8;
+    color: var(--gray-800);
+    margin-top: 3pt;
     font-size: 10pt;
   }
 
-  .toc-sub {
-    padding-left: 20px;
+  .toc-list li.sub {
+    padding-left: 10pt;
     font-weight: 400;
-    color: #475569;
+    color: var(--gray-600);
+    font-size: 9pt;
+  }
+
+  .toc-list .dots {
+    flex: 1;
+    border-bottom: 1px dotted var(--gray-300);
+    margin: 0 3pt;
+  }
+
+  .toc-list .pg {
+    font-size: 8.5pt;
+    color: var(--gray-500);
+    min-width: 14pt;
+    text-align: right;
+  }
+
+  /* Section headings */
+  h1 {
+    font-size: 17pt;
+    font-weight: 800;
+    color: var(--emerald-700);
+    margin: 6mm 0 3mm 0;
+    padding-bottom: 1.5mm;
+    border-bottom: 2px solid var(--emerald-600);
+    line-height: 1.15;
+    page-break-after: avoid;
+  }
+
+  h2 {
+    font-size: 12pt;
+    font-weight: 700;
+    color: var(--emerald-800);
+    margin: 3.5mm 0 1.5mm 0;
+    line-height: 1.2;
+    page-break-after: avoid;
+  }
+
+  h3 {
     font-size: 10pt;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin: 2.5mm 0 1mm 0;
+    line-height: 1.2;
+    page-break-after: avoid;
   }
 
-  /* ─── Lists ─── */
-  ul, ol {
-    margin: 0 0 12px 0;
-    padding-left: 22px;
+  p {
+    margin: 0 0 2mm 0;
+    font-size: 9pt;
+    line-height: 1.45;
   }
 
-  li {
-    margin-bottom: 4px;
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2mm auto 3mm auto;
+    font-size: 8.5pt;
+    line-height: 1.35;
   }
 
-  /* ─── Footer ─── */
-  .page-footer {
-    position: absolute;
-    bottom: 14mm;
-    left: 24mm;
-    right: 24mm;
+  table th {
+    background: var(--emerald-700);
+    color: #ffffff;
+    font-weight: 600;
+    padding: 3pt 4pt;
+    text-align: left;
     font-size: 8pt;
-    color: #94a3b8;
-    display: flex;
-    justify-content: space-between;
-    border-top: 1px solid #e2e8f0;
-    padding-top: 6px;
+    letter-spacing: 0.3pt;
   }
 
-  /* ─── Screen Media ─── */
+  table td {
+    padding: 2.5pt 4pt;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: top;
+  }
+
+  table tr:nth-child(even) td {
+    background: var(--gray-50);
+  }
+
+  /* Code */
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: var(--gray-100);
+    padding: 0.5pt 3pt;
+    border-radius: 2pt;
+    font-size: 8pt;
+    color: var(--emerald-800);
+  }
+
+  kbd {
+    display: inline-block;
+    padding: 0.5pt 3pt;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt;
+    font-weight: 500;
+    background: var(--gray-100);
+    border: 0.5px solid var(--gray-300);
+    border-radius: 2pt;
+    color: var(--gray-700);
+  }
+
+  /* Info boxes */
+  .info-box {
+    background: var(--emerald-50);
+    border-left: 3px solid var(--emerald-600);
+    padding: 2.5mm 4mm;
+    margin: 2mm 0;
+    border-radius: 0 3pt 3pt 0;
+    font-size: 8.5pt;
+    line-height: 1.4;
+  }
+
+  .info-box strong { color: var(--emerald-800); }
+
+  .warning-box {
+    background: #fef3c7;
+    border-left: 3px solid #d97706;
+    padding: 2.5mm 4mm;
+    margin: 2mm 0;
+    border-radius: 0 3pt 3pt 0;
+    font-size: 8.5pt;
+    line-height: 1.4;
+  }
+
+  .warning-box strong { color: #92400e; }
+
+  /* Lists */
+  ul, ol {
+    margin: 1mm 0 2mm 0;
+    padding-left: 12pt;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+
+  li { margin-bottom: 0.8pt; }
+
+  /* Numbered steps */
+  .steps {
+    margin: 1.5mm 0 2.5mm 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+  }
+
+  .steps li {
+    counter-increment: step;
+    padding-left: 16pt;
+    position: relative;
+    margin-bottom: 1.5mm;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0.5pt;
+    width: 11pt;
+    height: 11pt;
+    background: var(--emerald-600);
+    color: white;
+    font-size: 7pt;
+    font-weight: 700;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Agent grid */
+  .agent-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5mm;
+    margin: 2mm 0 3mm 0;
+  }
+
+  .agent-card {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-left: 3px solid var(--emerald-600);
+    border-radius: 0 3pt 3pt 0;
+    padding: 2.5mm 3.5mm;
+  }
+
+  .agent-card .name {
+    font-size: 10pt;
+    font-weight: 700;
+    color: var(--emerald-700);
+    margin-bottom: 0.5mm;
+  }
+
+  .agent-card .role {
+    font-size: 7pt;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    margin-bottom: 1mm;
+  }
+
+  .agent-card p {
+    font-size: 8pt;
+    margin: 0;
+    line-height: 1.35;
+  }
+
+  /* Two columns */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+  }
+
+  /* Screenshot */
+  .screenshot-container {
+    margin: 3mm 0;
+    text-align: center;
+  }
+
+  .screenshot-container img {
+    max-width: 100%;
+    border: 1px solid var(--gray-200);
+    border-radius: 3pt;
+  }
+
+  .screenshot-container .caption {
+    font-size: 7.5pt;
+    color: var(--gray-500);
+    margin-top: 1.5mm;
+    font-style: italic;
+  }
+
+  /* Command name */
+  .cmd {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--emerald-700);
+    font-size: 8pt;
+  }
+
+  /* YOLO box */
+  .yolo-box {
+    background: linear-gradient(135deg, #fef3c7 0%, #fff7ed 100%);
+    border: 1.5px solid #d97706;
+    border-radius: 3pt;
+    padding: 3mm 4mm;
+    margin: 3mm 0;
+  }
+
+  .yolo-box h3 { color: #92400e; margin-top: 0; }
+
+  /* Divider */
+  .divider {
+    border: none;
+    height: 0.5px;
+    background: linear-gradient(90deg, var(--emerald-600) 0%, var(--gray-200) 100%);
+    margin: 3mm 0;
+  }
+
+  /* Footer */
+  .footer {
+    font-size: 7pt;
+    color: var(--gray-400);
+    text-align: center;
+    margin-top: 4mm;
+    padding-top: 1.5mm;
+    border-top: 0.5px solid var(--gray-200);
+  }
+
   @media screen {
     body {
-      padding: 24px;
-      background: #64748b;
-    }
-    .page {
-      border-radius: 4px;
-    }
-  }
-
-  @media print {
-    body {
-      background: #fff;
-      padding: 0;
-    }
-    .page {
-      margin: 0;
-      box-shadow: none;
-    }
-    .page-break {
-      page-break-after: always;
+      max-width: 210mm;
+      margin: 10mm auto;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      background: var(--gray-100);
     }
   }
-
-  /* ─── Utility ─── */
-  .text-emerald { color: #059669; }
-  .text-muted { color: #64748b; }
-  .font-mono { font-family: 'SF Mono', 'Fira Code', monospace; }
-  .mt-0 { margin-top: 0; }
-  .mb-0 { margin-bottom: 0; }
 </style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════ -->
-<!-- COVER PAGE                                   -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page cover page-break">
-  <div class="cover-decor">
-    <div class="circle c1"></div>
-    <div class="circle c2"></div>
-    <div class="circle c3"></div>
+<!-- COVER -->
+<div class="cover">
+  <div class="logo">TeamForge</div>
+  <div class="title">User Manual</div>
+  <div class="line"></div>
+  <div class="subtitle">Autonomous Agentic Development Platform</div>
+  <div class="desc">
+    A comprehensive guide to TeamForge IDE &mdash; the intelligent development environment
+    powered by six specialized AI agents, multi-provider AI chat, virtual file system, and
+    autonomous workflow orchestration.
   </div>
-  <div class="cover-content">
-    <div class="cover-logo">&#9881;</div>
-    <h1>TeamForge IDE</h1>
-    <p class="subtitle">Autonomous AI Development Environment</p>
-    <div class="manual-badge">User Manual</div>
-    <p class="version">Version 1.0 &nbsp;&bull;&nbsp; March 2026</p>
-  </div>
+  <div class="version">Version 1.0 &bull; 2026</div>
 </div>
 
-<!-- ════════════════════════════════════════════ -->
-<!-- TABLE OF CONTENTS                            -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Contents</span>
-    <h1 class="chapter-title">Table of Contents</h1>
-    <hr class="chapter-divider">
-
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <div class="toc-title">Table of Contents</div>
+  <div class="toc-grid">
     <ul class="toc-list">
-      <li><span class="toc-chapter">Chapter 1 &mdash; Getting Started</span></li>
-      <li><span class="toc-sub">Overview &bull; First Steps &bull; System Requirements</span></li>
-      <li><span class="toc-chapter">Chapter 2 &mdash; Interface Tour</span></li>
-      <li><span class="toc-sub">Main Layout &bull; Panels &bull; Navigation</span></li>
-      <li><span class="toc-chapter">Chapter 3 &mdash; AI Agents</span></li>
-      <li><span class="toc-sub">Atlas &bull; Codey &bull; Prism &bull; Flux &bull; Blaze &bull; Nova</span></li>
-      <li><span class="toc-chapter">Chapter 4 &mdash; Chat &amp; Communication</span></li>
-      <li><span class="toc-sub">Chat Panel &bull; History &bull; Slash Commands</span></li>
-      <li><span class="toc-chapter">Chapter 5 &mdash; Code Editor</span></li>
-      <li><span class="toc-sub">Editing &bull; Syntax Highlighting &bull; Running Code</span></li>
-      <li><span class="toc-chapter">Chapter 6 &mdash; Terminal &amp; Commands</span></li>
-      <li><span class="toc-sub">Terminal Panel &bull; Actions Menu &bull; Whitelisted Commands</span></li>
-      <li><span class="toc-chapter">Chapter 7 &mdash; AI Providers</span></li>
-      <li><span class="toc-sub">Multi-Provider System &bull; NVIDIA NIM &bull; Ollama &amp; LM Studio</span></li>
-      <li><span class="toc-chapter">Chapter 8 &mdash; YOLO Mode</span></li>
-      <li><span class="toc-sub">Autonomous Execution &bull; Safety &bull; Configuration</span></li>
-      <li><span class="toc-chapter">Chapter 9 &mdash; Analytics &amp; Monitoring</span></li>
-      <li><span class="toc-sub">Dashboard &bull; Token Usage &bull; Agent Productivity</span></li>
-      <li><span class="toc-chapter">Chapter 10 &mdash; Keyboard Shortcuts</span></li>
-      <li><span class="toc-sub">Complete Reference Table</span></li>
-      <li><span class="toc-chapter">Chapter 11 &mdash; Tips &amp; Best Practices</span></li>
-      <li><span class="toc-sub">Workflow Patterns &bull; Performance &bull; Troubleshooting</span></li>
+      <li class="sec"><span>1. Getting Started</span><span class="dots"></span><span class="pg">3</span></li>
+      <li class="sub"><span>1.1 Overview</span><span class="dots"></span><span class="pg">3</span></li>
+      <li class="sub"><span>1.2 First Steps</span><span class="dots"></span><span class="pg">3</span></li>
+      <li class="sub"><span>1.3 Project Setup</span><span class="dots"></span><span class="pg">3</span></li>
+      <li class="sec"><span>2. The IDE Interface</span><span class="dots"></span><span class="pg">4</span></li>
+      <li class="sub"><span>2.1 Top Bar &amp; Sidebar</span><span class="dots"></span><span class="pg">4</span></li>
+      <li class="sub"><span>2.2 Editor &amp; Chat Panel</span><span class="dots"></span><span class="pg">4</span></li>
+      <li class="sub"><span>2.3 Bottom Panel &amp; Status Bar</span><span class="dots"></span><span class="pg">4</span></li>
+      <li class="sec"><span>3. AI Agents</span><span class="dots"></span><span class="pg">5</span></li>
+      <li class="sub"><span>3.1 Agent Overview</span><span class="dots"></span><span class="pg">5</span></li>
+      <li class="sub"><span>3.2 Working with Agents</span><span class="dots"></span><span class="pg">5</span></li>
+      <li class="sub"><span>3.3 Agent Collaboration</span><span class="dots"></span><span class="pg">5</span></li>
     </ul>
-
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Version 1.0</span>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 1: GETTING STARTED                   -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 1</span>
-    <h1 class="chapter-title">Getting Started</h1>
-    <hr class="chapter-divider">
-
-    <h2>Welcome to TeamForge IDE</h2>
-    <p>
-      TeamForge IDE is an autonomous, AI-powered development environment that fundamentally changes how you write software. Instead of working alone, you collaborate with a team of six specialized AI agents&mdash;each an expert in its domain. Together, they architect solutions, write production-quality code, review for issues, test thoroughly, handle deployments, and keep your project on track.
-    </p>
-    <p>
-      Unlike traditional IDEs that merely assist with syntax highlighting and autocomplete, TeamForge IDE acts as a true pair-programming partner. The agents communicate with each other, break complex tasks into manageable steps, and execute them autonomously when you enable YOLO Mode. The result is a dramatically accelerated development workflow where you focus on high-level decisions while the AI team handles the implementation details.
-    </p>
-
-    <h2>First Steps</h2>
-    <ol>
-      <li><strong>Open the IDE</strong> &mdash; Launch TeamForge IDE in your browser. The interface loads with the chat panel on the left and the main workspace on the right.</li>
-      <li><strong>Select an AI Provider</strong> &mdash; Open Settings and configure at least one AI provider (Z-AI, NVIDIA NIM, or an OpenAI-compatible endpoint like Ollama). This is required for agent communication.</li>
-      <li><strong>Start a Conversation</strong> &mdash; Type a request in the chat input, such as <em>"Create a REST API for a todo app"</em>. The appropriate agent will respond and begin working.</li>
-      <li><strong>Review &amp; Confirm</strong> &mdash; By default, agent actions require your confirmation. Review the proposed changes and approve or reject them.</li>
-      <li><strong>Enable YOLO Mode</strong> (optional) &mdash; Toggle YOLO Mode to let agents execute actions automatically without confirmation, for maximum speed.</li>
-    </ol>
-
-    <h2>System Requirements</h2>
-    <ul>
-      <li>A modern web browser (Chrome 90+, Firefox 88+, Safari 15+, Edge 90+)</li>
-      <li>Internet connection for cloud AI providers (Z-AI, NVIDIA NIM)</li>
-      <li>Local AI runtime (optional) for Ollama or LM Studio integration</li>
-      <li>Minimum 4 GB RAM recommended for smooth operation</li>
+    <ul class="toc-list">
+      <li class="sec"><span>4. AI Chat System</span><span class="dots"></span><span class="pg">6</span></li>
+      <li class="sub"><span>4.1 Chat Interface &amp; Models</span><span class="dots"></span><span class="pg">6</span></li>
+      <li class="sub"><span>4.2 Chat History &amp; Sessions</span><span class="dots"></span><span class="pg">6</span></li>
+      <li class="sec"><span>5. Slash Commands</span><span class="dots"></span><span class="pg">7</span></li>
+      <li class="sec"><span>6. YOLO Mode</span><span class="dots"></span><span class="pg">8</span></li>
+      <li class="sec"><span>7. File Management &amp; VFS</span><span class="dots"></span><span class="pg">8</span></li>
+      <li class="sec"><span>8. Terminal &amp; Build</span><span class="dots"></span><span class="pg">9</span></li>
+      <li class="sec"><span>9. Settings &amp; Configuration</span><span class="dots"></span><span class="pg">9</span></li>
+      <li class="sec"><span>10. Keyboard Shortcuts</span><span class="dots"></span><span class="pg">10</span></li>
+      <li class="sec"><span>11. Troubleshooting</span><span class="dots"></span><span class="pg">9</span></li>
     </ul>
+  </div>
 
-    <div class="callout callout-tip">
-      <strong>&#128161; Pro Tip</strong>
-      Start with a small, well-defined task to familiarize yourself with how agents interact. For example, ask Codey to create a simple utility function and observe how it uses the Virtual File System to write and save the file.
+  <h2 style="margin-top: 5mm; font-size: 11pt; color: var(--emerald-800); border-bottom: 1.5px solid var(--emerald-600); padding-bottom: 1.5mm;">Quick Reference</h2>
+  <div class="two-col" style="margin-top: 2mm;">
+    <div>
+      <h3 style="font-size: 9pt; margin-bottom: 1mm;">AI Agents</h3>
+      <table style="font-size: 8pt;">
+        <tr><td style="font-weight:700; color: var(--emerald-700);">Atlas</td><td>Architect &mdash; System design, specs</td></tr>
+        <tr><td style="font-weight:700; color: var(--emerald-700);">Codey</td><td>Developer &mdash; Code implementation</td></tr>
+        <tr><td style="font-weight:700; color: var(--emerald-700);">Prism</td><td>Reviewer &mdash; Code review, security</td></tr>
+        <tr><td style="font-weight:700; color: var(--emerald-700);">Flux</td><td>Tester &mdash; Tests, edge cases</td></tr>
+        <tr><td style="font-weight:700; color: var(--emerald-700);">Blaze</td><td>DevOps &mdash; Deploy, CI/CD</td></tr>
+        <tr><td style="font-weight:700; color: var(--emerald-700);">Nova</td><td>PM &mdash; Coordination, tasks</td></tr>
+      </table>
     </div>
-
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 1 &mdash; Getting Started</span>
+    <div>
+      <h3 style="font-size: 9pt; margin-bottom: 1mm;">AI Providers</h3>
+      <table style="font-size: 8pt;">
+        <tr><td style="font-weight:700; color: var(--emerald-700);">Z-AI (GLM-4)</td><td>Default, best integration</td></tr>
+        <tr><td style="font-weight:700; color: var(--emerald-700);">NVIDIA NIM</td><td>80+ free models</td></tr>
+        <tr><td style="font-weight:700; color: var(--emerald-700);">OpenAI-Compatible</td><td>Custom endpoints</td></tr>
+      </table>
+      <h3 style="font-size: 9pt; margin-bottom: 1mm; margin-top: 2mm;">Top Commands</h3>
+      <table style="font-size: 8pt;">
+        <tr><td><code>/edit</code></td><td>Edit code</td></tr>
+        <tr><td><code>/run</code></td><td>Execute commands</td></tr>
+        <tr><td><code>/fix</code></td><td>Fix errors</td></tr>
+        <tr><td><code>/commit</code></td><td>Git commit</td></tr>
+        <tr><td><code>/deploy</code></td><td>Deploy project</td></tr>
+      </table>
     </div>
   </div>
 </div>
 
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 2: INTERFACE TOUR                    -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 2</span>
-    <h1 class="chapter-title">Interface Tour</h1>
-    <hr class="chapter-divider">
+<!-- CONTENT BEGINS - continuous flow, no forced page breaks -->
 
-    <p>
-      The TeamForge IDE interface is designed for efficiency and clarity, combining a conversational AI chat with a full-featured development workspace. Let's walk through each panel and its purpose.
-    </p>
+<h1>1. Getting Started</h1>
 
-    <div class="screenshot">
-      <img src="manual-screenshots/01-main-overview.png" alt="Main IDE interface showing all panels">
-      <p class="caption">Figure 2.1 &mdash; The main TeamForge IDE interface with all panels visible</p>
-    </div>
+<h2>1.1 Overview</h2>
+<p>TeamForge IDE is a next-generation autonomous agentic development platform that integrates six specialized AI agents, a multi-provider AI chat system, a virtual file system (VFS), and intelligent workflow orchestration into a single cohesive environment. Unlike traditional IDEs, TeamForge delegates complex development tasks to AI agents that can plan, code, review, test, and deploy autonomously &mdash; while keeping you in full control.</p>
+<p>At its core, TeamForge uses <strong>GLM-4 models from Zhipu AI</strong> (via the z-ai-web-dev-sdk) as the default AI provider. It also supports <strong>NVIDIA NIM</strong> (80+ free models) and any <strong>OpenAI-compatible API endpoint</strong>, giving you flexibility to choose the AI backbone that suits your needs.</p>
 
-    <h2>Layout Overview</h2>
-    <p>
-      The IDE is divided into two primary regions. The <strong>left panel</strong> houses the chat interface, conversation history, and agent selector. The <strong>right panel</strong> is a tabbed workspace containing the Code Editor, Terminal, Analytics Dashboard, and Kanban Board. A collapsible sidebar provides quick access to files in the Virtual File System.
-    </p>
+<h2>1.2 First Steps</h2>
+<ol class="steps">
+  <li><strong>Launch TeamForge IDE</strong> &mdash; Open the application in your browser or desktop client. The main interface loads with the editor, chat panel, and file explorer ready.</li>
+  <li><strong>Sign in to AI providers</strong> &mdash; Navigate to Settings to configure your AI provider. The default Z-AI (GLM-4) requires your Zhipu AI API key. Enter it to activate the AI agents and chat features.</li>
+  <li><strong>Create or open a project</strong> &mdash; Use <kbd>Ctrl</kbd>+<kbd>N</kbd> to create a new file, or open an existing project folder from the file explorer in the sidebar.</li>
+  <li><strong>Start a chat</strong> &mdash; Click the chat panel on the right side, type a message, and press <kbd>Enter</kbd>. The AI agent will respond based on your project context.</li>
+  <li><strong>Try a slash command</strong> &mdash; Type <code>/help</code> in the chat input to see all available commands, or <code>/edit</code> to request an AI-powered code edit.</li>
+</ol>
 
-    <h2>Chat Panel (Left)</h2>
-    <p>
-      This is your primary interaction point with the AI agents. Type messages at the bottom input bar, and responses appear in a threaded conversation above. The current active agent is displayed at the top, and you can switch agents manually or let the system auto-route your request. Slash commands (like <code>/help</code> or <code>/run</code>) are triggered from here.
-    </p>
+<h2>1.3 Project Setup</h2>
+<p>TeamForge IDE works with any project structure. To set up a project:</p>
+<ul>
+  <li><strong>Open existing project</strong> &mdash; Click the folder icon in the sidebar or use <kbd>Ctrl</kbd>+<kbd>O</kbd> to browse and open a directory. All files are loaded into the VFS.</li>
+  <li><strong>Create from template</strong> &mdash; Use the <code>/create_file</code> command or manually create files. The VFS supports all standard file types including <code>.js</code>, <code>.ts</code>, <code>.py</code>, <code>.rs</code>, <code>.go</code>, <code>.html</code>, <code>.css</code>, and more.</li>
+  <li><strong>Initialize with a framework</strong> &mdash; Ask any AI agent: <em>"Set up a Next.js project with TypeScript and Tailwind CSS"</em>. The agent will scaffold the project, create necessary files, and configure the environment.</li>
+  <li><strong>Version control</strong> &mdash; TeamForge integrates with Git. Use the <code>/commit</code> slash command or the terminal to manage version control operations.</li>
+</ul>
 
-    <h2>Workspace Panel (Right)</h2>
-    <p>
-      The tabbed workspace adapts to your current task. The <strong>Editor</strong> tab provides a full-featured code editor with syntax highlighting and multi-file support. The <strong>Terminal</strong> tab runs real commands in a sandboxed environment. The <strong>Analytics</strong> tab shows token usage and agent metrics. The <strong>Kanban</strong> tab offers drag-and-drop task management.
-    </p>
+<div class="info-box">
+  <strong>Tip:</strong> The VFS (Virtual File System) is the backbone of TeamForge. All file operations happen in-memory first, giving AI agents instant access to your entire codebase without disk I/O bottlenecks. Changes are persisted to disk on save (<kbd>Ctrl</kbd>+<kbd>S</kbd>).
+</div>
 
-    <h2>Command Palette</h2>
-    <p>
-      Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> to open the Command Palette&mdash;a searchable overlay that gives you instant access to every action, setting, and command in the IDE. Start typing to filter results, then press Enter to execute.
-    </p>
+<h1>2. The IDE Interface</h1>
+<p>TeamForge IDE features a modern, panel-based layout designed for maximum productivity. The interface is divided into five primary zones, each serving a distinct purpose in the development workflow.</p>
 
-    <div class="callout callout-info">
-      <strong>&#128218; Note</strong>
-      You can resize the chat and workspace panels by dragging the divider between them. The layout is remembered across sessions.
-    </div>
+<div class="screenshot-container">
+  <img src="screenshot-main.png" alt="TeamForge IDE Main Interface">
+  <div class="caption">Figure 1: TeamForge IDE main interface showing all primary panels</div>
+</div>
 
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 2 &mdash; Interface Tour</span>
-    </div>
+<h2>2.1 Top Bar &amp; Sidebar</h2>
+<p>The top bar provides global navigation and status information. It displays the <strong>project name</strong> (click to switch between recent projects), <strong>agent status indicators</strong> (colored dots showing which agents are active, idle, or processing), the <strong>YOLO Mode toggle</strong>, a <strong>theme toggle</strong> for light/dark switching, and the <strong>settings gear icon</strong>.</p>
+
+<p>The left sidebar provides quick access to project resources:</p>
+<table>
+  <tr><th style="width:22%">Section</th><th>Description</th></tr>
+  <tr><td><strong>File Explorer</strong></td><td>Browse the project's VFS tree. Click any file to open it in the editor. Right-click for context actions (rename, delete, duplicate).</td></tr>
+  <tr><td><strong>Search</strong></td><td>Global search across all project files. Supports regex and case-sensitive modes. Results update in real-time as you type.</td></tr>
+  <tr><td><strong>Git</strong></td><td>View changed files, diffs, and commit history. Stage, unstage, and commit changes directly from the sidebar.</td></tr>
+  <tr><td><strong>Agent Panel</strong></td><td>Quick-access buttons to assign tasks to specific agents or view agent activity logs.</td></tr>
+</table>
+
+<h2>2.2 Editor &amp; Chat Panel</h2>
+<p>The central <strong>editor</strong> supports multiple open files via tabs with syntax highlighting for 50+ languages, intelligent code completion powered by AI, inline error markers, and minimap navigation. Use <kbd>Ctrl</kbd>+<kbd>\</kbd> for split-view side-by-side editing.</p>
+<p>The right-side <strong>chat panel</strong> is your primary interface for interacting with AI agents. It displays the current conversation thread, model selector, and agent assignment. You can drag the panel border to resize it. The chat supports markdown rendering, code blocks with syntax highlighting, and inline file references.</p>
+
+<h2>2.3 Bottom Panel &amp; Status Bar</h2>
+<table>
+  <tr><th style="width:22%">Component</th><th>Description</th></tr>
+  <tr><td><strong>Terminal</strong></td><td>Integrated terminal supporting bash/zsh/PowerShell. AI agents can execute commands here. Toggle with <kbd>Ctrl</kbd>+<kbd>`</kbd>.</td></tr>
+  <tr><td><strong>Output</strong></td><td>Displays build output, linting results, and agent task logs. Filterable by source.</td></tr>
+  <tr><td><strong>Problems</strong></td><td>Aggregated list of errors and warnings across the project, sorted by severity.</td></tr>
+  <tr><td><strong>Status Bar</strong></td><td>Shows current file language, line/column position, Git branch, AI model in use, and connection status.</td></tr>
+</table>
+
+<h1>3. AI Agents</h1>
+
+<h2>3.1 Agent Overview</h2>
+<p>TeamForge IDE deploys six specialized AI agents, each designed for a specific phase of the software development lifecycle. All agents are powered by GLM-4 models and can be configured to use NVIDIA NIM or OpenAI-compatible providers.</p>
+
+<div class="agent-grid">
+  <div class="agent-card">
+    <div class="name">Atlas</div>
+    <div class="role">Architect</div>
+    <p>Designs system architecture, creates technical specifications, and plans project structure. Best for high-level design decisions, technology selection, and breaking down complex features into implementable components.</p>
+  </div>
+  <div class="agent-card">
+    <div class="name">Codey</div>
+    <div class="role">Developer</div>
+    <p>Writes and modifies code based on specifications. Handles core implementation &mdash; from scaffolding new files to implementing complex algorithms. Understands project context through the VFS and follows existing patterns.</p>
+  </div>
+  <div class="agent-card">
+    <div class="name">Prism</div>
+    <div class="role">Reviewer</div>
+    <p>Performs code reviews, identifies bugs, security vulnerabilities, and style violations. Provides detailed feedback with line-level annotations and suggests specific fixes. Enforces coding standards across the codebase.</p>
+  </div>
+  <div class="agent-card">
+    <div class="name">Flux</div>
+    <div class="role">Tester</div>
+    <p>Generates and runs test suites, identifies edge cases, and ensures code quality. Writes unit, integration, and end-to-end tests. Can execute tests via the terminal and analyze failures to suggest targeted fixes.</p>
+  </div>
+  <div class="agent-card">
+    <div class="name">Blaze</div>
+    <div class="role">DevOps</div>
+    <p>Manages deployment pipelines, Docker configurations, CI/CD workflows, and infrastructure. Builds containers, pushes images, configures environments, and handles release management.</p>
+  </div>
+  <div class="agent-card">
+    <div class="name">Nova</div>
+    <div class="role">Project Manager</div>
+    <p>Coordinates tasks across agents, tracks progress, and manages timelines. Breaks down user stories, assigns work to the appropriate agent, monitors completion, and provides status reports.</p>
   </div>
 </div>
 
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 3: AI AGENTS (Page 1)               -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 3</span>
-    <h1 class="chapter-title">AI Agents</h1>
-    <hr class="chapter-divider">
+<h2>3.2 Working with Agents</h2>
+<h3>Assigning Tasks</h3>
+<p>You can direct tasks to specific agents in three ways:</p>
+<ol class="steps">
+  <li><strong>Direct mention in chat</strong> &mdash; Prefix your message with the agent name: <code>@Codey Add input validation to the login form</code>. The named agent picks up the task immediately.</li>
+  <li><strong>Agent panel</strong> &mdash; Click an agent in the sidebar Agent Panel to open a dedicated conversation with that agent.</li>
+  <li><strong>Auto-routing</strong> &mdash; Simply describe your task without specifying an agent. Nova (the PM agent) analyzes the request and routes it to the best agent. Example: <code>Review the auth module for security issues</code> auto-routes to Prism.</li>
+</ol>
 
-    <p>
-      The heart of TeamForge IDE is its team of six specialized AI agents. Each agent is purpose-built for a specific phase of the software development lifecycle. When you submit a request, the system automatically routes it to the most appropriate agent, or you can directly address a specific agent for targeted assistance.
-    </p>
+<h2>3.3 Agent Collaboration</h2>
+<p>For complex multi-step tasks, agents collaborate through Nova's orchestration. When you request <em>"Build a user registration feature"</em>, Nova may: assign Atlas to design the registration flow and data schema; assign Codey to implement the frontend form and backend API; assign Flux to write and run tests; assign Prism to review the final code before merge. Each agent's output is visible in the chat panel, and you can intervene at any step.</p>
 
-    <div class="agent-grid">
-      <div class="agent-card atlas">
-        <div class="agent-name">Atlas</div>
-        <div class="agent-role">Architect</div>
-        <div class="agent-desc">Designs system architecture, defines project structure, creates technical specifications, and plans implementation strategies. Atlas breaks complex projects into well-defined tasks and assigns them to other agents.</div>
-      </div>
-      <div class="agent-card codey">
-        <div class="agent-name">Codey</div>
-        <div class="agent-role">Developer</div>
-        <div class="agent-desc">Writes production-quality code across multiple languages and frameworks. Codey implements features, fixes bugs, creates files through the Virtual File System, and follows best practices for clean, maintainable code.</div>
-      </div>
-      <div class="agent-card prism">
-        <div class="agent-name">Prism</div>
-        <div class="agent-role">Reviewer</div>
-        <div class="agent-desc">Performs thorough code reviews, identifies potential issues, security vulnerabilities, and style violations. Prism suggests improvements and ensures code quality before changes are committed.</div>
-      </div>
-      <div class="agent-card flux">
-        <div class="agent-name">Flux</div>
-        <div class="agent-role">Tester</div>
-        <div class="agent-desc">Generates comprehensive test suites, runs existing tests, and validates that code meets requirements. Flux creates unit tests, integration tests, and edge case coverage to ensure reliability.</div>
-      </div>
-      <div class="agent-card blaze">
-        <div class="agent-name">Blaze</div>
-        <div class="agent-role">DevOps</div>
-        <div class="agent-desc">Handles deployment pipelines, environment configuration, build processes, and infrastructure management. Blaze manages CI/CD workflows and ensures smooth delivery from development to production.</div>
-      </div>
-      <div class="agent-card nova">
-        <div class="agent-name">Nova</div>
-        <div class="agent-role">Project Manager</div>
-        <div class="agent-desc">Coordinates the entire agent team, tracks task progress, manages the Kanban board, and provides status updates. Nova ensures nothing falls through the cracks and keeps the project on schedule.</div>
-      </div>
-    </div>
-
-    <h2>How Agents Collaborate</h2>
-    <p>
-      Agents don't work in isolation. When you submit a complex request like <em>"Build and deploy a user authentication system"</em>, the collaboration unfolds naturally:
-    </p>
-    <ol>
-      <li><strong>Atlas</strong> designs the authentication architecture and decomposes the task.</li>
-      <li><strong>Codey</strong> implements the login, registration, and token management code.</li>
-      <li><strong>Prism</strong> reviews the code for security vulnerabilities and best practices.</li>
-      <li><strong>Flux</strong> creates tests for the authentication flows and edge cases.</li>
-      <li><strong>Blaze</strong> configures the deployment environment and deploys the system.</li>
-      <li><strong>Nova</strong> tracks progress throughout and provides a summary upon completion.</li>
-    </ol>
-    <p>
-      This pipeline operates automatically when YOLO Mode is enabled, or step-by-step with your approval in standard mode.
-    </p>
-
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 3 &mdash; AI Agents</span>
-    </div>
-  </div>
+<div class="info-box">
+  <strong>Tip:</strong> In YOLO Mode, agents execute tasks without waiting for your approval between steps. Ideal for rapid prototyping but use with caution in production codebases.
 </div>
 
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 4: CHAT & COMMUNICATION              -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 4</span>
-    <h1 class="chapter-title">Chat &amp; Communication</h1>
-    <hr class="chapter-divider">
+<h1>4. AI Chat System</h1>
 
-    <p>
-      The chat panel is your primary interface for interacting with the AI agents. It supports natural language conversations, slash commands, and maintains a full history of all your sessions.
-    </p>
+<h2>4.1 Chat Interface &amp; Model Selection</h2>
+<p>The AI Chat is your primary interaction point with TeamForge's intelligence layer. It supports multi-turn conversations, code-aware context, and real-time streaming responses. The model selector at the top of the chat panel lets you switch between providers mid-conversation.</p>
 
-    <div class="screenshot">
-      <img src="manual-screenshots/02-chat-history.png" alt="Chat history panel showing conversation sessions">
-      <p class="caption">Figure 4.1 &mdash; The chat history panel with multiple conversation sessions</p>
-    </div>
+<h3>Supported AI Providers</h3>
+<table>
+  <tr><th style="width:18%">Provider</th><th style="width:22%">Models</th><th style="width:16%">Setup</th><th>Notes</th></tr>
+  <tr>
+    <td><strong>Z-AI (GLM-4)</strong></td>
+    <td>GLM-4, GLM-4-Plus, GLM-4-Flash</td>
+    <td>API key in Settings</td>
+    <td>Default provider. Best agent integration. Powered by Zhipu AI's z-ai-web-dev-sdk. GLM-4-Flash for quick tasks.</td>
+  </tr>
+  <tr>
+    <td><strong>NVIDIA NIM</strong></td>
+    <td>80+ free models (Llama, Mistral, Qwen, etc.)</td>
+    <td>NVIDIA API key</td>
+    <td>Free tier available. Great for experimentation. Select from dropdown after configuring your key.</td>
+  </tr>
+  <tr>
+    <td><strong>OpenAI-Compatible</strong></td>
+    <td>Any OpenAI chat completions API endpoint</td>
+    <td>Base URL + API key</td>
+    <td>Works with vLLM, Ollama, LM Studio, Azure OpenAI, Together AI, Fireworks AI, and more.</td>
+  </tr>
+</table>
 
-    <h2>Chat Panel Features</h2>
-    <p>
-      The chat panel operates like a modern messaging interface. Type your message in the input bar at the bottom and press Enter to send. Agent responses stream in real-time, showing the thinking process and final output. Each message is tagged with the agent that produced it, and code blocks within messages are syntax-highlighted and copyable.
-    </p>
+<h3>How to Switch Models</h3>
+<ol class="steps">
+  <li>Click the <strong>model selector dropdown</strong> at the top of the chat panel (shows the currently active model name).</li>
+  <li>Select a provider tab: <strong>Z-AI</strong>, <strong>NVIDIA NIM</strong>, or <strong>Custom</strong>.</li>
+  <li>Choose a specific model from the list. The chat instantly switches &mdash; no page reload needed.</li>
+  <li>Your conversation context is preserved when switching. The new model receives the full chat history.</li>
+</ol>
 
-    <h2>Chat History</h2>
-    <p>
-      Every conversation is automatically saved as a session. The history panel (accessible via the sidebar icon) lists all sessions chronologically. You can rename sessions for easy identification, delete old ones, or resume a previous conversation exactly where you left off. This is especially useful for long-running projects where you want to maintain context across multiple work sessions.
-    </p>
+<h2>4.2 Chat History &amp; Session Management</h2>
+<p>TeamForge maintains a complete history of all chat sessions, organized by project and date. You can resume previous conversations or start fresh ones at any time.</p>
+<ul>
+  <li><strong>New session</strong> &mdash; Click the "+" button in the chat header or press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>. Starts a clean conversation with no prior context.</li>
+  <li><strong>Resume a session</strong> &mdash; Click the clock icon in the chat header to view recent sessions. Select one to restore the full conversation history.</li>
+  <li><strong>Pin important sessions</strong> &mdash; Right-click any session and select "Pin" to bookmark it. Pinned sessions appear at the top of the history list.</li>
+  <li><strong>Delete sessions</strong> &mdash; Right-click and select "Delete" to remove a session permanently.</li>
+</ul>
 
-    <h2>Slash Commands</h2>
-    <p>
-      Slash commands provide quick access to common actions directly from the chat input. Type <code>/</code> to see the full list of available commands. Here are the most frequently used commands:
-    </p>
+<h3>Context Awareness</h3>
+<p>The chat system automatically provides AI agents with relevant project context: <strong>open files</strong> in the editor are included in the context window; <strong>selected code</strong> is auto-referenced (also use <code>@filename</code> syntax); <strong>project structure</strong> from the VFS tree; and <strong>terminal output</strong> (errors, logs) when relevant.</p>
 
-    <div class="cmd-list">
-      <div class="cmd-item"><code>/help</code> <span>Show available commands</span></div>
-      <div class="cmd-item"><code>/run</code> <span>Execute a file or command</span></div>
-      <div class="cmd-item"><code>/edit</code> <span>Open a file in the editor</span></div>
-      <div class="cmd-item"><code>/explain</code> <span>Explain selected code</span></div>
-      <div class="cmd-item"><code>/fix</code> <span>Fix errors in current file</span></div>
-      <div class="cmd-item"><code>/refactor</code> <span>Refactor selected code</span></div>
-      <div class="cmd-item"><code>/optimize</code> <span>Optimize performance</span></div>
-      <div class="cmd-item"><code>/search</code> <span>Search across the codebase</span></div>
-      <div class="cmd-item"><code>/commit</code> <span>Commit current changes</span></div>
-      <div class="cmd-item"><code>/status</code> <span>Show project status</span></div>
-      <div class="cmd-item"><code>/create_file</code> <span>Create a new file</span></div>
-      <div class="cmd-item"><code>/run_tests</code> <span>Execute test suite</span></div>
-      <div class="cmd-item"><code>/deploy</code> <span>Deploy the project</span></div>
-    </div>
-
-    <div class="callout callout-tip">
-      <strong>&#128161; Pro Tip</strong>
-      Combine slash commands with natural language for powerful results. For example, <code>/refactor Make this function use async/await instead of callbacks</code> gives the agent specific direction while using the convenience of a command shortcut.
-    </div>
-
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 4 &mdash; Chat &amp; Communication</span>
-    </div>
-  </div>
+<div class="info-box">
+  <strong>Tip:</strong> For best results, keep relevant files open in the editor while chatting. This gives the AI maximum context. Use <code>@filename</code> to explicitly reference any project file in the VFS.
 </div>
 
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 5: CODE EDITOR                      -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 5</span>
-    <h1 class="chapter-title">Code Editor</h1>
-    <hr class="chapter-divider">
+<h1>5. Slash Commands</h1>
+<p>Slash commands are powerful shortcuts that trigger specific AI-powered actions directly from the chat input. Type <code>/</code> to see the autocomplete menu, or type the full command with your request.</p>
 
-    <p>
-      The built-in code editor provides a rich editing experience with syntax highlighting, intelligent formatting, and tight integration with the AI agents and Virtual File System. It's designed so you can review and modify agent-generated code without leaving the IDE.
-    </p>
+<table>
+  <tr><th style="width:13%">Command</th><th style="width:18%">Purpose</th><th>Description &amp; Usage</th></tr>
+  <tr><td><span class="cmd">/help</span></td><td>Show help</td><td>Displays the complete list of available slash commands with brief descriptions. Use when you forget a command name.</td></tr>
+  <tr><td><span class="cmd">/run</span></td><td>Execute code</td><td>Runs the current file or a specified command. Example: <code>/run python main.py</code> executes in the terminal. The agent monitors output and reports results.</td></tr>
+  <tr><td><span class="cmd">/edit</span></td><td>Edit code</td><td>Requests an AI-powered code edit. Describe the change: <code>/edit Add error handling to fetchData</code>. Shows a diff for review (or applies directly in YOLO Mode).</td></tr>
+  <tr><td><span class="cmd">/explain</span></td><td>Explain code</td><td>Asks the AI to explain the selected code or current file. Provides line-by-line analysis, design rationale, and identifies potential issues.</td></tr>
+  <tr><td><span class="cmd">/fix</span></td><td>Fix errors</td><td>Automatically diagnoses and fixes errors. The agent reads error messages, identifies root causes, and generates patches. Example: <code>/fix TypeScript errors in auth.ts</code></td></tr>
+  <tr><td><span class="cmd">/refactor</span></td><td>Refactor code</td><td>Restructures code without changing behavior. Supports renaming, extracting functions, simplifying conditionals, and design pattern application.</td></tr>
+  <tr><td><span class="cmd">/optimize</span></td><td>Optimize perf</td><td>Analyzes code for performance bottlenecks and suggests or applies optimizations. Covers algorithmic complexity, memory usage, caching, and async patterns.</td></tr>
+  <tr><td><span class="cmd">/search</span></td><td>Search code</td><td>AI-powered semantic search across the entire project. Understands intent. Example: <code>/search Where is user authentication handled?</code></td></tr>
+  <tr><td><span class="cmd">/commit</span></td><td>Git commit</td><td>Stages all changes and creates a commit with an AI-generated message based on the diff. Provide context: <code>/commit Include the new caching layer</code></td></tr>
+  <tr><td><span class="cmd">/status</span></td><td>Project status</td><td>Displays current project state: active agents, pending tasks, recent changes, test status, and errors/warnings.</td></tr>
+  <tr><td><span class="cmd">/create_file</span></td><td>New file</td><td>Creates a new file in the VFS with AI-generated boilerplate. Example: <code>/create_file src/utils/logger.ts</code>. Infers template from extension and project context.</td></tr>
+  <tr><td><span class="cmd">/run_tests</span></td><td>Execute tests</td><td>Discovers and runs the project's test suite. Analyzes results, reports failures with diagnostics, and suggests fixes. Supports Jest, pytest, Go test, and more.</td></tr>
+  <tr><td><span class="cmd">/deploy</span></td><td>Deploy</td><td>Initiates deployment through the configured pipeline. Blaze (DevOps) handles build, containerization, and deployment. Supports Docker, cloud platforms, and custom scripts.</td></tr>
+</table>
 
-    <h2>Editor Features</h2>
-    <ul>
-      <li><strong>Syntax Highlighting</strong> &mdash; Automatic language detection with color-coded syntax for 50+ programming languages including TypeScript, Python, Rust, Go, and more.</li>
-      <li><strong>Multi-File Tabs</strong> &mdash; Open multiple files simultaneously in a tabbed interface. Switch between files with a single click or use keyboard shortcuts.</li>
-      <li><strong>Line Numbers &amp; Minimap</strong> &mdash; Full line numbering with a code minimap for quick navigation in large files.</li>
-      <li><strong>Auto-Indentation</strong> &mdash; Smart indentation that adapts to the language of the current file.</li>
-      <li><strong>Bracket Matching</strong> &mdash; Automatic highlighting of matching brackets and parentheses.</li>
-      <li><strong>Find &amp; Replace</strong> &mdash; Built-in search with regex support for powerful text manipulation.</li>
-    </ul>
-
-    <h2>Running Code</h2>
-    <p>
-      Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run the currently active file. The output appears in the Terminal tab. The system automatically detects the file type and uses the appropriate runtime (Node.js for JavaScript/TypeScript, Python for .py files, etc.). Any errors are highlighted inline with suggestions from the AI agents for fixing them.
-    </p>
-
-    <h2>Saving Files</h2>
-    <p>
-      Press <kbd>Ctrl</kbd>+<kbd>S</kbd> to save the current file to the Virtual File System. All files are persisted in the database, so they survive page refreshes and browser restarts. The VFS supports full CRUD operations&mdash;create, read, update, and delete&mdash;and agents can also read and write files as part of their workflow.
-    </p>
-
-    <h2>Agent Integration</h2>
-    <p>
-      When an agent modifies a file, the editor automatically updates to show the changes. Diff indicators appear in the gutter to highlight added, modified, or removed lines. You can accept or reject individual changes before saving, giving you fine-grained control over what goes into your codebase.
-    </p>
-
-    <div class="callout callout-info">
-      <strong>&#128218; Note</strong>
-      Files created by agents are automatically opened in the editor so you can review them immediately. You can disable this behavior in Settings under "Auto-open agent files."
-    </div>
-
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 5 &mdash; Code Editor</span>
-    </div>
-  </div>
+<div class="info-box">
+  <strong>Tip:</strong> Chain commands using semicolons: <code>/edit Add validation; /run_tests; /commit</code> performs all three actions sequentially, each using the previous step's output.
 </div>
 
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 6: TERMINAL & COMMANDS (Page 1)     -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 6</span>
-    <h1 class="chapter-title">Terminal &amp; Commands</h1>
-    <hr class="chapter-divider">
+<h1>6. YOLO Mode</h1>
 
-    <p>
-      TeamForge IDE includes a fully functional terminal for executing commands, and an Actions dropdown menu for quick access to common operations. Both are integrated with the AI agents, so you can run commands manually or let the agents execute them as part of their workflow.
-    </p>
-
-    <div class="screenshot">
-      <img src="manual-screenshots/04-terminal-tab.png" alt="Terminal panel showing command execution">
-      <p class="caption">Figure 6.1 &mdash; The Terminal panel with real command execution output</p>
-    </div>
-
-    <h2>Terminal Panel</h2>
-    <p>
-      The terminal provides a real command-line environment where you can run shell commands directly. It supports standard input and output, colorized output for better readability, and command history navigation with the up/down arrow keys. The terminal is sandboxed for security, executing only whitelisted commands.
-    </p>
-
-    <h3>Whitelisted Commands</h3>
-    <p>The following command categories are permitted in the terminal:</p>
-    <table>
-      <thead>
-        <tr><th>Category</th><th>Examples</th><th>Purpose</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Package Managers</td><td><code>npm install</code>, <code>bun add</code>, <code>pip install</code></td><td>Install dependencies</td></tr>
-        <tr><td>Build Tools</td><td><code>npm run build</code>, <code>tsc</code>, <code>webpack</code></td><td>Compile and bundle code</td></tr>
-        <tr><td>Test Runners</td><td><code>npm test</code>, <code>jest</code>, <code>pytest</code></td><td>Execute test suites</td></tr>
-        <tr><td>Git</td><td><code>git status</code>, <code>git add</code>, <code>git commit</code></td><td>Version control</td></tr>
-        <tr><td>File Operations</td><td><code>ls</code>, <code>cat</code>, <code>mkdir</code></td><td>Explore and manage files</td></tr>
-        <tr><td>Dev Servers</td><td><code>npm run dev</code>, <code>bun dev</code></td><td>Start local development servers</td></tr>
-      </tbody>
-    </table>
-
-    <div class="screenshot">
-      <img src="manual-screenshots/03-actions-dropdown.png" alt="Actions dropdown menu">
-      <p class="caption">Figure 6.2 &mdash; The Actions dropdown menu for quick operations</p>
-    </div>
-
-    <h2>Actions Menu</h2>
-    <p>
-      The Actions dropdown provides one-click access to frequently used operations without needing to type commands. It includes options like Run File, Run Tests, Format Code, Fix Errors, Explain Code, and Deploy. Each action is routed to the appropriate AI agent for execution, combining convenience with the power of the agent system.
-    </p>
-
-    <div class="callout callout-warning">
-      <strong>&#9888; Important</strong>
-      Commands not on the whitelist are blocked for security. If you need to run a custom command, you can add it to the whitelist in Settings under "Terminal &gt; Allowed Commands." Exercise caution when expanding the whitelist.
-    </div>
-
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 6 &mdash; Terminal &amp; Commands</span>
-    </div>
-  </div>
+<div class="yolo-box">
+  <h3>What is YOLO Mode?</h3>
+  <p>YOLO Mode is TeamForge's autonomous execution mode. When enabled, AI agents operate <strong>without confirmation prompts</strong> &mdash; they can modify files, execute terminal commands, run tests, and make project changes directly. The name reflects the "You Only Live Once" philosophy: maximum speed, minimal friction.</p>
 </div>
 
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 7: AI PROVIDERS                     -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 7</span>
-    <h1 class="chapter-title">AI Providers</h1>
-    <hr class="chapter-divider">
+<h2>6.1 How to Enable</h2>
+<ol class="steps">
+  <li>Click the <strong>YOLO toggle switch</strong> in the top bar. It turns green when active.</li>
+  <li>Alternatively, type <code>/yolo</code> in the chat to toggle the mode.</li>
+  <li>A confirmation dialog appears the first time you enable it, explaining the implications. Accept to proceed.</li>
+</ol>
 
-    <p>
-      TeamForge IDE supports multiple AI providers, giving you flexibility in choosing the models that power your agents. You can mix and match providers, assigning different models to different agents based on the task requirements and your budget.
-    </p>
+<h2>6.2 What Changes</h2>
+<table>
+  <tr><th style="width:26%">Behavior</th><th>Normal Mode</th><th>YOLO Mode</th></tr>
+  <tr><td><strong>File modifications</strong></td><td>Agent shows diff; you click "Apply"</td><td>Agent modifies files directly</td></tr>
+  <tr><td><strong>Terminal commands</strong></td><td>Agent shows command; you click "Run"</td><td>Agent executes immediately</td></tr>
+  <tr><td><strong>Test execution</strong></td><td>Agent proposes run; you approve</td><td>Agent runs tests and reads output</td></tr>
+  <tr><td><strong>Git operations</strong></td><td>Agent shows message; you confirm</td><td>Agent commits with generated message</td></tr>
+  <tr><td><strong>Multi-agent tasks</strong></td><td>Each handoff requires approval</td><td>Agents hand off seamlessly</td></tr>
+  <tr><td><strong>Deployment</strong></td><td>Agent prepares; you trigger</td><td>Agent deploys directly</td></tr>
+</table>
 
-    <h2>Provider Overview</h2>
-    <table>
-      <thead>
-        <tr><th>Provider</th><th>Models</th><th>Connection</th><th>Best For</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Z-AI (DeepSeek)</strong></td>
-          <td>DeepSeek Coder, DeepSeek V3</td>
-          <td>Cloud (API key)</td>
-          <td>Code generation, general reasoning</td>
-        </tr>
-        <tr>
-          <td><strong>NVIDIA NIM</strong></td>
-          <td>50+ free models (Llama, Mistral, Gemma, etc.)</td>
-          <td>Cloud (API key)</td>
-          <td>Experimentation, diverse tasks</td>
-        </tr>
-        <tr>
-          <td><strong>OpenAI-Compatible</strong></td>
-          <td>Any OpenAI-format model</td>
-          <td>Local or cloud</td>
-          <td>Ollama, LM Studio, custom endpoints</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <h2>Z-AI (DeepSeek)</h2>
-    <p>
-      The default provider, Z-AI, offers DeepSeek models that are specifically optimized for code generation and technical reasoning. DeepSeek Coder excels at understanding complex codebases and producing accurate, well-structured code. Configuration is simple&mdash;enter your API key in Settings and you're ready to go. Z-AI provides fast response times and competitive pricing.
-    </p>
-
-    <h2>NVIDIA NIM</h2>
-    <p>
-      NVIDIA NIM provides access to over 50 free models through their inference API, including popular open-source models like Llama 3, Mistral, Gemma, Phi, and more. This is an excellent option for experimentation and for tasks where different model architectures may perform better. The free tier includes generous rate limits suitable for development use. Simply sign up for an NVIDIA developer account and obtain your API key to get started.
-    </p>
-
-    <h2>OpenAI-Compatible (Ollama &amp; LM Studio)</h2>
-    <p>
-      For users who prefer local inference or have custom model deployments, TeamForge IDE supports any OpenAI-compatible API endpoint. This includes popular local runners like Ollama and LM Studio, as well as self-hosted or enterprise API gateways. Configure the base URL and optional API key in Settings. This is ideal for air-gapped environments, data-sensitive projects, or when you want to use fine-tuned models.
-    </p>
-
-    <h2>Configuring Providers</h2>
-    <ol>
-      <li>Open Settings from the sidebar or press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> and search for "Settings."</li>
-      <li>Navigate to the "AI Providers" section.</li>
-      <li>Select a provider and enter the required credentials (API key, endpoint URL).</li>
-      <li>Optionally assign specific models to individual agents for fine-tuned performance.</li>
-      <li>Click "Test Connection" to verify your configuration before saving.</li>
-    </ol>
-
-    <div class="callout callout-tip">
-      <strong>&#128161; Pro Tip</strong>
-      Use NVIDIA NIM's free models for experimentation and prototyping, then switch to DeepSeek for production-quality code generation. This gives you the best of both worlds&mdash;free exploration and high-quality output.
-    </div>
-
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 7 &mdash; AI Providers</span>
-    </div>
-  </div>
+<div class="warning-box">
+  <strong>Warning:</strong> YOLO Mode gives agents full write access to your project. Always review changes before committing to shared branches. Use YOLO Mode on feature branches and review the diff before merging.
 </div>
 
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 8: YOLO MODE                        -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 8</span>
-    <h1 class="chapter-title">YOLO Mode</h1>
-    <hr class="chapter-divider">
+<h1>7. File Management &amp; VFS</h1>
 
-    <p>
-      YOLO Mode is TeamForge IDE's autonomous execution mode. When enabled, AI agents perform actions automatically without requiring your confirmation for each step. This dramatically accelerates workflows, especially for well-defined tasks where you trust the agents to execute correctly.
-    </p>
+<h2>7.1 Virtual File System (VFS)</h2>
+<p>The VFS is TeamForge's in-memory file layer that provides instant access to all project files for both you and the AI agents. It operates transparently &mdash; you interact with files normally, and the VFS handles synchronization between memory and disk.</p>
+<ul>
+  <li><strong>Read</strong> &mdash; Files are loaded into the VFS when opened or referenced. The VFS caches content for fast re-access. Agents use VFS reads to understand your codebase.</li>
+  <li><strong>Write</strong> &mdash; When you or an agent edit a file, the VFS updates in memory immediately. The editor reflects changes instantly. Press <kbd>Ctrl</kbd>+<kbd>S</kbd> to persist to disk.</li>
+  <li><strong>Search</strong> &mdash; The VFS supports full-text and regex search across all files. The <code>/search</code> command uses this for semantic search.</li>
+  <li><strong>Watch</strong> &mdash; The VFS watches for external file changes (e.g., from Git operations) and syncs automatically.</li>
+</ul>
 
-    <h2>How YOLO Mode Works</h2>
-    <p>
-      In standard mode, every agent action requires your explicit approval before execution. When an agent wants to create a file, run a command, or modify code, a confirmation dialog appears. While this provides maximum safety, it can slow down multi-step tasks.
-    </p>
-    <p>
-      YOLO Mode removes these confirmations. When you submit a request, the agents plan and execute the full workflow autonomously. Atlas designs the architecture, Codey writes the code, Prism reviews it, Flux tests it, Blaze deploys if needed, and Nova tracks everything&mdash;all without pausing for your approval at each step.
-    </p>
+<h2>7.2 Creating &amp; Editing Files</h2>
+<ul>
+  <li><strong>New file</strong>: <kbd>Ctrl</kbd>+<kbd>N</kbd> opens a new untitled file. Save with <kbd>Ctrl</kbd>+<kbd>S</kbd> to name it and persist.</li>
+  <li><strong>AI-created files</strong>: Use <code>/create_file path/to/file.ext</code> to have an agent generate a file with appropriate boilerplate.</li>
+  <li><strong>AI edits</strong>: Use <code>/edit</code> or <code>@Codey</code> to request modifications. In normal mode, edits show as a diff preview before applying.</li>
+  <li><strong>Multi-file edits</strong>: Agents can modify multiple files in a single operation, maintaining consistency across related changes.</li>
+</ul>
 
-    <h2>Enabling YOLO Mode</h2>
-    <p>
-      Toggle YOLO Mode using the switch in the top toolbar, or press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Y</kbd>. A prominent indicator appears when YOLO Mode is active, so you're always aware of the current state.
-    </p>
+<h1>8. Terminal &amp; Build</h1>
 
-    <h2>Safety Considerations</h2>
-    <ul>
-      <li><strong>Review Before Enabling</strong> &mdash; Only enable YOLO Mode when you're confident in the task scope and the agent's understanding of your requirements.</li>
-      <li><strong>Monitor Output</strong> &mdash; Watch the chat and terminal panels to catch any unexpected behavior early. You can always interrupt an agent's workflow by typing a correction.</li>
-      <li><strong>Version Control</strong> &mdash; Commit your current code before enabling YOLO Mode for large changes. This gives you a clean rollback point if needed.</li>
-      <li><strong>Start Small</strong> &mdash; Begin with small, well-defined tasks in YOLO Mode to build confidence before tackling larger projects.</li>
-    </ul>
+<h2>8.1 Integrated Terminal</h2>
+<p>TeamForge includes a fully functional terminal at the bottom of the interface. Toggle with <kbd>Ctrl</kbd>+<kbd>`</kbd>. The terminal supports multiple sessions &mdash; click "+" to open additional instances. AI agents can execute commands when authorized (or automatically in YOLO Mode).</p>
+<ul>
+  <li><strong>Manual execution</strong> &mdash; Type any shell command and press <kbd>Enter</kbd>. Supports bash, zsh, and PowerShell.</li>
+  <li><strong>AI-driven execution</strong> &mdash; Use <code>/run &lt;command&gt;</code> to have an agent execute and monitor a command.</li>
+  <li><strong>Build commands</strong> &mdash; Trigger via <code>/run</code> (e.g., <code>/run npm run build</code>) or directly in the terminal.</li>
+</ul>
 
-    <h2>YOLO Mode vs. Standard Mode</h2>
-    <table>
-      <thead>
-        <tr><th>Aspect</th><th>Standard Mode</th><th>YOLO Mode</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Action Approval</td><td>Required for every action</td><td>Automatic, no confirmation</td></tr>
-        <tr><td>Speed</td><td>Slower (wait for user)</td><td>Fast (continuous execution)</td></tr>
-        <tr><td>Safety</td><td>Maximum control</td><td>Relies on agent accuracy</td></tr>
-        <tr><td>Best For</td><td>Learning, risky operations</td><td>Well-defined tasks, prototyping</td></tr>
-        <tr><td>Rollback</td><td>Easy (reject changes)</td><td>Use git or VFS history</td></tr>
-      </tbody>
-    </table>
+<h2>8.2 Build &amp; Deploy Workflow</h2>
+<ol class="steps">
+  <li><strong>Build</strong> &mdash; Run <code>/run npm run build</code> (or equivalent). Blaze can detect your project type and suggest the correct build command.</li>
+  <li><strong>Test</strong> &mdash; Run <code>/run_tests</code> to execute the test suite. Flux analyzes failures and suggests fixes.</li>
+  <li><strong>Review</strong> &mdash; Run <code>@Prism Review the latest changes</code> for a quality check before deploying.</li>
+  <li><strong>Commit</strong> &mdash; Run <code>/commit</code> to stage and commit with an AI-generated message.</li>
+  <li><strong>Deploy</strong> &mdash; Run <code>/deploy</code> and Blaze handles the rest: containerization, image push, and deployment.</li>
+</ol>
 
-    <div class="callout callout-warning">
-      <strong>&#9888; Warning</strong>
-      YOLO Mode can make rapid, far-reaching changes to your codebase. Always ensure you have a recent backup or git commit before enabling it for significant tasks. If something goes wrong, you can use the Virtual File System's version history to restore previous file states.
-    </div>
+<h1>9. Settings &amp; Configuration</h1>
 
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 8 &mdash; YOLO Mode</span>
-    </div>
-  </div>
+<h2>9.1 AI Provider Configuration</h2>
+<p>Open Settings via the gear icon in the top bar or <kbd>Ctrl</kbd>+<kbd>,</kbd>. The Settings panel is organized into tabs for each provider.</p>
+
+<h3>Z-AI (GLM-4) &mdash; Default Provider</h3>
+<ol class="steps">
+  <li>Open Settings and navigate to the <strong>AI Providers</strong> tab.</li>
+  <li>Under <strong>Z-AI</strong>, enter your Zhipu AI API key in the designated field.</li>
+  <li>Select a default model: <strong>GLM-4</strong> (balanced), <strong>GLM-4-Plus</strong> (highest quality), or <strong>GLM-4-Flash</strong> (fastest).</li>
+  <li>Click <strong>Test Connection</strong> to verify your key. A green checkmark confirms connectivity.</li>
+</ol>
+
+<h3>NVIDIA NIM Setup</h3>
+<ol class="steps">
+  <li>In Settings, select the <strong>NVIDIA NIM</strong> tab.</li>
+  <li>Enter your NVIDIA API key (get a free key at <code>build.nvidia.com</code>).</li>
+  <li>Browse the model catalog (80+ models) and select your preferred model.</li>
+  <li>Click <strong>Test Connection</strong>. NVIDIA NIM models are served via inference microservices.</li>
+</ol>
+
+<h3>OpenAI-Compatible Setup</h3>
+<ol class="steps">
+  <li>In Settings, select the <strong>Custom / OpenAI-Compatible</strong> tab.</li>
+  <li>Enter the <strong>Base URL</strong> (e.g., <code>https://api.your-provider.com/v1</code>).</li>
+  <li>Enter your <strong>API Key</strong> for the endpoint.</li>
+  <li>Specify the <strong>Model ID</strong> (e.g., <code>meta-llama/llama-3-70b</code>).</li>
+  <li>Optionally adjust: temperature, max tokens, top_p.</li>
+  <li>Click <strong>Test Connection</strong> to verify the endpoint responds correctly.</li>
+</ol>
+
+<h2>9.2 Theme &amp; Preferences</h2>
+<ul>
+  <li><strong>Theme toggle</strong> &mdash; Switch between Light and Dark themes via the top bar icon or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>.</li>
+  <li><strong>Font size</strong> &mdash; Adjust editor font size in Settings under <strong>Editor</strong>. Default: 14px.</li>
+  <li><strong>Auto-save</strong> &mdash; Enable/disable automatic file saving. When on, files save on focus change.</li>
+  <li><strong>Terminal shell</strong> &mdash; Choose your preferred shell (bash, zsh, PowerShell) under <strong>Terminal</strong> settings.</li>
+</ul>
+
+<h1>10. Keyboard Shortcuts</h1>
+
+<table>
+  <tr><th style="width:34%">Action</th><th style="width:20%">Windows/Linux</th><th style="width:20%">macOS</th><th style="width:14%">Context</th></tr>
+  <tr><td>New file</td><td><kbd>Ctrl</kbd>+<kbd>N</kbd></td><td><kbd>Cmd</kbd>+<kbd>N</kbd></td><td>Global</td></tr>
+  <tr><td>Open file / folder</td><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td><kbd>Cmd</kbd>+<kbd>O</kbd></td><td>Global</td></tr>
+  <tr><td>Save file</td><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td><kbd>Cmd</kbd>+<kbd>S</kbd></td><td>Editor</td></tr>
+  <tr><td>Save all files</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Global</td></tr>
+  <tr><td>Find in file</td><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td><kbd>Cmd</kbd>+<kbd>F</kbd></td><td>Editor</td></tr>
+  <tr><td>Find in project</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td><td><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td><td>Global</td></tr>
+  <tr><td>Replace</td><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td><kbd>Cmd</kbd>+<kbd>H</kbd></td><td>Editor</td></tr>
+  <tr><td>Toggle terminal</td><td><kbd>Ctrl</kbd>+<kbd>`</kbd></td><td><kbd>Cmd</kbd>+<kbd>`</kbd></td><td>Global</td></tr>
+  <tr><td>Toggle sidebar</td><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td><kbd>Cmd</kbd>+<kbd>B</kbd></td><td>Global</td></tr>
+  <tr><td>Toggle chat panel</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></td><td><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></td><td>Chat</td></tr>
+  <tr><td>Split editor view</td><td><kbd>Ctrl</kbd>+<kbd>\</kbd></td><td><kbd>Cmd</kbd>+<kbd>\</kbd></td><td>Editor</td></tr>
+  <tr><td>New chat session</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd></td><td><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd></td><td>Chat</td></tr>
+  <tr><td>Send chat message</td><td><kbd>Enter</kbd></td><td><kbd>Enter</kbd></td><td>Chat</td></tr>
+  <tr><td>Newline in chat</td><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>Chat</td></tr>
+  <tr><td>Open Settings</td><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td><td><kbd>Cmd</kbd>+<kbd>,</kbd></td><td>Global</td></tr>
+  <tr><td>Toggle YOLO Mode</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Y</kbd></td><td><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Y</kbd></td><td>Global</td></tr>
+  <tr><td>Toggle theme</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>Global</td></tr>
+  <tr><td>Close current tab</td><td><kbd>Ctrl</kbd>+<kbd>W</kbd></td><td><kbd>Cmd</kbd>+<kbd>W</kbd></td><td>Editor</td></tr>
+  <tr><td>Switch tabs</td><td><kbd>Ctrl</kbd>+<kbd>Tab</kbd></td><td><kbd>Cmd</kbd>+<kbd>Tab</kbd></td><td>Editor</td></tr>
+  <tr><td>Go to line</td><td><kbd>Ctrl</kbd>+<kbd>G</kbd></td><td><kbd>Cmd</kbd>+<kbd>G</kbd></td><td>Editor</td></tr>
+  <tr><td>Command palette</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td>Global</td></tr>
+  <tr><td>Undo / Redo</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td><kbd>Cmd</kbd>+<kbd>Z</kbd> / <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Editor</td></tr>
+  <tr><td>Quick open file</td><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td><kbd>Cmd</kbd>+<kbd>P</kbd></td><td>Global</td></tr>
+</table>
+
+<h1>11. Troubleshooting</h1>
+
+<table>
+  <tr><th style="width:26%">Issue</th><th style="width:24%">Possible Cause</th><th>Solution</th></tr>
+  <tr>
+    <td><strong>AI agents not responding</strong></td>
+    <td>API key missing, invalid, or expired</td>
+    <td>Open Settings and verify your API key under the active provider. Click "Test Connection" to check. If using Z-AI, ensure your Zhipu AI account has sufficient credits.</td>
+  </tr>
+  <tr>
+    <td><strong>Slow AI responses</strong></td>
+    <td>Large context window or high-demand model</td>
+    <td>Switch to GLM-4-Flash for faster responses. Close unnecessary files to reduce context size. For NVIDIA NIM, try a smaller model (e.g., Llama 3 8B instead of 70B).</td>
+  </tr>
+  <tr>
+    <td><strong>Agent edits not applying</strong></td>
+    <td>Normal mode requires manual approval</td>
+    <td>Check the chat panel for a pending diff preview. Click "Apply" to accept changes, or enable YOLO Mode for automatic application.</td>
+  </tr>
+  <tr>
+    <td><strong>NVIDIA NIM connection fails</strong></td>
+    <td>Invalid API key or network issue</td>
+    <td>Verify your NVIDIA API key at <code>build.nvidia.com</code>. Check firewall settings. Ensure the endpoint URL is correct in your configuration.</td>
+  </tr>
+  <tr>
+    <td><strong>Custom endpoint not working</strong></td>
+    <td>Incorrect Base URL or format mismatch</td>
+    <td>Ensure the Base URL ends with <code>/v1</code> and follows the OpenAI chat completions format. Test with <code>curl</code> first to confirm the endpoint is reachable.</td>
+  </tr>
+  <tr>
+    <td><strong>File changes not persisting</strong></td>
+    <td>Changes saved in VFS but not to disk</td>
+    <td>Press <kbd>Ctrl</kbd>+<kbd>S</kbd> to save the current file. Use <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> to save all files. Enable auto-save in Settings.</td>
+  </tr>
+  <tr>
+    <td><strong>Terminal not responding</strong></td>
+    <td>Process hung or terminal session crashed</td>
+    <td>Click the trash icon to terminate the current process. Open a new terminal session with the "+" button. Check if a long-running process is blocking.</td>
+  </tr>
+  <tr>
+    <td><strong>Chat history missing</strong></td>
+    <td>Session expired or storage cleared</td>
+    <td>Check the chat history panel (clock icon). Pinned sessions persist longer. Consider exporting important conversations.</td>
+  </tr>
+</table>
+
+<div class="info-box">
+  <strong>Need more help?</strong> If you encounter an issue not listed here, try using the <code>/help</code> command in the chat, or describe your problem to Nova (the PM agent) who can guide you through diagnostics and connect you with the right agent for resolution.
 </div>
 
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 9: ANALYTICS & MONITORING           -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 9</span>
-    <h1 class="chapter-title">Analytics &amp; Monitoring</h1>
-    <hr class="chapter-divider">
+<h2>11.1 Common Error Messages</h2>
+<table>
+  <tr><th style="width:28%">Error</th><th style="width:32%">Meaning</th><th>Resolution</th></tr>
+  <tr><td><code>API_KEY_INVALID</code></td><td>The provided API key is not recognized by the provider</td><td>Double-check your key for typos. Regenerate the key from the provider dashboard if needed.</td></tr>
+  <tr><td><code>MODEL_NOT_FOUND</code></td><td>The selected model ID does not exist on the provider</td><td>Verify the model ID matches the provider's catalog. For NVIDIA NIM, check <code>build.nvidia.com</code> for available models.</td></tr>
+  <tr><td><code>CONTEXT_LENGTH_EXCEEDED</code></td><td>The conversation exceeds the model's context window</td><td>Start a new chat session to reset the context. Close unnecessary editor tabs to reduce the automatic context payload.</td></tr>
+  <tr><td><code>VFS_SYNC_ERROR</code></td><td>The virtual file system cannot sync with disk</td><td>Check file permissions. Ensure no other process has locked the files. Restart the IDE if the issue persists.</td></tr>
+</table>
 
-    <p>
-      The Analytics Dashboard provides real-time visibility into your AI agent usage, token consumption, task progress, and overall productivity. Understanding these metrics helps you optimize your workflow, manage costs, and identify bottlenecks.
-    </p>
+<h2>11.2 Performance Tips</h2>
+<ul>
+  <li><strong>Minimize open files</strong> &mdash; Each open file adds to the AI context window. Close files you don't need for the current task to reduce token usage and improve response speed.</li>
+  <li><strong>Use GLM-4-Flash for simple tasks</strong> &mdash; Quick edits, small fixes, and short questions don't need the full GLM-4 model. Switch to Flash for 3-5x faster responses.</li>
+  <li><strong>Be specific in agent requests</strong> &mdash; Instead of <code>@Codey Fix the bug</code>, say <code>@Codey Fix the null reference error in UserService.ts line 42</code>. Specificity reduces agent iteration cycles.</li>
+  <li><strong>Use YOLO Mode judiciously</strong> &mdash; Enable YOLO Mode for well-defined tasks on feature branches. Disable it when exploring or when changes affect shared code.</li>
+  <li><strong>Regular commits</strong> &mdash; Use <code>/commit</code> frequently to create checkpoints. This makes it easy to revert if an agent makes unintended changes.</li>
+</ul>
 
-    <div class="screenshot">
-      <img src="manual-screenshots/05-analytics-tab.png" alt="Analytics dashboard showing token usage and agent metrics">
-      <p class="caption">Figure 9.1 &mdash; The Analytics Dashboard with token usage and agent productivity metrics</p>
-    </div>
-
-    <h2>Dashboard Sections</h2>
-
-    <h3>Token Usage</h3>
-    <p>
-      The token usage panel tracks how many tokens each AI provider has consumed over time. This is critical for managing costs, especially when using paid API providers. The dashboard shows total tokens, tokens per agent, and a breakdown of prompt tokens vs. completion tokens. A sparkline chart visualizes usage trends so you can spot patterns and plan your API budget accordingly.
-    </p>
-
-    <h3>Task Status</h3>
-    <p>
-      The task status overview shows the current state of all active and completed tasks. Tasks are categorized as Pending, In Progress, Completed, or Failed. This gives you an at-a-glance view of project health and helps identify stalled tasks that may need your attention.
-    </p>
-
-    <h3>Agent Productivity</h3>
-    <p>
-      Each agent's productivity is tracked and displayed, including the number of tasks completed, average response time, and success rate. This helps you understand which agents are most effective for different types of tasks and whether a particular agent might benefit from a different AI model configuration.
-    </p>
-
-    <h2>Kanban Board</h2>
-    <p>
-      In addition to the analytics charts, the Kanban Board tab provides a visual task management interface with drag-and-drop columns: Backlog, To Do, In Progress, Review, and Done. Tasks can be created manually or automatically by the agents. Nova (the PM agent) keeps the board updated as tasks progress through the pipeline. You can also drag tasks between columns to update their status manually.
-    </p>
-
-    <div class="callout callout-tip">
-      <strong>&#128161; Pro Tip</strong>
-      Check the Analytics Dashboard regularly to identify which agents consume the most tokens. If one agent is significantly more expensive, consider switching it to a lighter model from NVIDIA NIM while keeping higher-quality models for critical agents like Codey and Atlas.
-    </div>
-
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 9 &mdash; Analytics &amp; Monitoring</span>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 10: KEYBOARD SHORTCUTS              -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page page-break">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 10</span>
-    <h1 class="chapter-title">Keyboard Shortcuts</h1>
-    <hr class="chapter-divider">
-
-    <p>
-      TeamForge IDE provides comprehensive keyboard shortcuts for efficient workflow. Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>/</kbd> at any time to view the full shortcut reference overlay. Below is the complete reference table.
-    </p>
-
-    <h2>General</h2>
-    <table>
-      <thead>
-        <tr><th>Shortcut</th><th>Action</th><th>Description</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td>Command Palette</td><td>Open the searchable command palette for quick access to any action</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>/</kbd></td><td>Keyboard Shortcuts</td><td>Display the full keyboard shortcuts reference</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Y</kbd></td><td>Toggle YOLO Mode</td><td>Enable or disable autonomous agent execution</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>Open Settings</td><td>Access IDE configuration and AI provider settings</td></tr>
-        <tr><td><kbd>Esc</kbd></td><td>Close Overlay</td><td>Dismiss any open modal, palette, or overlay</td></tr>
-      </tbody>
-    </table>
-
-    <h2>Editor</h2>
-    <table>
-      <thead>
-        <tr><th>Shortcut</th><th>Action</th><th>Description</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save File</td><td>Save the current file to the Virtual File System</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Run File</td><td>Execute the current file in the terminal</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Undo</td><td>Undo the last editor action</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Redo</td><td>Redo the last undone action</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find</td><td>Open the find dialog for searching within the current file</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Find &amp; Replace</td><td>Open find and replace with regex support</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Go to Line</td><td>Jump to a specific line number in the current file</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Select Next Occurrence</td><td>Add the next occurrence of the current selection to the cursor</td></tr>
-        <tr><td><kbd>Tab</kbd></td><td>Indent</td><td>Indent the selected lines or insert a tab character</td></tr>
-        <tr><td><kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>Outdent</td><td>Decrease the indentation of selected lines</td></tr>
-      </tbody>
-    </table>
-
-    <h2>Chat</h2>
-    <table>
-      <thead>
-        <tr><th>Shortcut</th><th>Action</th><th>Description</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><kbd>Enter</kbd></td><td>Send Message</td><td>Submit the current chat message to the active agent</td></tr>
-        <tr><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>New Line</td><td>Insert a new line in the chat input without sending</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Clear Chat</td><td>Clear the current conversation (does not delete history)</td></tr>
-        <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>History Navigation</td><td>Cycle through previously sent messages</td></tr>
-      </tbody>
-    </table>
-
-    <h2>Navigation</h2>
-    <table>
-      <thead>
-        <tr><th>Shortcut</th><th>Action</th><th>Description</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>1</kbd></td><td>Editor Tab</td><td>Switch to the code editor workspace</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>2</kbd></td><td>Terminal Tab</td><td>Switch to the terminal panel</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>3</kbd></td><td>Analytics Tab</td><td>Switch to the analytics dashboard</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>4</kbd></td><td>Kanban Tab</td><td>Switch to the Kanban board</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Toggle Sidebar</td><td>Show or hide the file explorer sidebar</td></tr>
-      </tbody>
-    </table>
-
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 10 &mdash; Keyboard Shortcuts</span>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════════════ -->
-<!-- CHAPTER 11: TIPS & BEST PRACTICES           -->
-<!-- ════════════════════════════════════════════ -->
-<div class="page">
-  <div class="page-inner">
-    <span class="chapter-number">Chapter 11</span>
-    <h1 class="chapter-title">Tips &amp; Best Practices</h1>
-    <hr class="chapter-divider">
-
-    <p>
-      Getting the most out of TeamForge IDE requires understanding how to communicate effectively with the AI agents and structuring your workflow to leverage their strengths. Here are proven strategies from experienced users.
-    </p>
-
-    <h2>Be Specific in Your Requests</h2>
-    <p>
-      The more context you provide, the better the agents perform. Instead of saying <em>"Fix the bug,"</em> say <em>"Fix the null reference error in the handleSubmit function of src/components/Form.tsx that occurs when the user clicks submit without filling in the email field."</em> Specific requests lead to precise, accurate solutions with fewer iterations.
-    </p>
-
-    <h2>Use the Right Agent for the Task</h2>
-    <p>
-      While the system auto-routes requests, you can explicitly address agents for better results. Prefix your message with an agent name: <em>"@Codey implement the authentication middleware"</em> or <em>"@Prism review the payment processing module for security issues."</em> Direct addressing avoids misrouting and ensures the specialist agent handles the task.
-    </p>
-
-    <h2>Leverage YOLO Mode Strategically</h2>
-    <p>
-      Don't treat YOLO Mode as an all-or-nothing switch. Enable it for well-understood, repetitive tasks like scaffolding boilerplate code, running test suites, or formatting files. Disable it for complex architectural decisions, security-sensitive changes, or unfamiliar codebases where you want to review each step.
-    </p>
-
-    <h2>Commit Frequently</h2>
-    <p>
-      Make regular git commits before and after significant agent actions. This creates natural checkpoints you can roll back to if an agent's changes don't meet expectations. Use the <code>/commit</code> slash command for quick commits with auto-generated messages.
-    </p>
-
-    <h2>Review Agent Code Before Deploying</h2>
-    <p>
-      Even though Prism reviews code automatically, take a moment to review the changes yourself before deployment. Look for business logic errors that AI might miss&mdash;agents understand code patterns well but may not fully grasp your application's unique domain requirements.
-    </p>
-
-    <h2>Optimize Token Usage</h2>
-    <ul>
-      <li>Keep conversations focused on one task at a time. Long, multi-topic threads consume more tokens and reduce response quality.</li>
-      <li>Start a new chat session for each distinct task to maintain clean context.</li>
-      <li>Use smaller models (like those on NVIDIA NIM) for simple tasks and reserve premium models for complex code generation.</li>
-      <li>Monitor the Analytics Dashboard to track spending and adjust your strategy.</li>
-    </ul>
-
-    <h2>Troubleshooting Common Issues</h2>
-    <table>
-      <thead>
-        <tr><th>Issue</th><th>Solution</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Agent not responding</td><td>Check your AI provider connection in Settings. Verify your API key and test the connection.</td></tr>
-        <tr><td>Slow responses</td><td>Switch to a faster model or check your network connection. Consider using a local provider (Ollama) for lower latency.</td></tr>
-        <tr><td>Inaccurate code</td><td>Provide more context and specific requirements. Break large tasks into smaller, well-defined subtasks.</td></tr>
-        <tr><td>Terminal command blocked</td><td>The command is not whitelisted. Add it in Settings under "Terminal &gt; Allowed Commands."</td></tr>
-        <tr><td>File not found error</td><td>Ensure the file path is correct relative to the VFS root. Use the file explorer to verify paths.</td></tr>
-        <tr><td>Token limit exceeded</td><td>Start a new chat session to reset the context window, or switch to a model with a larger context length.</td></tr>
-      </tbody>
-    </table>
-
-    <div class="callout callout-tip">
-      <strong>&#128161; Final Tip</strong>
-      TeamForge IDE is most powerful when you treat it as a collaborative partner, not just a tool. Describe your goals, ask questions, iterate on solutions, and provide feedback. The more you interact, the better the agents adapt to your coding style and preferences. Happy coding!
-    </div>
-
-    <div style="text-align:center; margin-top:40px; padding-top:20px; border-top:2px solid #e2e8f0;">
-      <p style="color:#94a3b8; font-size:9pt; margin:0;">TeamForge IDE &nbsp;&bull;&nbsp; Version 1.0 &nbsp;&bull;&nbsp; User Manual &nbsp;&bull;&nbsp; March 2026</p>
-      <p style="color:#cbd5e1; font-size:8pt; margin:4px 0 0 0;">Autonomous AI Development Environment</p>
-    </div>
-
-    <div class="page-footer">
-      <span>TeamForge IDE User Manual</span>
-      <span>Chapter 11 &mdash; Tips &amp; Best Practices</span>
-    </div>
-  </div>
+<div class="footer">
+  TeamForge IDE User Manual v1.0 &bull; 2026
 </div>
 
 </body>

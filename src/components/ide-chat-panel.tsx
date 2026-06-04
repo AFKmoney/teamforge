@@ -376,7 +376,7 @@ function ModelSelector() {
     if (aiSettings.provider === 'openai-compatible') {
       return aiSettings.openaiCompatibleModelId === 'custom' ? 'Custom' : aiSettings.openaiCompatibleModelId
     }
-    return 'DeepSeek'
+    return 'GLM-4'
   }, [aiSettings, currentModels])
 
   // Provider icon
@@ -409,7 +409,7 @@ function ModelSelector() {
         )}
       >
         {mounted ? providerIcon : <Bot className="size-3 text-emerald-500" />}
-        <span className="max-w-[60px] truncate">{mounted ? displayLabel : 'DeepSeek'}</span>
+        <span className="max-w-[60px] truncate">{mounted ? displayLabel : 'GLM-4'}</span>
         <ChevronDown className={cn('size-2.5 transition-transform', isOpen && 'rotate-180')} />
         {mounted && !hasRequiredKey && (
           <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -440,7 +440,7 @@ function ModelSelector() {
                   <button
                     key={p.type}
                     onClick={() => {
-                      const defaultModel = getModelsForProvider(p.type)[0]?.id || 'deepseek-chat'
+                      const defaultModel = getModelsForProvider(p.type)[0]?.id || 'glm-4'
                       updateAISettings({ provider: p.type, model: defaultModel })
                     }}
                     className={cn(
@@ -534,7 +534,7 @@ function ChatAIStatusBar({ messages }: { messages: Message[] }) {
 
   // Determine provider display info
   const providerInfo = useMemo(() => {
-    if (!mounted) return { label: 'DeepSeek', icon: <Bot className="size-2.5 text-emerald-500" />, color: 'text-emerald-500' }
+    if (!mounted) return { label: 'GLM-4', icon: <Bot className="size-2.5 text-emerald-500" />, color: 'text-emerald-500' }
     switch (aiSettings.provider) {
       case 'nvidia': {
         const models = getModelsForProvider('nvidia')
@@ -553,7 +553,7 @@ function ChatAIStatusBar({ messages }: { messages: Message[] }) {
         }
       default:
         return {
-          label: 'DeepSeek',
+          label: 'GLM-4',
           icon: <Bot className="size-2.5 text-emerald-500" />,
           color: 'text-emerald-500',
         }
@@ -1109,13 +1109,20 @@ export function IDEChatPanel() {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (typeof detail === 'string') {
-        setInputValue(detail)
-        setTimeout(() => { if (textareaRef.current) textareaRef.current.focus() }, 50)
+        // Make sure the chat panel is open
+        setRightPanelOpen(true)
+        // Set the input value with a small delay to ensure the panel is mounted
+        setTimeout(() => {
+          setInputValue(detail)
+          if (textareaRef.current) {
+            textareaRef.current.focus()
+          }
+        }, 100)
       }
     }
     window.addEventListener('teamforge-chat-prefill', handler)
     return () => window.removeEventListener('teamforge-chat-prefill', handler)
-  }, [])
+  }, [setRightPanelOpen])
 
   // Handle slash command execution
   const executeSlashCommand = useCallback(async (cmd: SlashCommand) => {
@@ -1746,7 +1753,7 @@ export function IDEChatPanel() {
                   <span className="typing-wave-dot" />
                 </span>
                 <span>
-                  {aiSettings.provider === 'nvidia' ? 'NVIDIA' : aiSettings.provider === 'openai-compatible' ? 'AI' : 'Agent'} is thinking...
+                  {aiSettings.provider === 'nvidia' ? 'NVIDIA' : aiSettings.provider === 'openai-compatible' ? 'AI' : 'GLM'} is thinking...
                 </span>
               </motion.div>
             )}
@@ -1897,7 +1904,7 @@ export function IDEChatPanel() {
           <ModelSelector />
           <div className="flex-1" />
           <span className="text-[8px] text-muted-foreground/40">
-            {aiSettings.provider === 'zai' ? 'Z-AI' : aiSettings.provider === 'nvidia' ? 'NVIDIA NIM' : 'Custom'}
+            {aiSettings.provider === 'zai' ? 'Z-AI (GLM)' : aiSettings.provider === 'nvidia' ? 'NVIDIA NIM' : 'Custom'}
           </span>
         </div>
         <div className="flex items-end gap-1.5">

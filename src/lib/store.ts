@@ -57,7 +57,7 @@ const DEFAULT_SETTINGS = {
   pollingInterval: 30,
   // AI Provider settings
   aiProvider: 'zai' as AIProviderType,
-  aiModel: 'deepseek-chat',
+  aiModel: 'glm-4',
   nvidiaApiKey: '',
   openaiCompatibleBaseUrl: '',
   openaiCompatibleApiKey: '',

@@ -574,7 +574,7 @@ function AIProviderTab() {
 
   const handleProviderChange = useCallback((provider: string) => {
     const p = provider as AIProviderType
-    const defaultModel = getModelsForProvider(p)[0]?.id || 'deepseek-chat'
+    const defaultModel = getModelsForProvider(p)[0]?.id || 'glm-4'
     updateAISettings({ provider: p, model: defaultModel })
     setTestResult(null)
     setNvidiaTestResult(null)

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       chatSessionId,
       agentId,
       provider = 'zai',
-      model = 'deepseek-chat',
+      model = 'glm-4',
       nvidiaApiKey,
       openaiCompatibleBaseUrl,
       openaiCompatibleApiKey,
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
       // Fallback to z-ai on provider failure
       console.warn(`Provider ${provider} failed, falling back to zai:`, providerError)
       try {
-        aiContent = await callZaiAPI(messages, 'deepseek-chat')
+        aiContent = await callZaiAPI(messages, 'glm-4')
       } catch {
         const errMsg = providerError instanceof Error ? providerError.message : 'Unknown error'
         aiContent = `I apologize, I could not generate a response. Provider "${provider}" error: ${errMsg}. Please check your AI provider settings and API key.`
@@ -1180,7 +1180,7 @@ async function callZaiAPI(
 ): Promise<string> {
   const zai = await ZAI.create()
   const response = await zai.chat.completions.create({
-    model: model || 'deepseek-chat',
+    model: model || 'glm-4',
     messages: messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
     thinking: { type: 'disabled' },
   })
@@ -1238,7 +1238,7 @@ export async function GET(req: NextRequest) {
   const provider = searchParams.get('provider') as AIProviderType | null
   const apiKey = searchParams.get('apiKey')
   const baseUrl = searchParams.get('baseUrl')
-  const model = searchParams.get('model') || 'deepseek-chat'
+  const model = searchParams.get('model') || 'glm-4'
 
   if (!provider) {
     return NextResponse.json({ error: 'Provider is required' }, { status: 400 })
@@ -1266,7 +1266,7 @@ export async function GET(req: NextRequest) {
         break
       case 'zai':
       default:
-        result = await callZaiAPI(testMessages, 'deepseek-chat')
+        result = await callZaiAPI(testMessages, 'glm-4')
         break
     }
 

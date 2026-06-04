@@ -52,8 +52,8 @@ export default function Home() {
 
   // AI Model display label
   const aiModelLabel = useMemo(() => {
-    if (!mounted) return 'DeepSeek'
-    if (aiSettings.provider === 'zai') return 'DeepSeek'
+    if (!mounted) return 'GLM-4'
+    if (aiSettings.provider === 'zai') return 'GLM-4'
     if (aiSettings.provider === 'nvidia') {
       const modelName = aiSettings.model.split('/').pop() || aiSettings.model
       return `NVIDIA ${modelName}`
@@ -526,7 +526,7 @@ export default function Home() {
               </div>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
-              AI Provider: {mounted ? (aiSettings.provider === 'zai' ? 'Z-AI' : aiSettings.provider === 'nvidia' ? 'NVIDIA NIM' : 'OpenAI-Compatible') : 'Z-AI'} — Model: {aiModelLabel}
+              AI Provider: {mounted ? (aiSettings.provider === 'zai' ? 'Z-AI (GLM)' : aiSettings.provider === 'nvidia' ? 'NVIDIA NIM' : 'OpenAI-Compatible') : 'Z-AI (GLM)'} — Model: {aiModelLabel}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
