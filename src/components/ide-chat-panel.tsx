@@ -693,17 +693,18 @@ function ChatHistoryDropdown({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.95 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute top-full left-0 mt-1 w-72 bg-card border border-border/60 rounded-lg shadow-xl z-50 overflow-hidden"
+            className="absolute bottom-full left-0 mb-1 w-72 bg-card border border-border/60 rounded-lg shadow-xl z-50 overflow-hidden"
           >
-            <div className="p-1.5 border-b border-border/40">
+            <div className="p-1.5 border-b border-border/40 bg-muted/20">
               <div className="px-2 py-1 text-[9px] text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-1">
                 <Clock className="size-2.5" />
-                Chat History
+                Chat History ({chatSessions.length})
               </div>
             </div>
-            <div className="max-h-64 overflow-y-auto p-1">
+            <div className="max-h-64 overflow-y-auto p-1 custom-scrollbar">
               {chatSessions.length === 0 ? (
-                <div className="px-2 py-3 text-[10px] text-muted-foreground/60 text-center">
+                <div className="px-3 py-4 text-[10px] text-muted-foreground/60 text-center">
+                  <MessageSquare className="size-5 mx-auto mb-1.5 text-muted-foreground/30" />
                   No chat sessions yet
                 </div>
               ) : (
@@ -711,13 +712,16 @@ function ChatHistoryDropdown({
                   <div
                     key={session.id}
                     className={cn(
-                      'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition-colors group/item',
+                      'flex items-center gap-2 w-full px-2 py-2 rounded-md text-xs transition-colors group/item',
                       session.id === currentChatSessionId
-                        ? 'bg-emerald-500/10 text-foreground'
+                        ? 'bg-emerald-500/10 text-foreground ring-1 ring-emerald-500/20'
                         : 'hover:bg-muted/50 text-foreground/80',
                     )}
                   >
-                    <MessageSquare className="size-3 text-muted-foreground/60 shrink-0" />
+                    <MessageSquare className={cn(
+                      'size-3.5 shrink-0',
+                      session.id === currentChatSessionId ? 'text-emerald-500' : 'text-muted-foreground/50',
+                    )} />
                     <div className="flex-1 min-w-0 text-left" onClick={() => handleSwitchSession(session.id)} style={{ cursor: 'pointer' }}>
                       {renamingSessionId === session.id ? (
                         <input
@@ -735,11 +739,14 @@ function ChatHistoryDropdown({
                         />
                       ) : (
                         <>
-                          <div className="font-medium truncate text-[11px]">{session.title || 'New Chat'}</div>
-                          <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
+                          <div className="font-medium truncate text-[11px] leading-tight">{session.title || 'New Chat'}</div>
+                          <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground/50 mt-0.5">
                             <span>{formatTime(session.updatedAt)}</span>
-                            {session.messageCount !== undefined && (
-                              <span>{session.messageCount} msgs</span>
+                            {session.messageCount !== undefined && session.messageCount > 0 && (
+                              <>
+                                <span className="text-border/60">·</span>
+                                <span>{session.messageCount} msg{session.messageCount !== 1 ? 's' : ''}</span>
+                              </>
                             )}
                           </div>
                         </>
@@ -791,7 +798,7 @@ function ChatHistoryDropdown({
                         className="size-5 flex items-center justify-center rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors"
                         title="Delete"
                       >
-                        <Trash2 className="size-3" />
+                        <Trash2 className="size-2.5" />
                       </button>
                     </div>
                   </div>
@@ -1613,11 +1620,11 @@ export function IDEChatPanel() {
               }}
               onBlur={handleFinishEditTitle}
               autoFocus
-              className="text-xs font-semibold text-foreground bg-transparent border-b border-emerald-500/50 outline-none max-w-[100px] truncate"
+              className="text-xs font-semibold text-foreground bg-transparent border-b border-emerald-500/50 outline-none max-w-[140px] truncate"
             />
           ) : (
             <span
-              className="text-xs font-semibold text-foreground truncate max-w-[100px] cursor-pointer hover:text-emerald-500 transition-colors"
+              className="text-xs font-semibold text-foreground truncate max-w-[140px] cursor-pointer hover:text-emerald-500 transition-colors"
               title={`${currentSessionTitle} — double-click to rename`}
               onDoubleClick={handleDoubleClickTitle}
             >

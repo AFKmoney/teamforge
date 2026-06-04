@@ -1153,3 +1153,35 @@ Task: Fix build errors, implement WebSocket service, add features and polish
 - Some subagent changes may have minor styling inconsistencies
 - The analytics charts may need data to display meaningfully
 - Next priorities: more deployment readiness, more visual polish, more agent automation features
+
+---
+Task ID: 1
+Agent: Main
+Task: Fix chat history display error and create illustrated user manual
+
+Work Log:
+- Analyzed uploaded screenshot using VLM to identify display issues
+- Fixed ChatHistoryDropdown positioning: changed from `top-full` (downward) to `bottom-full` (upward) to prevent overlap with chat messages
+- Improved ChatHistoryDropdown styling: added ring indicator for current session, better spacing (py-2), consistent icon sizing, dot separator for metadata
+- Fixed empty state with icon for better visual feedback
+- Updated timestamp group header CSS to use CSS variables instead of hardcoded rgba colors, better opacity
+- Increased session title max-width from 100px to 140px for better display
+- Captured 5 IDE screenshots using agent-browser for the manual
+- Created comprehensive HTML user manual (1214 lines, 54KB) with:
+  - Cover page with emerald gradient design
+  - Table of Contents
+  - 11 chapters covering all IDE features
+  - 5 embedded screenshots with captions
+  - Agent cards, slash command tables, keyboard shortcuts reference
+  - Professional typography with emerald/green accent colors
+  - Callout boxes (tip, warning, info)
+- Converted HTML to PDF using html2pdf-next.js (25 pages, 2.1 MB)
+- Added PDF metadata (title, author, creator)
+- Ran QA validation (passed with fill ratio warnings expected for chapter-based layout)
+
+Stage Summary:
+- Chat history display fixed: dropdown now opens upward, better spacing and styling
+- User manual created: /home/z/my-project/upload/teamforge-ide-manual.pdf (25 pages)
+- HTML source: /home/z/my-project/upload/teamforge-ide-manual.html
+- Screenshots: /home/z/my-project/upload/manual-screenshots/ (5 PNG files)
+- Lint: 0 errors
