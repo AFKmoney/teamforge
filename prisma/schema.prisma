@@ -120,7 +120,7 @@ model BuildLog {
 model AgentActivity {
   id          String   @id @default(cuid())
   agentId     String
-  action      String   // task_started, code_written, review_completed, test_run, deploy_triggered, message_sent
+  action      String   // task_started, task_assigned, task_completed, code_written, review_completed, test_run, deploy_triggered, message_sent, status_change, file_created, file_updated, code_change
   description String
   metadata    String   @default("{}") // JSON
   createdAt   DateTime @default(now())

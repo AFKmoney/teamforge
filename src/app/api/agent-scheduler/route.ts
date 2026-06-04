@@ -179,9 +179,9 @@ async function handleStop(projectId?: string) {
       await db.agentActivity.create({
         data: {
           agentId: agent.id,
-          action: 'message_sent',
-          description: `Agent stopped by user. Reset to idle.`,
-          metadata: JSON.stringify({ action: 'stop' }),
+          action: 'status_change',
+          description: `${agent.name} status changed to idle`,
+          metadata: JSON.stringify({ previousStatus: agent.status, newStatus: 'idle', action: 'stop' }),
         },
       })
     }
@@ -231,9 +231,9 @@ async function handlePause(projectId?: string) {
       await db.agentActivity.create({
         data: {
           agentId: agent.id,
-          action: 'message_sent',
-          description: `Agent paused by user. Set to sleeping.`,
-          metadata: JSON.stringify({ action: 'pause' }),
+          action: 'status_change',
+          description: `${agent.name} status changed to sleeping`,
+          metadata: JSON.stringify({ previousStatus: agent.status, newStatus: 'sleeping', action: 'pause' }),
         },
       })
     }
@@ -440,14 +440,14 @@ async function autoAssignTasks(projectId?: string, yoloMode: boolean = false): P
       await db.agentActivity.create({
         data: {
           agentId: bestAgent.id,
-          action: 'task_started',
+          action: 'task_assigned',
           description: yoloMode
-            ? `YOLO auto-assigned to task: ${task.title}`
-            : `Auto-assigned to task: ${task.title}`,
+            ? `${bestAgent.name} YOLO auto-assigned to task: ${task.title}`
+            : `${bestAgent.name} auto-assigned to task: ${task.title}`,
           metadata: JSON.stringify({ taskId: task.id, taskType: task.type, action: yoloMode ? 'yolo_auto_assign' : 'auto_assign', yoloMode }),
         },
       })
-      broadcastEvent('activity:new', { agentId: bestAgent.id, action: 'task_started' })
+      broadcastEvent('activity:new', { agentId: bestAgent.id, action: 'task_assigned' })
 
       assignedAgentIds.add(bestAgent.id)
       assignments.push({
@@ -536,7 +536,7 @@ async function executeTask(taskId: string, agentId: string) {
       data: {
         agentId: agent.id,
         action: 'task_started',
-        description: `Started working on: ${task.title}`,
+        description: `${agent.name} started working on: ${task.title}`,
         metadata: JSON.stringify({ taskId: task.id, taskType: task.type, taskPriority: task.priority }),
       },
       include: { agent: true },
@@ -693,7 +693,7 @@ async function executeTask(taskId: string, agentId: string) {
       data: {
         agentId: agent.id,
         action: executedActions.some(a => a.includes('Wrote file')) ? 'code_written' : 'task_completed',
-        description: `Finished: ${task.title}. Actions: ${executedActions.join(', ') || 'analysis only'}`,
+        description: `${agent.name} completed: ${task.title}. Actions: ${executedActions.join(', ') || 'analysis only'}`,
         metadata: JSON.stringify({ taskId: task.id, actions: executedActions, finalStatus }),
       },
       include: { agent: true },
@@ -734,9 +734,9 @@ async function executeTask(taskId: string, agentId: string) {
     await db.agentActivity.create({
       data: {
         agentId: agent.id,
-        action: 'message_sent',
-        description: `Error while working on: ${task.title}. ${error instanceof Error ? error.message : 'Unknown error'}`,
-        metadata: JSON.stringify({ taskId: task.id, error: true }),
+        action: 'status_change',
+        description: `${agent.name} status changed to idle (error while working on: ${task.title})`,
+        metadata: JSON.stringify({ taskId: task.id, previousStatus: getWorkStatus(agent.role), newStatus: 'idle', error: true, errorMessage: error instanceof Error ? error.message : 'Unknown error' }),
       },
     }).catch(() => {})
 

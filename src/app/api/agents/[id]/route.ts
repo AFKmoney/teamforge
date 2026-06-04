@@ -63,6 +63,20 @@ export async function PATCH(
       data,
     })
 
+    // If status was changed, create a status_change activity
+    if (body.status !== undefined && body.status !== existing.status) {
+      const activity = await db.agentActivity.create({
+        data: {
+          agentId: id,
+          action: 'status_change',
+          description: `${agent.name} status changed to ${body.status}`,
+          metadata: JSON.stringify({ previousStatus: existing.status, newStatus: body.status }),
+        },
+        include: { agent: true },
+      })
+      broadcastEvent('activity:new', activity)
+    }
+
     // Broadcast agent update to WS clients
     broadcastEvent('agent:update', agent)
 

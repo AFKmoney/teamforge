@@ -111,7 +111,7 @@ function saveYoloMode(mode: boolean) {
 // localStorage in a useEffect after mount. This prevents hydration mismatches
 // where server renders with defaults but client renders with persisted values.
 
-export type AppSettings = typeof DEFAULT_SETTINGS & AISettings
+export type AppSettings = typeof DEFAULT_SETTINGS
 
 interface AppState {
   // Current project

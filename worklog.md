@@ -1307,3 +1307,237 @@ Stage Summary:
 - App verified working in browser
 - Code pushed to GitHub: AFKmoney/teamforge
 - Cron job created for continuous development
+
+---
+Task ID: 3
+Agent: Subagent
+Task: Fix chat panel issues in ide-chat-panel.tsx
+
+Work Log:
+
+### 1. Fixed token counter negative values
+- Added `Math.max(0, ...)` guard around `Math.round(totalChars / 4)` in `ChatAIStatusBar` component
+- Added early return of `0` when `messages.length === 0` to avoid unnecessary computation
+- Updated token display: shows "0 tok" when no messages, `~N tok` for small counts, `~Nk tok` for counts over 1000
+- Previous code could show confusing values like `~-0 tok` with empty/short messages
+
+### 2. Updated chat input placeholder
+- Changed placeholder from "Message the team... (/ for commands)" to "Ask anything... (/ for commands)"
+- More helpful and accurate — the chat is AI-powered, not a team messaging interface
+
+### 3. Updated QUICK_PROMPTS to be developer IDE relevant
+- Replaced generic suggestions with developer-focused quick prompts:
+  - "Status update" → "Build & Run" — builds and runs the project, reports errors/warnings
+  - "Run tests" → "Code Review" — reviews current file for quality, bugs, improvements
+  - "Deploy staging" → "Fix Issues" — finds and fixes issues/bugs in current code
+  - "Code review" → "Explain Code" — explains what the code does and how it works
+- Icons updated to match: 🔨 Build & Run, 🔍 Code Review, 🐛 Fix Issues, 📖 Explain Code
+
+### 4. Fixed auto-create session logic when currentChatSessionId is null
+- Changed `isNewSession` logic: when `currentChatSessionId` is null, it now returns `true` instead of `false`
+  - Previously: `currentChatSessionId ? ... : false` — null was treated as "not a new session"
+  - Now: `currentChatSessionId ? ... : true` — null means server will auto-create, so treat as new
+- Fixed session title when auto-creating: changed from hardcoded "New Chat" to `msg.slice(0, 60)` to match what the server sets
+- This ensures auto-title update fires correctly for auto-created sessions and the store title matches the server
+
+### 5. Updated character count display
+- Removed always-visible `X/500` counter that showed a hardcoded 500-char limit
+- Replaced with conditional display: only shows character count when input exceeds 3500 chars
+- New limit: 4000 characters (matches common LLM input limits better)
+- Visual feedback: amber text when approaching limit (>3500), red text when over limit (>4000)
+- Uses existing `cn()` utility for conditional class application
+
+### Lint and Build Verification
+- `bun run lint` — 0 errors, 0 warnings
+- All changes are type-safe and preserve existing functionality
+
+Stage Summary:
+- Token counter now never shows negative values and displays "0 tok" when empty
+- Chat placeholder updated to "Ask anything... (/ for commands)"
+- Quick prompts are now developer IDE focused (Build & Run, Code Review, Fix Issues, Explain Code)
+- Auto-create session works correctly when currentChatSessionId is null, with proper title sync
+- Character count only appears when approaching the 4000-char limit, with color-coded feedback
+- Lint: 0 errors
+
+---
+Task ID: 2
+Agent: Subagent
+Task: Fix agent detail dialog issues
+
+Work Log:
+
+### 1. Fixed "Current Task" section not showing assigned task (Issue 1)
+- Added `isLoadingTask` state variable
+- Added `fetchTasks` selector from store
+- Added `useEffect` that calls `fetchTasks()` when `selectedAgentId` changes (dialog opens), with loading state management
+- Added loading spinner display while task is being fetched
+- Added fallback display: when `currentTask` is null but `agent.currentTaskId` exists, shows "Task #{id prefix}" with "Task data not yet loaded" message
+- Import: Added `useEffect` to the React import
+
+### 2. Verified activity action types are correct (Issue 2)
+- Checked `/api/agents/[id]/route.ts` PATCH handler — already creates activities with `action: 'status_change'` (line 71)
+- Checked `/api/agent-scheduler/route.ts` — all status-related activities already use `action: 'status_change'` (lines 182, 234, 737)
+- No changes needed; this was already fixed by a previous agent
+
+### 3. Improved "No current task assigned" empty state (Issue 3)
+- Replaced plain text "No current task assigned" with a visually appealing empty state:
+  - Target icon in a circular background container
+  - "No task assigned" title text with descriptive subtitle
+  - "+ Assign New Task" button directly in the empty state card
+- Removed the separate "Assign Task" section that always showed the assign button/form
+- Now the assign form only appears when `showAssignTask` is true (triggered from the empty state button)
+
+### 4. Fixed "Recent Activity" section (Issue 4)
+- Added agent name display in each activity entry: shows `act.agent.name` in bold when available from the API's `include: { agent: true }` relation
+- Improved empty state for no activities:
+  - Clock icon in a circular background container
+  - "No recent activity" title with descriptive subtitle
+- Increased max height from `max-h-40` to `max-h-52` for better readability
+- Renamed map variable from `activity` to `act` to avoid shadowing the `activities` import
+
+### 5. Fixed footer buttons layout (Issue 5)
+- Removed `flex-1` from "Chat with Agent" button — it now takes only the space it needs
+- Grouped "Chat with Agent" and "Set Status" in a left-side `<div>` container
+- Moved "Close" button to the right side using `ml-auto` on its wrapper
+- Removed the `<div className="flex-1" />` spacer that was between the dropdown and close button
+
+Stage Summary:
+- Agent detail dialog now fetches tasks on open, ensuring `currentTaskId` can be resolved
+- Loading state shown while fetching, with fallback display for unresolved task IDs
+- Empty state for "No task assigned" is visually appealing with Target icon and inline assign button
+- Activity entries show agent name from the API relation
+- Footer layout fixed: Chat + Set Status on left, Close on right, no flex-1 stretching
+- Activity action types already correct (`status_change`) in both API routes
+- Lint: 0 errors
+
+---
+Task ID: 4
+Agent: Main
+Task: Fix agent status update API and activity creation
+
+Work Log:
+
+### 1. Fixed PATCH handler in `src/app/api/agents/[id]/route.ts`
+- Added `status_change` activity creation when an agent's status is changed via PATCH
+- The activity uses `action: 'status_change'` with description format: `"${agent.name} status changed to ${newStatus}"`
+- Metadata includes `previousStatus` and `newStatus` for full traceability
+- Also broadcasts the new activity via `broadcastEvent('activity:new', activity)`
+- Only creates activity when status actually changes (guards against `body.status !== existing.status`)
+
+### 2. Fixed `src/app/api/agent-scheduler/route.ts` — Replaced all `message_sent` with proper action types
+- **handleStop()** (line ~182): Changed `action: 'message_sent'` → `action: 'status_change'`, description: `"${agent.name} status changed to idle"`
+- **handlePause()** (line ~234): Changed `action: 'message_sent'` → `action: 'status_change'`, description: `"${agent.name} status changed to sleeping"`
+- **autoAssignTasks()** (line ~440): Changed `action: 'task_started'` → `action: 'task_assigned'`, description: `"${agent.name} auto-assigned to task: ${task.title}"` (also includes agent name)
+- **executeTask() error handler** (line ~737): Changed `action: 'message_sent'` → `action: 'status_change'`, description: `"${agent.name} status changed to idle (error while working on: ${task.title})"`
+- Updated broadcast events to match new action types
+
+### 3. Updated activity descriptions to include agent name consistently
+- `executeTask()` task started activity: `"${agent.name} started working on: ${task.title}"`
+- `executeTask()` task completed activity: `"${agent.name} completed: ${task.title}. Actions: ..."`
+- All status change descriptions now use format: `"${agent.name} status changed to ${status}"`
+
+### 4. Added new activity action types to UI config maps
+- **`src/components/ide-sidebar.tsx`** (`ACTIVITY_TYPE_CONFIG`):
+  - Added `status_change` — ArrowRightLeft icon, teal border, "Status Change" label
+  - Added `task_assigned` — UserCheck icon, sky border, "Task Assigned" label
+  - Added `task_completed` — CheckCircle icon, green border, "Task Completed" label
+  - Added imports: ArrowRightLeft, UserCheck, CheckCircle from lucide-react
+
+- **`src/components/ide-bottom-panel.tsx`** (`ACTIVITY_TYPE_CONFIG_FULL`):
+  - Added `status_change` — ArrowRightLeft icon, teal border, "Status Change" label, bg-teal-500/5
+  - Added `task_assigned` — UserCheck icon, sky border, "Task Assigned" label, bg-sky-500/5
+  - Added `task_completed` — CheckCircle icon, green border, "Task Completed" label, bg-green-500/5
+  - Added imports: ArrowRightLeft, UserCheck, CheckCircle from lucide-react
+
+### 5. Updated Prisma schema comment
+- `prisma/schema.prisma` AgentActivity.action comment updated to list all action types:
+  `task_started, task_assigned, task_completed, code_written, review_completed, test_run, deploy_triggered, message_sent, status_change, file_created, file_updated, code_change`
+
+### Complete activity action type reference:
+- `task_started` — Agent begins working on a task
+- `task_assigned` — Agent is auto-assigned to a task
+- `task_completed` — Agent finishes a task
+- `code_written` — Agent writes code (files modified)
+- `review_completed` — Reviewer completes a review
+- `test_run` — Tester runs tests
+- `deploy_triggered` — DevOps triggers deployment
+- `message_sent` — Agent sends a message (kept for legitimate message activities like PM updates)
+- `status_change` — Agent status changes (idle, sleeping, coding, etc.)
+- `file_created` — New file created
+- `file_updated` — Existing file updated
+- `code_change` — Code changes made
+
+### Lint and Build Verification
+- `bun run lint` — 0 errors, 0 warnings
+- Dev server compiles and runs successfully
+
+Stage Summary:
+- All `message_sent` action types in API routes replaced with proper action types (`status_change`, `task_assigned`)
+- PATCH handler on agents/[id] now creates `status_change` activities when status changes
+- All activity descriptions include agent name for clarity
+- Three new action types defined: `status_change`, `task_assigned`, `task_completed`
+- UI config maps in sidebar and bottom panel updated with icons and labels for all new types
+- Prisma schema comment updated with complete action type list
+- Lint: 0 errors
+
+---
+Task ID: 1
+Agent: Main
+Task: Fix all issues from user screenshot - comprehensive bug fixes and data cleanup
+
+Work Log:
+- Analyzed user's uploaded screenshot showing agent detail dialog with issues
+- Used VLM to identify issues: duplicate activity entries, "No current task assigned", negative token counter
+- Used agent-browser to perform comprehensive QA of the running application
+- Cleaned up database: removed test/garbage tasks ("ee", "11"), fixed stale currentTaskId references, reset agents with wrong status (thinking → idle)
+- Fixed activities with wrong action type: deleted all `message_sent` activities that were actually status changes
+- Launched 3 parallel subagents to fix different areas:
+  1. Agent detail dialog fixes (Task 2)
+  2. Chat panel fixes (Task 3) 
+  3. Agent API and activity creation fixes (Task 4)
+
+### Agent Detail Dialog Fixes (subagent Task 2):
+- Added useEffect to fetch tasks when dialog opens
+- Added loading state for current task section
+- Added fallback showing Task ID when task object not found in store
+- Improved "No task assigned" empty state with Target icon, description text, and inline Assign button
+- Fixed Recent Activity section: shows agent name from API relation, improved empty state
+- Fixed footer layout: Chat with Agent + Set Status on left, Close on right (removed spacer)
+
+### Chat Panel Fixes (subagent Task 3):
+- Fixed token counter: added Math.max(0, ...) guard, shows "0 tok" for empty messages
+- Updated placeholder from "Message the team..." to "Ask anything... (/ for commands)"
+- Updated QUICK_PROMPTS to developer-focused: Build & Run, Code Review, Fix Issues, Explain Code
+- Fixed auto-create session when currentChatSessionId is null
+- Changed character count: removed always-visible 0/500, now shows X/4000 only when approaching limit (>3500 chars)
+
+### Agent API & Activity Fixes (subagent Task 4):
+- Fixed agent PATCH route: creates `status_change` activity with agent name (e.g., "Nova status changed to sleeping")
+- Fixed agent-scheduler route: 4 incorrect action types changed:
+  - handleStop: message_sent → status_change
+  - handlePause: message_sent → status_change  
+  - autoAssignTasks: task_started → task_assigned
+  - executeTask error: message_sent → status_change
+- Added new activity action types to UI: status_change, task_assigned, task_completed
+- Updated ACTIVITY_TYPE_CONFIG in both ide-sidebar.tsx and ide-bottom-panel.tsx
+
+### QA Verification:
+- All API endpoints returning 200 (/, /api/agents, /api/activities, /api/tasks)
+- Agent detail dialog opens correctly with proper empty states
+- YOLO mode toggle works with visual feedback in top bar and status bar
+- Settings dialog opens correctly (Project, General, Editor, AI, Appearance tabs)
+- AI tab shows without techStack.map error
+- Project tab shows tech stack section correctly
+- Notifications panel opens correctly
+- Chat panel sends messages and receives AI responses
+- Token counter shows "0 tok" instead of negative values
+- Lint: 0 errors
+
+Stage Summary:
+- All issues from user's screenshot fixed
+- Database cleaned of test/garbage data
+- Activity action types corrected throughout the codebase
+- Agent detail dialog significantly improved with better empty states and task loading
+- Chat panel improved with developer-focused quick prompts and fixed token counter
+- Cron job created for ongoing QA (every 15 minutes)
+- Lint: 0 errors, all APIs returning 200

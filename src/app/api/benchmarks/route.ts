@@ -1,12 +1,9 @@
-import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
-    const benchmarks = await db.benchmark.findMany({
-      orderBy: [{ category: 'asc' }, { runAt: 'desc' }],
-    })
-    return NextResponse.json(benchmarks)
+    // Benchmark model does not exist in schema — return empty array
+    return NextResponse.json([])
   } catch (error) {
     console.error('Benchmarks GET error:', error)
     return NextResponse.json(

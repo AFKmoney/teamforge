@@ -99,7 +99,7 @@ function ProjectTab() {
     if (typeof raw === 'string') { try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : [] } catch { return [] } }
     return []
   })
-  const [status, setStatus] = useState(currentProject?.status || 'active')
+  const [status, setStatus] = useState<string>(currentProject?.status || 'active')
   const [repoUrl, setRepoUrl] = useState(currentProject?.repoUrl || '')
   const [isSaving, setIsSaving] = useState(false)
   const [showTechSelect, setShowTechSelect] = useState(false)

@@ -10,23 +10,10 @@ import {
   Search,
   Code,
   BarChart,
-  Brain,
-  Dna,
   Shield,
   Rocket,
   Loader2,
   Filter,
-  Wrench,
-  Zap,
-  Globe,
-  Database,
-  Terminal,
-  FileSearch,
-  Activity,
-  Download,
-  FileSpreadsheet,
-  FileJson,
-  X,
   Eye,
   Pencil,
   Power,
@@ -39,6 +26,14 @@ import {
   FileUp,
   CheckCircle,
   AlertCircle as AlertCircleIcon,
+  Download,
+  FileSpreadsheet,
+  FileJson,
+  X,
+  TestTube,
+  PenTool,
+  ClipboardList,
+  Activity,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -74,6 +69,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts'
 import { useAppStore } from '@/lib/store'
 import type { Agent, AgentRole, AgentStatus } from '@/lib/types'
+import { AGENT_ROLE_CONFIG, AGENT_STATUS_CONFIG } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
 import { parseCSV, parseJSON, validateImportData, readFileAsText } from '@/lib/import-utils'
@@ -102,16 +98,6 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`
 }
 
-function safeJsonParse<T>(value: string | T[] | Record<string, unknown> | undefined, fallback: T): T {
-  if (value === undefined || value === null) return fallback
-  if (typeof value === 'object') return value as T
-  try {
-    return JSON.parse(value as string) as T
-  } catch {
-    return fallback
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Mock performance data generator for mini charts
 // ---------------------------------------------------------------------------
@@ -136,13 +122,15 @@ interface StatusHistoryEntry {
 }
 
 const generateStatusHistory = (agentId: string): StatusHistoryEntry[] => {
-  const statuses: AgentStatus[] = ['active', 'busy', 'idle', 'error', 'offline']
-  const reasons: Record<string, string[]> = {
-    active: ['Task started', 'Reconnected', 'Activated by system', 'Manual activation'],
-    busy: ['Processing task queue', 'Running analysis', 'Executing workflow'],
+  const statuses: AgentStatus[] = ['idle', 'thinking', 'coding', 'reviewing', 'testing', 'deploying', 'sleeping']
+  const reasons: Record<AgentStatus, string[]> = {
     idle: ['No pending tasks', 'Waiting for input', 'Task completed'],
-    error: ['API timeout', 'Resource limit exceeded', 'Configuration error'],
-    offline: ['Maintenance mode', 'Scheduled downtime', 'Manual shutdown'],
+    thinking: ['Analyzing requirements', 'Planning approach', 'Evaluating options'],
+    coding: ['Implementing feature', 'Fixing bug', 'Refactoring code'],
+    reviewing: ['Code review started', 'Quality check', 'Peer review'],
+    testing: ['Running test suite', 'Validating changes', 'Integration testing'],
+    deploying: ['Deploying to staging', 'Rolling out update', 'CI/CD pipeline'],
+    sleeping: ['Maintenance mode', 'Scheduled downtime', 'Manual shutdown'],
   }
   const now = Date.now()
   return Array.from({ length: 5 }, (_, i) => {
@@ -160,63 +148,56 @@ const generateStatusHistory = (agentId: string): StatusHistoryEntry[] => {
 }
 
 // ---------------------------------------------------------------------------
-// Role config
+// Extended role config with Lucide icons and gradients (supplements AGENT_ROLE_CONFIG)
 // ---------------------------------------------------------------------------
 
-const ROLE_CONFIG: Record<AgentRole, { icon: typeof Search; color: string; label: string; gradient: string }> = {
-  research: { icon: Search, color: 'text-purple-500 dark:text-purple-400', label: 'Research', gradient: 'from-purple-500 to-purple-600' },
-  coding: { icon: Code, color: 'text-green-500 dark:text-green-400', label: 'Coding', gradient: 'from-green-500 to-emerald-600' },
-  evaluation: { icon: BarChart, color: 'text-sky-500 dark:text-sky-400', label: 'Evaluation', gradient: 'from-sky-500 to-cyan-600' },
-  memory: { icon: Brain, color: 'text-cyan-500 dark:text-cyan-400', label: 'Memory', gradient: 'from-cyan-500 to-teal-600' },
-  evolution: { icon: Dna, color: 'text-amber-500 dark:text-amber-400', label: 'Evolution', gradient: 'from-amber-500 to-orange-600' },
-  safety: { icon: Shield, color: 'text-red-500 dark:text-red-400', label: 'Safety', gradient: 'from-red-500 to-rose-600' },
-  deployment: { icon: Rocket, color: 'text-teal-500 dark:text-teal-400', label: 'Deployment', gradient: 'from-teal-500 to-emerald-600' },
+const ROLE_LUCIDE_ICON: Record<AgentRole, typeof Search> = {
+  architect: BarChart,
+  developer: Code,
+  reviewer: Eye,
+  tester: TestTube,
+  devops: Rocket,
+  pm: ClipboardList,
+}
+
+const ROLE_GRADIENT: Record<AgentRole, string> = {
+  architect: 'from-violet-500 to-violet-600',
+  developer: 'from-emerald-500 to-emerald-600',
+  reviewer: 'from-blue-500 to-blue-600',
+  tester: 'from-amber-500 to-amber-600',
+  devops: 'from-orange-500 to-orange-600',
+  pm: 'from-pink-500 to-pink-600',
 }
 
 const ROLE_BADGE_BG: Record<AgentRole, string> = {
-  research: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
-  coding: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
-  evaluation: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
-  memory: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20',
-  evolution: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-  safety: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
-  deployment: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
+  architect: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
+  developer: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  reviewer: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  tester: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  devops: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
+  pm: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20',
 }
 
-const STATUS_CONFIG: Record<AgentStatus, { bg: string; pulse: boolean; labelBg: string; label: string; dotColor: string }> = {
-  active: { bg: 'bg-green-500', pulse: true, labelBg: 'bg-green-500/10 text-green-600 dark:text-green-400', label: 'Active', dotColor: 'bg-green-500' },
-  busy: { bg: 'bg-amber-500', pulse: true, labelBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', label: 'Busy', dotColor: 'bg-amber-500' },
-  idle: { bg: 'bg-muted-foreground/50', pulse: false, labelBg: 'bg-muted text-muted-foreground', label: 'Idle', dotColor: 'bg-muted-foreground/50' },
-  error: { bg: 'bg-red-500', pulse: false, labelBg: 'bg-red-500/10 text-red-600 dark:text-red-400', label: 'Error', dotColor: 'bg-red-500' },
-  offline: { bg: 'bg-muted-foreground/30', pulse: false, labelBg: 'bg-muted text-muted-foreground', label: 'Offline', dotColor: 'bg-muted-foreground/30' },
+// Extended status config with UI properties (supplements AGENT_STATUS_CONFIG)
+const STATUS_UI_CONFIG: Record<AgentStatus, { pulse: boolean; labelBg: string }> = {
+  idle: { pulse: false, labelBg: 'bg-muted text-muted-foreground' },
+  thinking: { pulse: true, labelBg: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
+  coding: { pulse: true, labelBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+  reviewing: { pulse: true, labelBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+  testing: { pulse: true, labelBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+  deploying: { pulse: true, labelBg: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+  sleeping: { pulse: false, labelBg: 'bg-muted text-muted-foreground' },
 }
 
 // Status summary mini-card config with icons
 const STATUS_SUMMARY_CONFIG: Record<AgentStatus, { icon: typeof CheckCircle2; iconColor: string; bgColor: string }> = {
-  active: { icon: CheckCircle2, iconColor: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-500/10 dark:bg-green-500/15 border-green-500/20' },
-  busy: { icon: Clock, iconColor: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/10 dark:bg-amber-500/15 border-amber-500/20' },
   idle: { icon: Moon, iconColor: 'text-muted-foreground', bgColor: 'bg-muted/50 border-border' },
-  error: { icon: AlertTriangle, iconColor: 'text-red-600 dark:text-red-400', bgColor: 'bg-red-500/10 dark:bg-red-500/15 border-red-500/20' },
-  offline: { icon: PowerOff, iconColor: 'text-muted-foreground/70', bgColor: 'bg-muted/30 border-border' },
-}
-
-// Tool icon mapping
-const TOOL_ICONS: Record<string, typeof Wrench> = {
-  'web-search': Globe,
-  'code-executor': Terminal,
-  'database': Database,
-  'analyzer': FileSearch,
-  'api-client': Zap,
-  'default': Wrench,
-}
-
-function getToolIcon(toolName: string): typeof Wrench {
-  const lower = toolName.toLowerCase()
-  for (const [key, Icon] of Object.entries(TOOL_ICONS)) {
-    if (key === 'default') continue
-    if (lower.includes(key) || lower.includes(key.replace('-', ''))) return Icon
-  }
-  return TOOL_ICONS['default']
+  thinking: { icon: Activity, iconColor: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-500/10 dark:bg-violet-500/15 border-violet-500/20' },
+  coding: { icon: Code, iconColor: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/20' },
+  reviewing: { icon: Eye, iconColor: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-500/10 dark:bg-blue-500/15 border-blue-500/20' },
+  testing: { icon: TestTube, iconColor: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/10 dark:bg-amber-500/15 border-amber-500/20' },
+  deploying: { icon: Rocket, iconColor: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-500/10 dark:bg-orange-500/15 border-orange-500/20' },
+  sleeping: { icon: PowerOff, iconColor: 'text-muted-foreground/70', bgColor: 'bg-muted/30 border-border' },
 }
 
 // ---------------------------------------------------------------------------
@@ -227,118 +208,68 @@ interface RoleTemplate {
   label: string
   description: string
   role: AgentRole
-  goals: string
-  tools: string
-  formDesc: string
+  avatar: string
+  specialty: string
 }
 
 const ROLE_TEMPLATES: Record<string, RoleTemplate> = {
-  research: {
-    label: 'Research Agent',
-    description: 'Searches and synthesizes information from various sources',
-    role: 'research',
-    goals: 'Conduct thorough research, Synthesize findings, Identify knowledge gaps',
-    tools: 'web-search, analyzer, database',
-    formDesc: 'An agent specialized in research tasks — searching, analyzing, and synthesizing information from diverse data sources.',
+  architect: {
+    label: 'Architect Agent',
+    description: 'System design & architecture',
+    role: 'architect',
+    avatar: '🏗️',
+    specialty: 'System design & architecture',
   },
-  coding: {
-    label: 'Coding Agent',
-    description: 'Writes, reviews, and debugs code',
-    role: 'coding',
-    goals: 'Write clean code, Debug issues, Optimize performance',
-    tools: 'code-executor, analyzer, api-client',
-    formDesc: 'An agent specialized in software development — writing, reviewing, debugging, and optimizing code.',
+  developer: {
+    label: 'Developer Agent',
+    description: 'Code implementation',
+    role: 'developer',
+    avatar: '💻',
+    specialty: 'Code implementation',
   },
-  evaluation: {
-    label: 'Evaluation Agent',
-    description: 'Assesses and benchmarks system performance',
-    role: 'evaluation',
-    goals: 'Run benchmarks, Evaluate metrics, Generate reports',
-    tools: 'analyzer, database, code-executor',
-    formDesc: 'An agent focused on evaluation — running benchmarks, assessing metrics, and generating performance reports.',
+  reviewer: {
+    label: 'Reviewer Agent',
+    description: 'Code review & quality',
+    role: 'reviewer',
+    avatar: '🔍',
+    specialty: 'Code review & quality',
   },
-  memory: {
-    label: 'Memory Agent',
-    description: 'Manages knowledge storage and retrieval',
-    role: 'memory',
-    goals: 'Organize knowledge, Retrieve relevant info, Maintain data integrity',
-    tools: 'database, analyzer, api-client',
-    formDesc: 'An agent responsible for memory management — organizing, storing, and retrieving knowledge efficiently.',
+  tester: {
+    label: 'Tester Agent',
+    description: 'Testing & validation',
+    role: 'tester',
+    avatar: '🧪',
+    specialty: 'Testing & validation',
   },
-  evolution: {
-    label: 'Evolution Agent',
-    description: 'Drives self-improvement and system adaptation',
-    role: 'evolution',
-    goals: 'Propose improvements, Test changes, Deploy optimizations',
-    tools: 'code-executor, analyzer, web-search',
-    formDesc: 'An agent driving self-evolution — proposing, testing, and deploying system improvements.',
+  devops: {
+    label: 'DevOps Agent',
+    description: 'CI/CD & deployment',
+    role: 'devops',
+    avatar: '🚀',
+    specialty: 'CI/CD & deployment',
   },
-  safety: {
-    label: 'Safety Agent',
-    description: 'Monitors and enforces safety constraints',
-    role: 'safety',
-    goals: 'Monitor compliance, Validate changes, Prevent violations',
-    tools: 'analyzer, database, api-client',
-    formDesc: 'An agent ensuring safety — monitoring compliance, validating changes, and preventing policy violations.',
-  },
-  deployment: {
-    label: 'Deployment Agent',
-    description: 'Handles system deployment and operations',
-    role: 'deployment',
-    goals: 'Manage deployments, Monitor health, Automate operations',
-    tools: 'code-executor, api-client, web-search',
-    formDesc: 'An agent handling deployments — managing rollouts, monitoring health, and automating operational tasks.',
+  pm: {
+    label: 'PM Agent',
+    description: 'Project management',
+    role: 'pm',
+    avatar: '📋',
+    specialty: 'Project management',
   },
   custom: {
     label: 'Custom Agent',
     description: 'Start with a blank configuration',
-    role: 'research',
-    goals: '',
-    tools: '',
-    formDesc: '',
+    role: 'developer',
+    avatar: '🤖',
+    specialty: '',
   },
 }
 
-// ---------------------------------------------------------------------------
-// Raw agent type from API (JSON string fields)
-// ---------------------------------------------------------------------------
+// All valid AgentRole values
+const ALL_ROLES: AgentRole[] = ['architect', 'developer', 'reviewer', 'tester', 'devops', 'pm']
+const ALL_STATUSES: AgentStatus[] = ['idle', 'thinking', 'coding', 'reviewing', 'testing', 'deploying', 'sleeping']
 
-interface RawAgent {
-  id: string
-  name: string
-  role: string
-  status: string
-  description: string
-  goals: string
-  tools: string
-  config: string
-  successRate: number
-  tasksCompleted: number
-  tokensUsed: number
-  lastActive: string
-  createdAt: string
-  updatedAt: string
-  _count?: { memories: number; events: number; experiments: number }
-}
-
-function parseAgent(raw: RawAgent): Agent {
-  return {
-    id: raw.id,
-    name: raw.name,
-    role: raw.role as AgentRole,
-    status: raw.status as AgentStatus,
-    description: raw.description,
-    goals: safeJsonParse<string[]>(raw.goals, []),
-    tools: safeJsonParse<string[]>(raw.tools, []),
-    config: safeJsonParse<Record<string, unknown>>(raw.config, {}),
-    successRate: raw.successRate,
-    tasksCompleted: raw.tasksCompleted,
-    tokensUsed: raw.tokensUsed,
-    lastActive: raw.lastActive,
-    createdAt: raw.createdAt,
-    updatedAt: raw.updatedAt,
-  }
-}
+// "Active" statuses are those where the agent is doing work
+const ACTIVE_STATUSES: AgentStatus[] = ['thinking', 'coding', 'reviewing', 'testing', 'deploying']
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -389,7 +320,7 @@ function MiniChartTooltip({ active, payload }: { active?: boolean; payload?: Arr
 }
 
 // ---------------------------------------------------------------------------
-// JSON syntax highlighter
+// JSON syntax highlighter for detail dialog
 // ---------------------------------------------------------------------------
 
 function JsonViewer({ data }: { data: Record<string, unknown> }) {
@@ -397,13 +328,11 @@ function JsonViewer({ data }: { data: Record<string, unknown> }) {
   const lines = formatted.split('\n')
 
   const highlightLine = (line: string) => {
-    // Key
     const keyMatch = line.match(/^(\s*)"([^"]+)":/)
     if (keyMatch) {
       const indent = keyMatch[1]
       const key = keyMatch[2]
       const rest = line.slice(keyMatch[0].length)
-      // Value part
       const valueMatch = rest.match(/^\s*(.+),?\s*$/)
       if (valueMatch) {
         const rawValue = valueMatch[1]
@@ -429,7 +358,6 @@ function JsonViewer({ data }: { data: Record<string, unknown> }) {
         )
       }
     }
-    // Array/bracket lines
     if (line.trim() === '{' || line.trim() === '}' || line.trim() === '[' || line.trim() === ']') {
       return <span className="text-muted-foreground">{line}</span>
     }
@@ -478,13 +406,12 @@ export function AgentsPanel() {
   // Status history for detail dialog
   const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([])
 
-  // Form state
+  // Create form state
   const [formName, setFormName] = useState('')
-  const [formRole, setFormRole] = useState<AgentRole>('research')
-  const [formDesc, setFormDesc] = useState('')
-  const [formGoals, setFormGoals] = useState('')
-  const [formTools, setFormTools] = useState('')
-  const [formSuccessRate, setFormSuccessRate] = useState('0.8')
+  const [formRole, setFormRole] = useState<AgentRole>('developer')
+  const [formAvatar, setFormAvatar] = useState('🤖')
+  const [formSpecialty, setFormSpecialty] = useState('')
+  const [formStatus, setFormStatus] = useState<AgentStatus>('idle')
   const [formTemplate, setFormTemplate] = useState('custom')
 
   // Form validation
@@ -492,8 +419,10 @@ export function AgentsPanel() {
 
   // Edit form state
   const [editName, setEditName] = useState('')
-  const [editDesc, setEditDesc] = useState('')
-  const [editGoals, setEditGoals] = useState('')
+  const [editRole, setEditRole] = useState<AgentRole>('developer')
+  const [editAvatar, setEditAvatar] = useState('')
+  const [editSpecialty, setEditSpecialty] = useState('')
+  const [editStatus, setEditStatus] = useState<AgentStatus>('idle')
 
   // Import state
   const [importOpen, setImportOpen] = useState(false)
@@ -530,8 +459,8 @@ export function AgentsPanel() {
     try {
       const res = await fetch('/api/agents')
       if (res.ok) {
-        const data: RawAgent[] = await res.json()
-        setAgents(data.map(parseAgent))
+        const data: Agent[] = await res.json()
+        setAgents(data)
       }
     } catch {
       // silently fail
@@ -552,8 +481,9 @@ export function AgentsPanel() {
       const matchesSearch =
         debouncedSearch === '' ||
         agent.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        agent.description.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        agent.tools.some((t) => t.toLowerCase().includes(debouncedSearch.toLowerCase()))
+        agent.specialty.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        AGENT_ROLE_CONFIG[agent.role]?.label.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        AGENT_STATUS_CONFIG[agent.status]?.label.toLowerCase().includes(debouncedSearch.toLowerCase())
       const matchesRole = roleFilter === 'all' || agent.role === roleFilter
       return matchesSearch && matchesRole
     })
@@ -561,7 +491,7 @@ export function AgentsPanel() {
 
   // Status summary counts
   const statusCounts = useMemo(() => {
-    const counts: Record<AgentStatus, number> = { active: 0, busy: 0, idle: 0, error: 0, offline: 0 }
+    const counts: Record<AgentStatus, number> = { idle: 0, thinking: 0, coding: 0, reviewing: 0, testing: 0, deploying: 0, sleeping: 0 }
     agents.forEach((a) => { counts[a.status] = (counts[a.status] || 0) + 1 })
     return counts
   }, [agents])
@@ -569,7 +499,8 @@ export function AgentsPanel() {
   // Active ratio for progress bar
   const activeRatio = useMemo(() => {
     if (agents.length === 0) return 0
-    return (statusCounts.active + statusCounts.busy) / agents.length
+    const activeCount = ACTIVE_STATUSES.reduce((sum, s) => sum + (statusCounts[s] || 0), 0)
+    return activeCount / agents.length
   }, [agents.length, statusCounts])
 
   // Validate form
@@ -577,11 +508,10 @@ export function AgentsPanel() {
     const errors: Record<string, string> = {}
     if (!formName.trim()) errors.name = 'Name is required'
     if (!formRole) errors.role = 'Role is required'
-    const rate = parseFloat(formSuccessRate)
-    if (isNaN(rate) || rate < 0 || rate > 1) errors.successRate = 'Success rate must be between 0 and 1'
+    if (!formSpecialty.trim()) errors.specialty = 'Specialty is required'
     setFormErrors(errors)
     return Object.keys(errors).length === 0
-  }, [formName, formRole, formSuccessRate])
+  }, [formName, formRole, formSpecialty])
 
   const handleCreate = async () => {
     if (!validateForm()) return
@@ -593,10 +523,9 @@ export function AgentsPanel() {
         body: JSON.stringify({
           name: formName,
           role: formRole,
-          description: formDesc,
-          goals: formGoals,
-          tools: formTools,
-          successRate: parseFloat(formSuccessRate),
+          avatar: formAvatar,
+          specialty: formSpecialty,
+          status: formStatus,
         }),
       })
       if (res.ok) {
@@ -616,11 +545,10 @@ export function AgentsPanel() {
 
   const resetCreateForm = () => {
     setFormName('')
-    setFormRole('research')
-    setFormDesc('')
-    setFormGoals('')
-    setFormTools('')
-    setFormSuccessRate('0.8')
+    setFormRole('developer')
+    setFormAvatar('🤖')
+    setFormSpecialty('')
+    setFormStatus('idle')
     setFormTemplate('custom')
     setFormErrors({})
   }
@@ -630,13 +558,11 @@ export function AgentsPanel() {
     const template = ROLE_TEMPLATES[templateKey]
     if (template && templateKey !== 'custom') {
       setFormRole(template.role)
-      setFormDesc(template.formDesc)
-      setFormGoals(template.goals)
-      setFormTools(template.tools)
+      setFormAvatar(template.avatar)
+      setFormSpecialty(template.specialty)
     } else {
-      setFormDesc('')
-      setFormGoals('')
-      setFormTools('')
+      setFormAvatar('🤖')
+      setFormSpecialty('')
     }
     setFormErrors({})
   }
@@ -651,8 +577,10 @@ export function AgentsPanel() {
   const openEdit = (agent: Agent) => {
     setSelectedAgent(agent)
     setEditName(agent.name)
-    setEditDesc(agent.description)
-    setEditGoals((agent.goals ?? []).join(', '))
+    setEditRole(agent.role)
+    setEditAvatar(agent.avatar)
+    setEditSpecialty(agent.specialty)
+    setEditStatus(agent.status)
     setEditOpen(true)
   }
 
@@ -661,12 +589,14 @@ export function AgentsPanel() {
     setSubmitting(true)
     try {
       const res = await fetch(`/api/agents/${selectedAgent.id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editName,
-          description: editDesc,
-          goals: editGoals,
+          role: editRole,
+          avatar: editAvatar,
+          specialty: editSpecialty,
+          status: editStatus,
         }),
       })
       if (res.ok) {
@@ -684,16 +614,17 @@ export function AgentsPanel() {
   }
 
   const toggleAgentStatus = async (agent: Agent) => {
-    const newStatus: AgentStatus = agent.status === 'active' || agent.status === 'busy' ? 'idle' : 'active'
+    const isActive = ACTIVE_STATUSES.includes(agent.status)
+    const newStatus: AgentStatus = isActive ? 'idle' : 'coding'
     try {
       const res = await fetch(`/api/agents/${agent.id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       })
       if (res.ok) {
         await fetchAgents()
-        toastSuccess('Agent status changed', `"${agent.name}" is now ${newStatus}.`)
+        toastSuccess('Agent status changed', `"${agent.name}" is now ${AGENT_STATUS_CONFIG[newStatus].label}.`)
       } else {
         toastError('Failed to change status', 'Could not update agent status.')
       }
@@ -734,7 +665,7 @@ export function AgentsPanel() {
       }
 
       setImportRawData(parsed)
-      const validation = validateImportData(parsed, ['name', 'role', 'description'])
+      const validation = validateImportData(parsed, ['name', 'role'])
       setImportValidation(validation)
     } catch {
       toastError('File error', 'Could not read the file.')
@@ -777,10 +708,10 @@ export function AgentsPanel() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: String(row.name ?? row.Name ?? ''),
-            role: String(row.role ?? row.Role ?? 'research'),
-            description: String(row.description ?? row.Description ?? ''),
-            goals: row.goals ?? row.Goals ?? [],
-            tools: row.tools ?? row.Tools ?? [],
+            role: String(row.role ?? row.Role ?? 'developer'),
+            avatar: String(row.avatar ?? row.Avatar ?? '🤖'),
+            specialty: String(row.specialty ?? row.Specialty ?? ''),
+            status: String(row.status ?? row.Status ?? 'idle'),
           }),
         })
         if (res.ok) {
@@ -842,10 +773,11 @@ export function AgentsPanel() {
   // ---------------------------------------------------------------------------
 
   const renderStatusDot = (status: AgentStatus) => {
-    const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.idle
+    const cfg = AGENT_STATUS_CONFIG[status] ?? AGENT_STATUS_CONFIG.idle
+    const uiCfg = STATUS_UI_CONFIG[status] ?? STATUS_UI_CONFIG.idle
     return (
       <span
-        className={cn('inline-block size-2 rounded-full', cfg.dotColor, cfg.pulse && 'animate-pulse')}
+        className={cn('inline-block size-2 rounded-full', cfg.dotColor, uiCfg.pulse && 'animate-pulse')}
       />
     )
   }
@@ -863,11 +795,11 @@ export function AgentsPanel() {
   }
 
   const renderAgentCard = (agent: Agent, index: number) => {
-    const roleCfg = ROLE_CONFIG[agent.role] ?? ROLE_CONFIG.research
-    const RoleIcon = roleCfg.icon
-    const statusCfg = STATUS_CONFIG[agent.status] ?? STATUS_CONFIG.idle
-    const goals = agent.goals ?? []
-    const tools = agent.tools ?? []
+    const roleCfg = AGENT_ROLE_CONFIG[agent.role] ?? AGENT_ROLE_CONFIG.developer
+    const RoleIcon = ROLE_LUCIDE_ICON[agent.role] ?? Code
+    const statusCfg = AGENT_STATUS_CONFIG[agent.status] ?? AGENT_STATUS_CONFIG.idle
+    const statusUiCfg = STATUS_UI_CONFIG[agent.status] ?? STATUS_UI_CONFIG.idle
+    const gradient = ROLE_GRADIENT[agent.role] ?? 'from-muted to-muted'
 
     return (
       <motion.div
@@ -881,14 +813,17 @@ export function AgentsPanel() {
       >
         <Card className="flex flex-col overflow-hidden hover:shadow-md hover:ring-2 hover:ring-primary/20 hover:scale-[1.01] transition-all duration-200 group relative">
           {/* Gradient top border */}
-          <div className={cn('h-1 bg-gradient-to-r', roleCfg.gradient)} />
+          <div className={cn('h-1 bg-gradient-to-r', gradient)} />
 
           <CardContent className="p-4 flex flex-col gap-3 flex-1">
-            {/* Header: Name + Role badge */}
+            {/* Header: Avatar + Name + Role badge */}
             <div className="flex items-start justify-between gap-2">
-              <h3 className="font-semibold text-sm leading-tight truncate text-foreground">
-                {agent.name}
-              </h3>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-lg shrink-0">{agent.avatar || roleCfg.icon}</span>
+                <h3 className="font-semibold text-sm leading-tight truncate text-foreground">
+                  {agent.name}
+                </h3>
+              </div>
               <Badge variant="outline" className={cn('shrink-0 text-xs', ROLE_BADGE_BG[agent.role] ?? '')}>
                 <RoleIcon className={cn('size-3 mr-1', roleCfg.color)} />
                 {roleCfg.label}
@@ -896,13 +831,15 @@ export function AgentsPanel() {
             </div>
 
             {/* Status with background */}
-            <div className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium w-fit', statusCfg.labelBg)}>
+            <div className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium w-fit', statusUiCfg.labelBg)}>
               {renderStatusDot(agent.status)}
               {statusCfg.label}
             </div>
 
-            {/* Description */}
-            <p className="text-sm text-muted-foreground line-clamp-2">{agent.description}</p>
+            {/* Specialty */}
+            {agent.specialty && (
+              <p className="text-sm text-muted-foreground line-clamp-2">{agent.specialty}</p>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-2 text-xs">
@@ -923,38 +860,11 @@ export function AgentsPanel() {
               </div>
             </div>
 
-            {/* Goals */}
-            {goals.length > 0 && (
-              <div className="space-y-1">
-                <span className="text-xs text-muted-foreground">Goals</span>
-                <div className="space-y-0.5">
-                  {goals.slice(0, 2).map((g, i) => (
-                    <p key={i} className="text-xs text-muted-foreground truncate">&bull; {g}</p>
-                  ))}
-                  {goals.length > 2 && (
-                    <p className="text-xs text-muted-foreground">+{goals.length - 2} more</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Tools with icons */}
-            {tools.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {tools.slice(0, 4).map((t, i) => {
-                  const ToolIcon = getToolIcon(t)
-                  return (
-                    <Badge key={i} variant="outline" className="text-xs py-0 px-1.5 gap-0.5 text-muted-foreground">
-                      <ToolIcon className="size-2.5" />
-                      {t}
-                    </Badge>
-                  )
-                })}
-                {tools.length > 4 && (
-                  <Badge variant="outline" className="text-xs py-0 px-1.5 text-muted-foreground">
-                    +{tools.length - 4}
-                  </Badge>
-                )}
+            {/* Current Task */}
+            {agent.currentTaskId && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="size-3" />
+                <span className="truncate">Task: {agent.currentTaskId}</span>
               </div>
             )}
 
@@ -999,10 +909,10 @@ export function AgentsPanel() {
                 variant="ghost"
                 size="sm"
                 className="min-h-[44px] min-w-[44px] h-11 w-11 p-0"
-                title={agent.status === 'active' || agent.status === 'busy' ? 'Deactivate' : 'Activate'}
+                title={ACTIVE_STATUSES.includes(agent.status) ? 'Set Idle' : 'Set Coding'}
                 onClick={(e) => { e.stopPropagation(); toggleAgentStatus(agent) }}
               >
-                <Power className={cn('size-3.5', agent.status === 'active' || agent.status === 'busy' ? 'text-amber-500' : 'text-green-500')} />
+                <Power className={cn('size-3.5', ACTIVE_STATUSES.includes(agent.status) ? 'text-amber-500' : 'text-green-500')} />
               </Button>
             </motion.div>
           </div>
@@ -1014,19 +924,21 @@ export function AgentsPanel() {
   const renderListView = () => (
     <div className="rounded-md border">
       {/* Desktop table header */}
-      <div className="hidden md:grid grid-cols-6 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground border-b bg-muted/30">
+      <div className="hidden md:grid grid-cols-7 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground border-b bg-muted/30">
         <span>Name</span>
         <span>Role</span>
         <span>Status</span>
+        <span>Specialty</span>
         <span>Success Rate</span>
         <span>Tasks</span>
         <span>Tokens</span>
       </div>
       <AnimatePresence>
         {filteredAgents.map((agent, index) => {
-          const roleCfg = ROLE_CONFIG[agent.role] ?? ROLE_CONFIG.research
-          const RoleIcon = roleCfg.icon
-          const statusCfg = STATUS_CONFIG[agent.status] ?? STATUS_CONFIG.idle
+          const roleCfg = AGENT_ROLE_CONFIG[agent.role] ?? AGENT_ROLE_CONFIG.developer
+          const RoleIcon = ROLE_LUCIDE_ICON[agent.role] ?? Code
+          const statusCfg = AGENT_STATUS_CONFIG[agent.status] ?? AGENT_STATUS_CONFIG.idle
+          const statusUiCfg = STATUS_UI_CONFIG[agent.status] ?? STATUS_UI_CONFIG.idle
           return (
             <motion.div
               key={agent.id}
@@ -1035,24 +947,28 @@ export function AgentsPanel() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4 px-4 py-3 text-sm items-center border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors"
+              className="grid grid-cols-2 md:grid-cols-7 gap-2 md:gap-4 px-4 py-3 text-sm items-center border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors"
               onClick={() => openDetail(agent)}
             >
-              <span className="font-medium truncate text-foreground">{agent.name}</span>
+              <span className="font-medium truncate text-foreground flex items-center gap-1.5">
+                <span className="shrink-0">{agent.avatar || roleCfg.icon}</span>
+                {agent.name}
+              </span>
               <span className="flex items-center gap-1.5 justify-end md:justify-start">
                 <Badge variant="outline" className={cn('text-xs', ROLE_BADGE_BG[agent.role] ?? '')}>
                   <RoleIcon className={cn('size-3 mr-1', roleCfg.color)} />
                   <span className="hidden md:inline">{roleCfg.label}</span>
                 </Badge>
-                <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium md:hidden', statusCfg.labelBg)}>
+                <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium md:hidden', statusUiCfg.labelBg)}>
                   {renderStatusDot(agent.status)}
                   {statusCfg.label}
                 </span>
               </span>
-              <span className={cn('hidden md:inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium w-fit', statusCfg.labelBg)}>
+              <span className={cn('hidden md:inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium w-fit', statusUiCfg.labelBg)}>
                 {renderStatusDot(agent.status)}
                 {statusCfg.label}
               </span>
+              <span className="text-muted-foreground hidden md:block truncate">{agent.specialty}</span>
               <span className={cn('font-medium', successRateTextColor(agent.successRate))}>
                 {(agent.successRate * 100).toFixed(0)}%
               </span>
@@ -1113,12 +1029,12 @@ export function AgentsPanel() {
                     Name: a.name,
                     Role: a.role,
                     Status: a.status,
-                    Description: a.description,
+                    Avatar: a.avatar,
+                    Specialty: a.specialty,
                     'Success Rate': (a.successRate * 100).toFixed(1) + '%',
                     'Tasks Completed': a.tasksCompleted,
                     'Tokens Used': a.tokensUsed,
-                    Goals: (a.goals ?? []).join('; '),
-                    Tools: (a.tools ?? []).join('; '),
+                    'Current Task': a.currentTaskId ?? '',
                     'Last Active': a.lastActive,
                     'Created At': a.createdAt,
                   }))
@@ -1130,17 +1046,19 @@ export function AgentsPanel() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
                   const data = filteredAgents.map((a) => ({
+                    id: a.id,
                     name: a.name,
                     role: a.role,
                     status: a.status,
-                    description: a.description,
+                    avatar: a.avatar,
+                    specialty: a.specialty,
+                    currentTaskId: a.currentTaskId,
                     successRate: a.successRate,
                     tasksCompleted: a.tasksCompleted,
                     tokensUsed: a.tokensUsed,
-                    goals: a.goals,
-                    tools: a.tools,
                     lastActive: a.lastActive,
                     createdAt: a.createdAt,
+                    updatedAt: a.updatedAt,
                   }))
                   exportToJSON(data, 'agents')
                   toastSuccess('Export complete', 'Agents exported as JSON.')
@@ -1171,7 +1089,7 @@ export function AgentsPanel() {
       <div className="space-y-3">
         <ScrollArea className="w-full">
           <div className="flex gap-3 pb-2">
-            {(['active', 'busy', 'idle', 'error', 'offline'] as AgentStatus[]).map((status) => {
+            {ALL_STATUSES.map((status) => {
               const cfg = STATUS_SUMMARY_CONFIG[status]
               const count = statusCounts[status] ?? 0
               const StatusIcon = cfg.icon
@@ -1186,7 +1104,7 @@ export function AgentsPanel() {
                   <StatusIcon className={cn('size-4 shrink-0', cfg.iconColor)} />
                   <div className="flex flex-col">
                     <span className="text-lg font-semibold text-foreground leading-tight">{count}</span>
-                    <span className="text-xs text-muted-foreground leading-tight">{STATUS_CONFIG[status].label}</span>
+                    <span className="text-xs text-muted-foreground leading-tight">{AGENT_STATUS_CONFIG[status].label}</span>
                   </div>
                 </div>
               )
@@ -1198,7 +1116,7 @@ export function AgentsPanel() {
         {/* Active/Total ratio progress bar */}
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {statusCounts.active + statusCounts.busy} of {agents.length} active
+            {ACTIVE_STATUSES.reduce((sum, s) => sum + (statusCounts[s] || 0), 0)} of {agents.length} active
           </span>
           <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
             <motion.div
@@ -1219,7 +1137,7 @@ export function AgentsPanel() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder="Search agents by name, role, or tools..."
+            placeholder="Search agents by name, specialty, or role..."
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="pl-9 pr-16 bg-card border-border"
@@ -1250,9 +1168,9 @@ export function AgentsPanel() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
-            {Object.entries(ROLE_CONFIG).map(([key, cfg]) => (
+            {ALL_ROLES.map((key) => (
               <SelectItem key={key} value={key}>
-                {cfg.label}
+                {AGENT_ROLE_CONFIG[key].label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -1281,7 +1199,10 @@ export function AgentsPanel() {
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] md:max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-foreground">{selectedAgent?.name ?? 'Agent Details'}</DialogTitle>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <span className="text-lg">{selectedAgent?.avatar || AGENT_ROLE_CONFIG[selectedAgent?.role ?? 'developer']?.icon}</span>
+              {selectedAgent?.name ?? 'Agent Details'}
+            </DialogTitle>
             <DialogDescription>Full agent information</DialogDescription>
           </DialogHeader>
           {selectedAgent && (
@@ -1289,8 +1210,7 @@ export function AgentsPanel() {
               <TabsList className="w-full">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
-                <TabsTrigger value="tools">Tools</TabsTrigger>
-                <TabsTrigger value="configuration">Configuration</TabsTrigger>
+                <TabsTrigger value="details">Details</TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
@@ -1300,32 +1220,28 @@ export function AgentsPanel() {
                   <div className="flex items-center gap-3">
                     <Badge variant="outline" className={ROLE_BADGE_BG[selectedAgent.role] ?? ''}>
                       {(() => {
-                        const RoleIcon = ROLE_CONFIG[selectedAgent.role]?.icon ?? Search
-                        return <RoleIcon className={cn('size-3 mr-1', ROLE_CONFIG[selectedAgent.role]?.color ?? '')} />
+                        const RoleIcon = ROLE_LUCIDE_ICON[selectedAgent.role] ?? Code
+                        return <RoleIcon className={cn('size-3 mr-1', AGENT_ROLE_CONFIG[selectedAgent.role]?.color ?? '')} />
                       })()}
-                      {ROLE_CONFIG[selectedAgent.role]?.label ?? selectedAgent.role}
+                      {AGENT_ROLE_CONFIG[selectedAgent.role]?.label ?? selectedAgent.role}
                     </Badge>
-                    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium', STATUS_CONFIG[selectedAgent.status]?.labelBg ?? '')}>
+                    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium', STATUS_UI_CONFIG[selectedAgent.status]?.labelBg ?? '')}>
                       {renderStatusDot(selectedAgent.status)}
-                      {STATUS_CONFIG[selectedAgent.status]?.label ?? selectedAgent.status}
+                      {AGENT_STATUS_CONFIG[selectedAgent.status]?.label ?? selectedAgent.status}
                     </span>
                   </div>
 
-                  {/* Description */}
+                  {/* Specialty */}
                   <div>
-                    <h4 className="text-sm font-medium mb-1 text-foreground">Description</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{selectedAgent.description}</p>
+                    <h4 className="text-sm font-medium mb-1 text-foreground">Specialty</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{selectedAgent.specialty || 'No specialty defined'}</p>
                   </div>
 
-                  {/* Goals */}
-                  {selectedAgent.goals.length > 0 && (
+                  {/* Current Task */}
+                  {selectedAgent.currentTaskId && (
                     <div>
-                      <h4 className="text-sm font-medium mb-1 text-foreground">Goals</h4>
-                      <ul className="space-y-1">
-                        {selectedAgent.goals.map((g, i) => (
-                          <li key={i} className="text-sm text-muted-foreground">&bull; {g}</li>
-                        ))}
-                      </ul>
+                      <h4 className="text-sm font-medium mb-1 text-foreground">Current Task</h4>
+                      <p className="text-sm text-muted-foreground font-mono">{selectedAgent.currentTaskId}</p>
                     </div>
                   )}
 
@@ -1358,8 +1274,10 @@ export function AgentsPanel() {
                     <h4 className="text-sm font-medium mb-2 text-foreground">Status History</h4>
                     <div className="relative space-y-0">
                       {statusHistory.map((entry, i) => {
-                        const fromCfg = STATUS_CONFIG[entry.from]
-                        const toCfg = STATUS_CONFIG[entry.to]
+                        const fromCfg = AGENT_STATUS_CONFIG[entry.from]
+                        const toCfg = AGENT_STATUS_CONFIG[entry.to]
+                        const fromUiCfg = STATUS_UI_CONFIG[entry.from]
+                        const toUiCfg = STATUS_UI_CONFIG[entry.to]
                         return (
                           <div key={entry.id} className="flex items-start gap-3 pb-4 relative">
                             {/* Timeline line */}
@@ -1371,11 +1289,11 @@ export function AgentsPanel() {
                             {/* Content */}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium', fromCfg?.labelBg ?? '')}>
+                                <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium', fromUiCfg?.labelBg ?? '')}>
                                   {fromCfg?.label ?? entry.from}
                                 </span>
                                 <span className="text-muted-foreground text-xs">&rarr;</span>
-                                <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium', toCfg?.labelBg ?? '')}>
+                                <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium', toUiCfg?.labelBg ?? '')}>
                                   {toCfg?.label ?? entry.to}
                                 </span>
                               </div>
@@ -1490,47 +1408,26 @@ export function AgentsPanel() {
                 </div>
               </TabsContent>
 
-              {/* Tools Tab */}
-              <TabsContent value="tools" className="flex-1 overflow-y-auto mt-4 pr-1">
-                {selectedAgent.tools.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {selectedAgent.tools.map((tool, i) => {
-                      const ToolIcon = getToolIcon(tool)
-                      return (
-                        <Card key={i} className="overflow-hidden">
-                          <CardContent className="p-4 flex items-start gap-3">
-                            <div className="rounded-lg bg-primary/10 p-2 shrink-0">
-                              <ToolIcon className="size-5 text-primary" />
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-medium text-foreground">{tool}</h4>
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                                {tool === 'web-search' ? 'Search and retrieve information from the web'
-                                  : tool === 'code-executor' ? 'Execute and evaluate code snippets in a sandboxed environment'
-                                  : tool === 'database' ? 'Query and manage structured data stores'
-                                  : tool === 'analyzer' ? 'Analyze data patterns and extract insights'
-                                  : tool === 'api-client' ? 'Interact with external APIs and services'
-                                  : 'General-purpose utility tool'}
-                              </p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-sm text-muted-foreground">
-                    No tools configured for this agent.
-                  </div>
-                )}
-              </TabsContent>
-
-              {/* Configuration Tab */}
-              <TabsContent value="configuration" className="flex-1 overflow-y-auto mt-4 pr-1">
+              {/* Details Tab — JSON view of all agent fields */}
+              <TabsContent value="details" className="flex-1 overflow-y-auto mt-4 pr-1">
                 <div className="space-y-4">
                   <div>
-                    <h4 className="text-sm font-medium mb-2 text-foreground">Agent Configuration</h4>
-                    <JsonViewer data={selectedAgent.config} />
+                    <h4 className="text-sm font-medium mb-2 text-foreground">Agent Data</h4>
+                    <JsonViewer data={{
+                      id: selectedAgent.id,
+                      name: selectedAgent.name,
+                      role: selectedAgent.role,
+                      status: selectedAgent.status,
+                      avatar: selectedAgent.avatar,
+                      specialty: selectedAgent.specialty,
+                      currentTaskId: selectedAgent.currentTaskId,
+                      tokensUsed: selectedAgent.tokensUsed,
+                      tasksCompleted: selectedAgent.tasksCompleted,
+                      successRate: selectedAgent.successRate,
+                      lastActive: selectedAgent.lastActive,
+                      createdAt: selectedAgent.createdAt,
+                      updatedAt: selectedAgent.updatedAt,
+                    }} />
                   </div>
                   <div className="grid grid-cols-2 gap-2 md:gap-4 rounded-lg border border-border bg-muted/30 p-3 md:p-4 text-sm">
                     <div>
@@ -1574,20 +1471,51 @@ export function AgentsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-desc">Description</Label>
-              <Textarea
-                id="edit-desc"
-                value={editDesc}
-                onChange={(e) => setEditDesc(e.target.value)}
+              <Label htmlFor="edit-role">Role</Label>
+              <Select value={editRole} onValueChange={(v) => setEditRole(v as AgentRole)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALL_ROLES.map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {AGENT_ROLE_CONFIG[key].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-avatar">Avatar (emoji)</Label>
+              <Input
+                id="edit-avatar"
+                value={editAvatar}
+                onChange={(e) => setEditAvatar(e.target.value)}
+                placeholder="🤖"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-goals">Goals (comma-separated)</Label>
-              <Input
-                id="edit-goals"
-                value={editGoals}
-                onChange={(e) => setEditGoals(e.target.value)}
+              <Label htmlFor="edit-specialty">Specialty</Label>
+              <Textarea
+                id="edit-specialty"
+                value={editSpecialty}
+                onChange={(e) => setEditSpecialty(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as AgentStatus)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALL_STATUSES.map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {AGENT_STATUS_CONFIG[key].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -1649,9 +1577,9 @@ export function AgentsPanel() {
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(ROLE_CONFIG).map(([key, cfg]) => (
+                      {ALL_ROLES.map((key) => (
                         <SelectItem key={key} value={key}>
-                          {cfg.label}
+                          {AGENT_ROLE_CONFIG[key].label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1659,44 +1587,38 @@ export function AgentsPanel() {
                   {formErrors.role && <p className="text-xs text-destructive">{formErrors.role}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="agent-desc">Description *</Label>
+                  <Label htmlFor="agent-avatar">Avatar (emoji)</Label>
+                  <Input
+                    id="agent-avatar"
+                    placeholder="🤖"
+                    value={formAvatar}
+                    onChange={(e) => setFormAvatar(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="agent-specialty">Specialty *</Label>
                   <Textarea
-                    id="agent-desc"
-                    placeholder="Describe the agent's purpose"
-                    value={formDesc}
-                    onChange={(e) => setFormDesc(e.target.value)}
+                    id="agent-specialty"
+                    placeholder="Describe the agent's specialty"
+                    value={formSpecialty}
+                    onChange={(e) => { setFormSpecialty(e.target.value); if (formErrors.specialty) setFormErrors((prev) => { const next = { ...prev }; delete next.specialty; return next }) }}
                   />
+                  {formErrors.specialty && <p className="text-xs text-destructive">{formErrors.specialty}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="agent-goals">Goals (comma-separated)</Label>
-                  <Input
-                    id="agent-goals"
-                    placeholder="Enter goals separated by commas"
-                    value={formGoals}
-                    onChange={(e) => setFormGoals(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="agent-tools">Tools (comma-separated)</Label>
-                  <Input
-                    id="agent-tools"
-                    placeholder="Enter tools separated by commas"
-                    value={formTools}
-                    onChange={(e) => setFormTools(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="agent-success-rate">Initial Success Rate (0-1)</Label>
-                  <Input
-                    id="agent-success-rate"
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="1"
-                    value={formSuccessRate}
-                    onChange={(e) => { setFormSuccessRate(e.target.value); if (formErrors.successRate) setFormErrors((prev) => { const next = { ...prev }; delete next.successRate; return next }) }}
-                  />
-                  {formErrors.successRate && <p className="text-xs text-destructive">{formErrors.successRate}</p>}
+                  <Label htmlFor="agent-status">Initial Status</Label>
+                  <Select value={formStatus} onValueChange={(v) => setFormStatus(v as AgentStatus)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_STATUSES.map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {AGENT_STATUS_CONFIG[key].label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -1705,60 +1627,40 @@ export function AgentsPanel() {
                 <div className="sticky top-0">
                   <h4 className="text-sm font-medium text-muted-foreground mb-3">Preview</h4>
                   <Card className="overflow-hidden">
-                    <div className={cn('h-1 bg-gradient-to-r', ROLE_CONFIG[formRole]?.gradient ?? 'from-muted to-muted')} />
+                    <div className={cn('h-1 bg-gradient-to-r', ROLE_GRADIENT[formRole] ?? 'from-muted to-muted')} />
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-sm truncate text-foreground">
-                          {formName || 'Agent Name'}
-                        </h3>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-lg">{formAvatar || AGENT_ROLE_CONFIG[formRole]?.icon || '🤖'}</span>
+                          <h3 className="font-semibold text-sm truncate text-foreground">
+                            {formName || 'Agent Name'}
+                          </h3>
+                        </div>
                         <Badge variant="outline" className={cn('shrink-0 text-xs', ROLE_BADGE_BG[formRole] ?? '')}>
                           {(() => {
-                            const RoleIcon = ROLE_CONFIG[formRole]?.icon ?? Search
-                            return <RoleIcon className={cn('size-3 mr-1', ROLE_CONFIG[formRole]?.color ?? '')} />
+                            const PreviewIcon = ROLE_LUCIDE_ICON[formRole] ?? Code
+                            return <PreviewIcon className={cn('size-3 mr-1', AGENT_ROLE_CONFIG[formRole]?.color ?? '')} />
                           })()}
-                          {ROLE_CONFIG[formRole]?.label ?? 'Role'}
+                          {AGENT_ROLE_CONFIG[formRole]?.label ?? 'Role'}
                         </Badge>
                       </div>
-                      <div className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground">
-                        <span className="inline-block size-2 rounded-full bg-muted-foreground/50" />
-                        Idle
+                      <div className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium', STATUS_UI_CONFIG[formStatus]?.labelBg ?? STATUS_UI_CONFIG.idle.labelBg)}>
+                        {renderStatusDot(formStatus)}
+                        {AGENT_STATUS_CONFIG[formStatus]?.label ?? 'Idle'}
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-3">
-                        {formDesc || 'Agent description will appear here...'}
+                        {formSpecialty || 'Agent specialty will appear here...'}
                       </p>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <span className="text-muted-foreground">Success Rate</span>
-                          <div className="font-semibold text-foreground">
-                            {((parseFloat(formSuccessRate) || 0) * 100).toFixed(0)}%
-                          </div>
+                          <div className="font-semibold text-foreground">0%</div>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Tasks</span>
                           <div className="font-semibold text-foreground">0</div>
                         </div>
                       </div>
-                      {formGoals && (
-                        <div className="space-y-0.5">
-                          <span className="text-xs text-muted-foreground">Goals</span>
-                          {formGoals.split(',').map((g, i) => g.trim()).filter(Boolean).slice(0, 2).map((g, i) => (
-                            <p key={i} className="text-xs text-muted-foreground truncate">&bull; {g}</p>
-                          ))}
-                        </div>
-                      )}
-                      {formTools && (
-                        <div className="flex flex-wrap gap-1">
-                          {formTools.split(',').map((t, i) => t.trim()).filter(Boolean).slice(0, 3).map((t, i) => {
-                            const ToolIcon = getToolIcon(t)
-                            return (
-                              <Badge key={i} variant="outline" className="text-xs py-0 px-1.5 gap-0.5 text-muted-foreground">
-                                <ToolIcon className="size-2.5" />
-                                {t}
-                              </Badge>
-                            )
-                          })}
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -1769,7 +1671,7 @@ export function AgentsPanel() {
             <Button variant="outline" onClick={() => { resetCreateForm(); setCreateOpen(false) }}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={!formName || !formRole || !formDesc || submitting}>
+            <Button onClick={handleCreate} disabled={!formName || !formRole || !formSpecialty || submitting}>
               {submitting && <Loader2 className="size-4 mr-1 animate-spin" />}
               Create
             </Button>
@@ -1786,7 +1688,7 @@ export function AgentsPanel() {
               Import Agents
             </DialogTitle>
             <DialogDescription>
-              Upload a CSV or JSON file to bulk-import agents. Required fields: name, role, description.
+              Upload a CSV or JSON file to bulk-import agents. Required fields: name, role.
             </DialogDescription>
           </DialogHeader>
 

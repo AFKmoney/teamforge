@@ -147,10 +147,10 @@ function getTimestampGroup(dateStr: string): string {
 
 // Quick prompt suggestions
 const QUICK_PROMPTS = [
-  { label: 'Status update', icon: '📊', prompt: 'Give me a status update on the current sprint' },
-  { label: 'Run tests', icon: '🧪', prompt: 'Run the test suite and report results' },
-  { label: 'Deploy staging', icon: '🚀', prompt: 'Deploy the latest build to staging' },
-  { label: 'Code review', icon: '🔍', prompt: 'Review the latest code changes' },
+  { label: 'Build & Run', icon: '🔨', prompt: 'Build and run the project, then report any errors or warnings' },
+  { label: 'Code Review', icon: '🔍', prompt: 'Review the current file for code quality, bugs, and improvements' },
+  { label: 'Fix Issues', icon: '🐛', prompt: 'Find and fix any issues or bugs in the current code' },
+  { label: 'Explain Code', icon: '📖', prompt: 'Explain what this code does and how it works' },
 ]
 
 const REACTION_EMOJIS = ['👍', '❤️', '🎉', '🚀', '👀']
@@ -575,8 +575,9 @@ function ChatAIStatusBar({ messages }: { messages: Message[] }) {
 
   // Estimate tokens (rough: ~4 chars per token)
   const estimatedTokens = useMemo(() => {
+    if (messages.length === 0) return 0
     const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0)
-    return Math.round(totalChars / 4)
+    return Math.max(0, Math.round(totalChars / 4))
   }, [messages])
 
   const statusDotColor = connectionStatus === 'connected'
@@ -619,7 +620,7 @@ function ChatAIStatusBar({ messages }: { messages: Message[] }) {
       {/* Token counter */}
       <div className="flex items-center gap-0.5 text-muted-foreground/50">
         <BarChart3 className="size-2" />
-        <span className="tabular-nums">~{estimatedTokens > 1000 ? `${(estimatedTokens / 1000).toFixed(1)}k` : estimatedTokens} tok</span>
+        <span className="tabular-nums">{estimatedTokens === 0 ? '0 tok' : estimatedTokens > 1000 ? `~${(estimatedTokens / 1000).toFixed(1)}k tok` : `~${estimatedTokens} tok`}</span>
       </div>
     </div>
   )
@@ -1022,6 +1023,7 @@ export function IDEChatPanel() {
         addMessage({
           id: `sys_${Date.now()}`,
           projectId: currentProject?.id || '',
+          chatSessionId: currentChatSessionId,
           agentId: null,
           content: `▶️ Task "${runTaskTitle.trim()}" assigned and started${task.assigneeId ? `. Agent is now working on it.` : '.'}`,
           type: 'system',
@@ -1169,6 +1171,7 @@ export function IDEChatPanel() {
       case 'help':
         addMessage({
           id: `sys_${Date.now()}`,
+          chatSessionId: currentChatSessionId,
           projectId: currentProject?.id || '',
           agentId: null,
           content: `Available commands:\n${SLASH_COMMANDS.map((c) => `  ${c.command} — ${c.description}`).join('\n')}`,
@@ -1219,6 +1222,7 @@ export function IDEChatPanel() {
             addMessage({
               id: `sys_${Date.now()}`,
               projectId: currentProject?.id || '',
+              chatSessionId: currentChatSessionId,
               agentId: null,
               content: `📊 Project Status:\n• ${agents.length} agents (${onlineCount} active)\n• ${messages.length} messages in chat\n• All systems operational`,
               type: 'system',
@@ -1230,6 +1234,7 @@ export function IDEChatPanel() {
           addMessage({
             id: `sys_${Date.now()}`,
             projectId: currentProject?.id || '',
+            chatSessionId: currentChatSessionId,
             agentId: null,
             content: `📊 Project Status:\n• ${agents.length} agents (${onlineCount} active)\n• ${messages.length} messages in chat\n• All systems operational`,
             type: 'system',
@@ -1293,6 +1298,7 @@ export function IDEChatPanel() {
         }
         addMessage({
           id: `sys_${Date.now()}`,
+          chatSessionId: currentChatSessionId,
           projectId: currentProject?.id || '',
           agentId: null,
           content: '🧪 Running lint check... Results will appear in the terminal.',
@@ -1354,6 +1360,7 @@ export function IDEChatPanel() {
         }
         addMessage({
           id: `sys_${Date.now()}`,
+          chatSessionId: currentChatSessionId,
           projectId: currentProject?.id || '',
           agentId: null,
           content: '🚀 Running build... Check the terminal for progress.',
@@ -1366,6 +1373,7 @@ export function IDEChatPanel() {
       case 'create_file':
         addMessage({
           id: `sys_${Date.now()}`,
+          chatSessionId: currentChatSessionId,
           projectId: currentProject?.id || '',
           agentId: null,
           content: '📝 Use the + button in the sidebar to create a new file, or right-click a folder in the file explorer. You can also use /create_file <path> [content] in the chat.',
@@ -1412,6 +1420,7 @@ export function IDEChatPanel() {
             addMessage({
               id: `sys_${Date.now()}`,
               projectId: currentProject?.id || '',
+              chatSessionId: currentChatSessionId,
               agentId: null,
               content: '⚠️ Could not generate commit message. Please try again.',
               type: 'system',
@@ -1423,6 +1432,7 @@ export function IDEChatPanel() {
           addMessage({
             id: `sys_${Date.now()}`,
             projectId: currentProject?.id || '',
+            chatSessionId: currentChatSessionId,
             agentId: null,
             content: '⚠️ Could not generate commit message. Please try again.',
             type: 'system',
@@ -1491,9 +1501,10 @@ export function IDEChatPanel() {
     }
 
     // Track whether this is the first message in a new session for auto-title
+    // Also treat null currentChatSessionId as a new session (server will auto-create)
     const isNewSession = currentChatSessionId
       ? chatSessions.find((s) => s.id === currentChatSessionId)?.title === 'New Chat'
-      : false
+      : true
 
     try {
       // Use the new multi-provider AI chat endpoint
@@ -1536,7 +1547,7 @@ export function IDEChatPanel() {
             addChatSession({
               id: newSessionId,
               projectId: currentProject?.id || '',
-              title: 'New Chat',
+              title: msg.slice(0, 60) + (msg.length > 60 ? '...' : ''),
               summary: '',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
@@ -1586,6 +1597,7 @@ export function IDEChatPanel() {
         toast.error(errorData.error || 'Failed to send message')
         addMessage({
           id: `sys_${Date.now()}`,
+          chatSessionId: currentChatSessionId,
           projectId: currentProject?.id || '',
           agentId: null,
           content: `⚠️ Error: ${errorData.error || 'Failed to get AI response'}. Check your AI provider settings.`,
@@ -1927,7 +1939,7 @@ export function IDEChatPanel() {
           <textarea
             ref={textareaRef}
             data-chat-input
-            placeholder="Message the team... (/ for commands)"
+            placeholder="Ask anything... (/ for commands)"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => {
@@ -1977,7 +1989,9 @@ export function IDEChatPanel() {
           <span className="text-[9px] text-muted-foreground/50">
             {inputValue.startsWith('/') ? 'Tab to select · Enter to run' : 'Enter to send · Shift+Enter for new line'}
           </span>
-          <span className="text-[9px] text-muted-foreground/50">{inputValue.length}/500</span>
+          {inputValue.length > 3500 && (
+            <span className={cn('text-[9px]', inputValue.length > 4000 ? 'text-red-500' : 'text-amber-500')}>{inputValue.length}/4000</span>
+          )}
         </div>
       </div>
 

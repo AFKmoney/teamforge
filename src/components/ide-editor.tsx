@@ -562,6 +562,7 @@ export function IDEEditor() {
   const cursorLine = useAppStore((s) => s.cursorLine)
   const cursorColumn = useAppStore((s) => s.cursorColumn)
   const setCursorPosition = useAppStore((s) => s.setCursorPosition)
+  const isRunning = useAppStore((s) => s.isRunning)
   const setIsRunning = useAppStore((s) => s.setIsRunning)
   const currentProject = useAppStore((s) => s.currentProject)
   const addBuildLog = useAppStore((s) => s.addBuildLog)

@@ -52,6 +52,9 @@ import {
   GitCommit as GitCommitIcon,
   X,
   Copy,
+  ArrowRightLeft,
+  UserCheck,
+  CheckCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
@@ -1268,11 +1271,14 @@ function ProblemsView() {
 // Activity type config for bottom panel
 const ACTIVITY_TYPE_CONFIG_FULL: Record<string, { icon: React.ReactNode; borderColor: string; label: string; bgColor: string }> = {
   task_started: { icon: <Play className="size-4 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'Task Started', bgColor: 'bg-emerald-500/5' },
+  task_assigned: { icon: <UserCheck className="size-4 text-sky-500" />, borderColor: 'border-l-sky-500', label: 'Task Assigned', bgColor: 'bg-sky-500/5' },
+  task_completed: { icon: <CheckCircle className="size-4 text-green-500" />, borderColor: 'border-l-green-500', label: 'Task Completed', bgColor: 'bg-green-500/5' },
   code_written: { icon: <FileCode2 className="size-4 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'Code Written', bgColor: 'bg-blue-500/5' },
   review_completed: { icon: <CheckCircle2 className="size-4 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Review Completed', bgColor: 'bg-violet-500/5' },
   test_run: { icon: <TestTube2 className="size-4 text-amber-500" />, borderColor: 'border-l-amber-500', label: 'Test Run', bgColor: 'bg-amber-500/5' },
   deploy_triggered: { icon: <Rocket className="size-4 text-orange-500" />, borderColor: 'border-l-orange-500', label: 'Deploy Triggered', bgColor: 'bg-orange-500/5' },
   message_sent: { icon: <MessageSquare className="size-4 text-pink-500" />, borderColor: 'border-l-pink-500', label: 'Message Sent', bgColor: 'bg-pink-500/5' },
+  status_change: { icon: <ArrowRightLeft className="size-4 text-teal-500" />, borderColor: 'border-l-teal-500', label: 'Status Change', bgColor: 'bg-teal-500/5' },
   file_created: { icon: <FileCode2 className="size-4 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'File Created', bgColor: 'bg-emerald-500/5' },
   file_updated: { icon: <FileCode2 className="size-4 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'File Updated', bgColor: 'bg-blue-500/5' },
   code_change: { icon: <FileCode2 className="size-4 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Code Change', bgColor: 'bg-violet-500/5' },

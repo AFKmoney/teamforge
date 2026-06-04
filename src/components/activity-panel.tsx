@@ -75,8 +75,27 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
-import type { ActivityLog, SystemMetric } from '@/lib/types'
+import type { Variants } from 'framer-motion'
 import { PageHeader } from '@/components/page-header'
+
+// ---------------------------------------------------------------------------
+// Local types (these models don't exist in the Prisma schema)
+// ---------------------------------------------------------------------------
+
+interface ActivityLog {
+  id: string
+  type: string
+  message: string
+  timestamp: string
+  severity: string
+}
+
+interface SystemMetric {
+  metric: string
+  value: number
+  unit: string
+  timestamp: string
+}
 
 // ---------------------------------------------------------------------------
 // Constants & Config
@@ -675,7 +694,7 @@ export function ActivityPanel() {
   }
 
   // Animation variants
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -683,7 +702,7 @@ export function ActivityPanel() {
     },
   }
 
-  const cardVariants = {
+  const cardVariants: Variants = {
     hidden: { opacity: 0, y: 12, scale: 0.97 },
     visible: {
       opacity: 1,
@@ -693,7 +712,7 @@ export function ActivityPanel() {
     },
   }
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, x: -8 },
     visible: {
       opacity: 1,

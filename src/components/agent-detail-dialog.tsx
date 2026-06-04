@@ -46,7 +46,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { cn, formatRelativeTime } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -77,6 +77,17 @@ export function AgentDetailDialog() {
   const [assignTaskTitle, setAssignTaskTitle] = useState('')
   const [showAssignTask, setShowAssignTask] = useState(false)
   const [isSettingStatus, setIsSettingStatus] = useState(false)
+  const [isLoadingTask, setIsLoadingTask] = useState(false)
+
+  const fetchTasks = useAppStore((s) => s.fetchTasks)
+
+  // Fetch tasks when dialog opens so currentTaskId can be resolved
+  useEffect(() => {
+    if (selectedAgentId) {
+      setIsLoadingTask(true)
+      fetchTasks().finally(() => setIsLoadingTask(false))
+    }
+  }, [selectedAgentId, fetchTasks])
 
   const agent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) || null,
@@ -349,7 +360,12 @@ export function AgentDetailDialog() {
                 <Activity className="size-3.5 text-emerald-500" />
                 Current Task
               </div>
-              {currentTask ? (
+              {isLoadingTask ? (
+                <div className="p-4 rounded-lg bg-muted/15 border border-dashed border-border/60 flex items-center justify-center gap-2">
+                  <Loader2 className="size-4 text-muted-foreground animate-spin" />
+                  <span className="text-xs text-muted-foreground">Loading task...</span>
+                </div>
+              ) : currentTask ? (
                 <div className="p-3 rounded-lg border bg-muted/20">
                   <div className="text-sm font-medium text-foreground">{currentTask.title}</div>
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -358,9 +374,29 @@ export function AgentDetailDialog() {
                     {currentTask.type && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{currentTask.type}</Badge>}
                   </div>
                 </div>
+              ) : agent?.currentTaskId ? (
+                <div className="p-3 rounded-lg border bg-muted/20">
+                  <div className="text-sm font-medium text-foreground">Task #{agent.currentTaskId.slice(0, 8)}</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">Task data not yet loaded</div>
+                </div>
               ) : (
-                <div className="text-xs text-muted-foreground p-3 rounded-lg bg-muted/15 border border-dashed border-border/60 text-center">
-                  No current task assigned
+                <div className="p-4 rounded-lg bg-muted/15 border border-dashed border-border/60 flex flex-col items-center gap-2.5">
+                  <div className="size-10 rounded-full bg-muted/50 flex items-center justify-center">
+                    <Target className="size-5 text-muted-foreground/40" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-medium text-muted-foreground">No task assigned</p>
+                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">Assign a task to get this agent working</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 h-7 text-[11px] border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                    onClick={() => setShowAssignTask(true)}
+                  >
+                    <Plus className="size-3" />
+                    Assign New Task
+                  </Button>
                 </div>
               )}
             </section>
@@ -386,10 +422,10 @@ export function AgentDetailDialog() {
               </section>
             )}
 
-            {/* Assign Task */}
-            <section>
-              <AnimatePresence mode="wait">
-                {showAssignTask ? (
+            {/* Assign Task Form (only shown when explicitly opened) */}
+            {showAssignTask && (
+              <section>
+                <AnimatePresence mode="wait">
                   <motion.div
                     key="assign-form"
                     initial={{ opacity: 0, height: 0 }}
@@ -426,16 +462,9 @@ export function AgentDetailDialog() {
                       </div>
                     </div>
                   </motion.div>
-                ) : (
-                  <motion.div key="assign-button" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <Button size="sm" variant="outline" className="w-full gap-1.5 h-8 text-xs border-dashed" onClick={() => setShowAssignTask(true)}>
-                      <Plus className="size-3" />
-                      Assign New Task
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </section>
+                </AnimatePresence>
+              </section>
+            )}
 
             <Separator />
 
@@ -451,24 +480,33 @@ export function AgentDetailDialog() {
                 )}
               </div>
               {recentActivities.length > 0 ? (
-                <div className="space-y-1 max-h-40 overflow-y-auto thin-scrollbar">
-                  {recentActivities.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-2.5 p-2 rounded-md text-xs hover:bg-muted/20 transition-colors">
+                <div className="space-y-1 max-h-52 overflow-y-auto thin-scrollbar">
+                  {recentActivities.map((act) => (
+                    <div key={act.id} className="flex items-start gap-2.5 p-2 rounded-md text-xs hover:bg-muted/20 transition-colors">
                       <span className={cn('size-1.5 rounded-full mt-1.5 shrink-0', isActive ? 'bg-emerald-500/60' : 'bg-muted-foreground/40')} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-foreground/90">{activity.description}</div>
+                        <div className="text-foreground/90">
+                          {act.agent?.name && (
+                            <span className="font-medium text-foreground">{act.agent.name}</span>
+                          )}
+                          {' '}{act.description}
+                        </div>
                         <div className="text-[10px] text-muted-foreground mt-0.5">
-                          {formatRelativeTime(activity.createdAt)} · {new Date(activity.createdAt).toLocaleTimeString()}
+                          {formatRelativeTime(act.createdAt)} · {new Date(act.createdAt).toLocaleTimeString()}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-xs text-muted-foreground p-4 text-center bg-muted/15 rounded-lg border border-dashed border-border/60">
-                  <Activity className="size-5 text-muted-foreground/30 mx-auto mb-1.5" />
-                  No recent activity
-                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">Activity will appear here when the agent performs actions</p>
+                <div className="p-5 rounded-lg bg-muted/15 border border-dashed border-border/60 flex flex-col items-center gap-2">
+                  <div className="size-10 rounded-full bg-muted/50 flex items-center justify-center">
+                    <Clock className="size-5 text-muted-foreground/30" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-medium text-muted-foreground">No recent activity</p>
+                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">Activity will appear here when the agent performs actions</p>
+                  </div>
                 </div>
               )}
             </section>
@@ -516,66 +554,69 @@ export function AgentDetailDialog() {
 
         {/* Footer — always visible at bottom */}
         <div className="px-6 py-3 flex items-center gap-2 shrink-0 bg-background border-t border-border/60">
-          {/* Chat with Agent — prominent primary button */}
-          <Button
-            size="sm"
-            className="gap-1.5 h-9 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-shadow flex-1"
-            onClick={() => {
-              const agentName = agent?.name || 'Agent'
-              setSelectedAgentId(null)
-              // Open the right panel (chat panel)
-              useAppStore.getState().setRightPanelOpen(true)
-              // Use a longer delay to ensure the chat panel has mounted and the input is available
-              setTimeout(() => {
-                const chatInput = document.querySelector<HTMLTextAreaElement>('[data-chat-input]')
-                if (chatInput) {
-                  // Set value and focus
-                  const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
-                  if (nativeInputValueSetter) {
-                    nativeInputValueSetter.call(chatInput, `@${agentName} `)
-                    chatInput.dispatchEvent(new Event('input', { bubbles: true }))
+          {/* Left side: Chat with Agent + Set Status */}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="gap-1.5 h-9 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-shadow"
+              onClick={() => {
+                const agentName = agent?.name || 'Agent'
+                setSelectedAgentId(null)
+                // Open the right panel (chat panel)
+                useAppStore.getState().setRightPanelOpen(true)
+                // Use a longer delay to ensure the chat panel has mounted and the input is available
+                setTimeout(() => {
+                  const chatInput = document.querySelector<HTMLTextAreaElement>('[data-chat-input]')
+                  if (chatInput) {
+                    // Set value and focus
+                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+                    if (nativeInputValueSetter) {
+                      nativeInputValueSetter.call(chatInput, `@${agentName} `)
+                      chatInput.dispatchEvent(new Event('input', { bubbles: true }))
+                    }
+                    chatInput.focus()
+                  } else {
+                    // Fallback: dispatch custom event if input not found yet
+                    window.dispatchEvent(new CustomEvent('teamforge-chat-prefill', { detail: `@${agentName} ` }))
                   }
-                  chatInput.focus()
-                } else {
-                  // Fallback: dispatch custom event if input not found yet
-                  window.dispatchEvent(new CustomEvent('teamforge-chat-prefill', { detail: `@${agentName} ` }))
-                }
-              }, 300)
-            }}
-          >
-            <MessageSquare className="size-3.5" />
-            Chat with Agent
-          </Button>
+                }, 300)
+              }}
+            >
+              <MessageSquare className="size-3.5" />
+              Chat with Agent
+            </Button>
 
-          {/* Set Status dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" disabled={isSettingStatus}>
-                {isSettingStatus ? <Loader2 className="size-3 animate-spin" /> : <ToggleLeft className="size-3" />}
-                Set Status
-                <ChevronDown className="size-2.5 ml-0.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-44">
-              {Object.entries(AGENT_STATUS_CONFIG).map(([key, cfg]) => (
-                <DropdownMenuItem
-                  key={key}
-                  onClick={() => handleSetStatus(key as AgentStatus)}
-                  className={cn('flex items-center gap-2 text-xs cursor-pointer', agent.status === key && 'font-medium')}
-                >
-                  <span className={cn('size-2 rounded-full shrink-0', cfg.dotColor)} />
-                  <span className={cfg.color}>{cfg.label}</span>
-                  {agent.status === key && <Check className="size-3 ml-auto text-muted-foreground" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            {/* Set Status dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" disabled={isSettingStatus}>
+                  {isSettingStatus ? <Loader2 className="size-3 animate-spin" /> : <ToggleLeft className="size-3" />}
+                  Set Status
+                  <ChevronDown className="size-2.5 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                {Object.entries(AGENT_STATUS_CONFIG).map(([key, cfg]) => (
+                  <DropdownMenuItem
+                    key={key}
+                    onClick={() => handleSetStatus(key as AgentStatus)}
+                    className={cn('flex items-center gap-2 text-xs cursor-pointer', agent.status === key && 'font-medium')}
+                  >
+                    <span className={cn('size-2 rounded-full shrink-0', cfg.dotColor)} />
+                    <span className={cfg.color}>{cfg.label}</span>
+                    {agent.status === key && <Check className="size-3 ml-auto text-muted-foreground" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-          <div className="flex-1" />
-
-          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSelectedAgentId(null)}>
-            Close
-          </Button>
+          {/* Right side: Close */}
+          <div className="ml-auto">
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSelectedAgentId(null)}>
+              Close
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

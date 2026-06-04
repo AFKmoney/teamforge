@@ -48,6 +48,9 @@ import {
   RefreshCw,
   BarChart3,
   Upload,
+  ArrowRightLeft,
+  UserCheck,
+  CheckCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from 'react'
@@ -337,11 +340,14 @@ const FileTreeNodeView = memo(function FileTreeNodeView({
 // Activity type config
 const ACTIVITY_TYPE_CONFIG: Record<string, { icon: React.ReactNode; borderColor: string; label: string }> = {
   task_started: { icon: <Play className="size-3 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'Task Started' },
+  task_assigned: { icon: <UserCheck className="size-3 text-sky-500" />, borderColor: 'border-l-sky-500', label: 'Task Assigned' },
+  task_completed: { icon: <CheckCircle className="size-3 text-green-500" />, borderColor: 'border-l-green-500', label: 'Task Completed' },
   code_written: { icon: <FileCode2 className="size-3 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'Code Written' },
   review_completed: { icon: <CheckCircle2 className="size-3 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Review' },
   test_run: { icon: <TestTube2 className="size-3 text-amber-500" />, borderColor: 'border-l-amber-500', label: 'Test' },
   deploy_triggered: { icon: <Rocket className="size-3 text-orange-500" />, borderColor: 'border-l-orange-500', label: 'Deploy' },
   message_sent: { icon: <MessageSquare className="size-3 text-pink-500" />, borderColor: 'border-l-pink-500', label: 'Message' },
+  status_change: { icon: <ArrowRightLeft className="size-3 text-teal-500" />, borderColor: 'border-l-teal-500', label: 'Status Change' },
   file_created: { icon: <FilePlus className="size-3 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'File Created' },
   file_updated: { icon: <FileCode2 className="size-3 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'File Updated' },
   code_change: { icon: <FileCode2 className="size-3 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Code Change' },
