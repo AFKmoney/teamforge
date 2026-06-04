@@ -52,3 +52,36 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# QA screenshots and debug images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+!public/**
+
+# Agent context (temp task files)
+/agent-ctx/
+
+# Upload directory (pasted images, manuals)
+/upload/
+
+# Download directory (temp files)
+/download/
+
+# Examples directory
+/examples/
+
+# Internal scripts
+/.zscripts/
+
+# IDE context
+/agent-ctx/
+
+# Database (SQLite runtime data)
+db/*.db
+db/*.db-journal
+
+# Runtime logs
+dev.log
