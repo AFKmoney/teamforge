@@ -714,10 +714,10 @@ function ChatHistoryDropdown({
                 </div>
               ) : (
                 chatSessions.map((session) => (
-                  <button
+                  <div
                     key={session.id}
                     className={cn(
-                      'flex items-center gap-2 w-full px-2 py-2 rounded-md text-xs transition-colors group/item text-left',
+                      'flex items-center gap-2 w-full px-2 py-2 rounded-md text-xs transition-colors group/item text-left cursor-pointer',
                       session.id === currentChatSessionId
                         ? 'bg-emerald-500/10 text-foreground ring-1 ring-emerald-500/20'
                         : 'hover:bg-muted/50 text-foreground/80',
@@ -811,7 +811,7 @@ function ChatHistoryDropdown({
                         <Trash2 className="size-2.5" />
                       </button>
                     </div>
-                  </button>
+                  </div>
                 ))
               )}
             </div>
