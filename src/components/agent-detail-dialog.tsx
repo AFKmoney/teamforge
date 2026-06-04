@@ -236,7 +236,7 @@ export function AgentDetailDialog() {
     <Dialog open={!!selectedAgentId} onOpenChange={(v) => !v && setSelectedAgentId(null)}>
       <DialogContent
         showCloseButton={false}
-        className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
+        className="sm:max-w-xl max-h-[85vh] flex flex-col p-0 gap-0"
       >
         {/* Scrollable content area */}
         <ScrollArea className="flex-1 min-h-0">

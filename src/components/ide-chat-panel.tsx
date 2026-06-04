@@ -647,11 +647,16 @@ function ChatHistoryDropdown({
   const [renameValue, setRenameValue] = useState('')
 
   const handleSwitchSession = useCallback(async (sessionId: string) => {
+    // Clear messages first to avoid showing stale data from previous session
+    setMessages([])
     setCurrentChatSessionId(sessionId)
     // Fetch messages for the selected session
-    await fetchMessages()
+    // Use a small delay to ensure store state is updated before fetch
+    setTimeout(async () => {
+      await fetchMessages()
+    }, 50)
     onClose()
-  }, [setCurrentChatSessionId, fetchMessages, onClose])
+  }, [setCurrentChatSessionId, fetchMessages, setMessages, onClose])
 
   const handleStartRename = useCallback((sessionId: string, currentTitle: string) => {
     setRenamingSessionId(sessionId)
@@ -709,20 +714,25 @@ function ChatHistoryDropdown({
                 </div>
               ) : (
                 chatSessions.map((session) => (
-                  <div
+                  <button
                     key={session.id}
                     className={cn(
-                      'flex items-center gap-2 w-full px-2 py-2 rounded-md text-xs transition-colors group/item',
+                      'flex items-center gap-2 w-full px-2 py-2 rounded-md text-xs transition-colors group/item text-left',
                       session.id === currentChatSessionId
                         ? 'bg-emerald-500/10 text-foreground ring-1 ring-emerald-500/20'
                         : 'hover:bg-muted/50 text-foreground/80',
                     )}
+                    onClick={() => {
+                      if (renamingSessionId !== session.id) {
+                        handleSwitchSession(session.id)
+                      }
+                    }}
                   >
                     <MessageSquare className={cn(
                       'size-3.5 shrink-0',
                       session.id === currentChatSessionId ? 'text-emerald-500' : 'text-muted-foreground/50',
                     )} />
-                    <div className="flex-1 min-w-0 text-left" onClick={() => handleSwitchSession(session.id)} style={{ cursor: 'pointer' }}>
+                    <div className="flex-1 min-w-0 text-left">
                       {renamingSessionId === session.id ? (
                         <input
                           type="text"
@@ -801,7 +811,7 @@ function ChatHistoryDropdown({
                         <Trash2 className="size-2.5" />
                       </button>
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
@@ -945,6 +955,12 @@ export function IDEChatPanel() {
 
   // Session switch animation key
   const sessionKey = currentChatSessionId || 'no-session'
+
+  // Filter messages by current chat session for display
+  const sessionMessages = useMemo(() => {
+    if (!currentChatSessionId) return messages
+    return messages.filter((m) => !m.chatSessionId || m.chatSessionId === currentChatSessionId)
+  }, [messages, currentChatSessionId])
 
   // Handle new chat
   const handleNewChat = useCallback(async () => {
@@ -1647,7 +1663,7 @@ export function IDEChatPanel() {
           {/* Message count badge */}
           <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 text-muted-foreground shrink-0">
             <MessageSquare className="size-2" />
-            {messages.length}
+            {sessionMessages.length}
           </Badge>
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
@@ -1721,7 +1737,7 @@ export function IDEChatPanel() {
                 // Group messages by timestamp
                 const groups: { label: string; messages: Message[] }[] = []
                 let currentGroup = ''
-                for (const msg of messages) {
+                for (const msg of sessionMessages) {
                   const group = getTimestampGroup(msg.createdAt)
                   if (group !== currentGroup) {
                     groups.push({ label: group, messages: [msg] })
@@ -1758,7 +1774,7 @@ export function IDEChatPanel() {
               </motion.div>
             )}
             {/* Skeleton loading while waiting for AI response */}
-            {isSending && messages.length > 0 && (
+            {isSending && sessionMessages.length > 0 && (
               <div className="px-3 py-2.5 mx-2 mb-1.5 rounded-xl bg-muted/20">
                 <div className="flex items-start gap-2">
                   <Skeleton className="size-6 rounded-md shrink-0" />
@@ -1774,7 +1790,7 @@ export function IDEChatPanel() {
                 </div>
               </div>
             )}
-            {messages.length === 0 && !isSending && (
+            {sessionMessages.length === 0 && !isSending && (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground px-4">
                 <div className="empty-state-illustration mb-1">
                   <div className="size-14 rounded-2xl bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 flex items-center justify-center border border-emerald-500/10">
@@ -1809,7 +1825,7 @@ export function IDEChatPanel() {
 
         {/* Scroll to bottom floating button */}
         <AnimatePresence>
-          {isScrolledUp && messages.length > 0 && (
+          {isScrolledUp && sessionMessages.length > 0 && (
             <motion.button
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
