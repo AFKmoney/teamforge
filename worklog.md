@@ -1257,3 +1257,30 @@ Stage Summary:
 - Comprehensive 9-page user manual created (PDF + HTML)
 - All changes verified: lint 0 errors, app shows "GLM-4" in status bar and model selector
 - Cron job scheduled for continuous QA
+
+---
+Task ID: 1
+Agent: Main
+Task: Fix chat history button and agent detail dialog display issues
+
+Work Log:
+- Analyzed the chat history button functionality using agent-browser
+- Found that the chat history dropdown was functional but had poor click targets
+- Identified that messages were NOT being filtered by current chat session ID - all messages showed regardless of session
+- Fixed chat history session rows: changed from `<div>` to `<button>` for full-row clickability
+- Added `sessionMessages` useMemo to filter messages by `currentChatSessionId`
+- Updated empty state check to use `sessionMessages.length` instead of `messages.length`
+- Updated scroll-to-bottom button and loading skeleton to use `sessionMessages.length`
+- Updated message count badge in header to use `sessionMessages.length`
+- Fixed agent detail dialog footer visibility: removed `overflow-hidden` from DialogContent, changed `max-h-[90vh]` to `max-h-[85vh]`
+- Verified "Chat with Agent" button now works and pre-fills chat input with "@AgentName"
+- Verified GLM-4 is correctly displayed throughout the app (no DeepSeek references in Z-AI provider)
+- All lint checks pass with 0 errors
+
+Stage Summary:
+- Chat history button now works correctly with full-row clickable sessions
+- Messages are properly filtered by current session - no more cross-session message display
+- Agent detail dialog footer (Chat with Agent, Set Status, Close buttons) is now visible
+- GLM-4 model display is correct throughout the app
+- Committed as: fix: chat history button and agent detail dialog
+- GitHub push pending: waiting for user to provide token
