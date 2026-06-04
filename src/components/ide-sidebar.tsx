@@ -41,17 +41,13 @@ import {
   MessageSquare,
   Pin,
   FileX2,
-  Copy,
   Clipboard,
   Files,
-  Scissors,
-  ArrowDownToLine,
   ChevronsDownUp,
-  ChevronsUpDown,
-  Eye,
   GitBranch,
   RefreshCw,
   BarChart3,
+  Upload,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from 'react'
@@ -260,10 +256,6 @@ const FileTreeNodeView = memo(function FileTreeNodeView({
             New Folder
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => onContextMenuAction('duplicate', node)} className="gap-2 text-xs">
-            <Files className="size-3.5" />
-            Duplicate
-          </ContextMenuItem>
           <ContextMenuItem onClick={() => onContextMenuAction('rename', node)} className="gap-2 text-xs">
             <Pencil className="size-3.5" />
             Rename
@@ -272,24 +264,6 @@ const FileTreeNodeView = memo(function FileTreeNodeView({
           <ContextMenuItem onClick={() => onContextMenuAction('copyPath', node)} className="gap-2 text-xs">
             <Clipboard className="size-3.5" />
             Copy Path
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onContextMenuAction('copyRelativePath', node)} className="gap-2 text-xs">
-            <Copy className="size-3.5" />
-            Copy Relative Path
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => onContextMenuAction('revealInExplorer', node)} className="gap-2 text-xs">
-            <Eye className="size-3.5" />
-            Reveal in Explorer
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => onContextMenuAction('collapseAll', node)} className="gap-2 text-xs">
-            <ChevronsDownUp className="size-3.5" />
-            Collapse All
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onContextMenuAction('expandAll', node)} className="gap-2 text-xs">
-            <ChevronsUpDown className="size-3.5" />
-            Expand All
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => onContextMenuAction('delete', node)} className="gap-2 text-xs text-red-500 focus:text-red-500">
@@ -332,27 +306,23 @@ const FileTreeNodeView = memo(function FileTreeNodeView({
         </button>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
-        <ContextMenuItem onClick={() => onContextMenuAction('duplicate', node)} className="gap-2 text-xs">
-          <Files className="size-3.5" />
-          Duplicate
+        <ContextMenuItem onClick={() => onContextMenuAction('openInEditor', node)} className="gap-2 text-xs">
+          <FileCode2 className="size-3.5" />
+          Open in Editor
         </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onContextMenuAction('rename', node)} className="gap-2 text-xs">
           <Pencil className="size-3.5" />
           Rename
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onContextMenuAction('duplicate', node)} className="gap-2 text-xs">
+          <Files className="size-3.5" />
+          Duplicate
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onContextMenuAction('copyPath', node)} className="gap-2 text-xs">
           <Clipboard className="size-3.5" />
           Copy Path
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => onContextMenuAction('copyRelativePath', node)} className="gap-2 text-xs">
-          <Copy className="size-3.5" />
-          Copy Relative Path
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => onContextMenuAction('revealInExplorer', node)} className="gap-2 text-xs">
-          <Eye className="size-3.5" />
-          Reveal in Explorer
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onContextMenuAction('delete', node)} className="gap-2 text-xs text-red-500 focus:text-red-500">
@@ -747,6 +717,8 @@ export function IDESidebar() {
   const [createFolderDialog, setCreateFolderDialog] = useState(false)
   const [initialPath, setInitialPath] = useState('')
   const [highlightPath, setHighlightPath] = useState<string | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const dragCounterRef = useRef(0)
 
   // Listen for breadcrumb navigation events from the editor
   useEffect(() => {
@@ -891,8 +863,110 @@ export function IDESidebar() {
     toast.success(`Expanded ${allDirs.length} folders`)
   }, [])
 
+  // Drag-and-drop handlers for file import
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.dataTransfer.types.includes('Files')) {
+      dragCounterRef.current++
+      setIsDragOver(true)
+    }
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current--
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false)
+    }
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current = 0
+    setIsDragOver(false)
+
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    if (droppedFiles.length === 0) return
+
+    const projectId = currentProject?.id || ''
+    if (!projectId) {
+      toast.error('No project selected — cannot import files')
+      return
+    }
+
+    let imported = 0
+    let failed = 0
+
+    for (const file of droppedFiles) {
+      // Skip directories (size === 0 and no type, or name has no extension)
+      if (file.size === 0 && !file.type && !file.name.includes('.')) continue
+
+      try {
+        const content = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = () => reject(reader.error)
+          reader.readAsText(file)
+        })
+
+        const ext = file.name.split('.').pop()?.toLowerCase() || ''
+        const languageMap: Record<string, string> = {
+          ts: 'typescript', tsx: 'typescript', js: 'javascript', jsx: 'javascript',
+          json: 'json', css: 'css', scss: 'css', md: 'markdown', prisma: 'prisma',
+          html: 'html', yaml: 'yaml', yml: 'yaml', py: 'python', rb: 'ruby',
+          go: 'go', rs: 'rust', sql: 'sql', sh: 'bash', bash: 'bash',
+        }
+
+        const res = await fetch('/api/files', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId,
+            path: file.name,
+            content,
+            language: languageMap[ext] || 'plaintext',
+            isDirectory: false,
+          }),
+        })
+
+        if (res.ok) {
+          imported++
+          toast.success(`Imported: ${file.name}`)
+        } else {
+          failed++
+          toast.error(`Failed to import: ${file.name}`)
+        }
+      } catch {
+        failed++
+        toast.error(`Failed to read: ${file.name}`)
+      }
+    }
+
+    // Refresh the file list after all imports
+    if (imported > 0) {
+      await fetchFiles()
+    }
+
+    if (imported > 0 || failed > 0) {
+      toast.info(`Import complete: ${imported} succeeded, ${failed} failed`)
+    }
+  }, [currentProject, fetchFiles])
+
   const handleContextMenuAction = (action: string, node: FileTreeNode) => {
     switch (action) {
+      case 'openInEditor':
+        if (node.file) {
+          handleFileClick(node.file)
+        }
+        break
       case 'newFile':
         setInitialPath(node.isDir ? `${node.path}/` : `${node.path.split('/').slice(0, -1).join('/')}/`)
         setCreateFileDialog(true)
@@ -903,7 +977,16 @@ export function IDESidebar() {
         break
       case 'delete':
         if (node.file) {
-          handleDeleteFile(node.file.id, node.file.path)
+          // Show confirmation toast before deleting
+          const itemName = node.name
+          toast.warning(`Delete "${itemName}"?`, {
+            description: 'This action cannot be undone.',
+            action: {
+              label: 'Delete',
+              onClick: () => handleDeleteFile(node.file!.id, node.file!.path),
+            },
+            duration: 5000,
+          })
         }
         break
       case 'rename':
@@ -914,9 +997,6 @@ export function IDESidebar() {
         handleDuplicateFile(node)
         break
       case 'copyPath':
-        handleCopyPath(node.path)
-        break
-      case 'copyRelativePath':
         handleCopyPath(node.path)
         break
       case 'revealInExplorer':
@@ -1000,7 +1080,29 @@ export function IDESidebar() {
   }
 
   return (
-    <div className="flex flex-col w-60 border-r bg-gradient-to-b from-card/60 to-card/40 shrink-0 overflow-hidden">
+    <div
+      className="flex flex-col w-60 border-r bg-gradient-to-b from-card/60 to-card/40 shrink-0 overflow-hidden relative"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drop zone overlay */}
+      <AnimatePresence>
+        {isDragOver && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-2 bg-emerald-500/5 border-2 border-dashed border-emerald-500/60 rounded-lg m-1 backdrop-blur-sm"
+          >
+            <Upload className="size-8 text-emerald-500" />
+            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Drop files to import</span>
+            <span className="text-[10px] text-muted-foreground/60">Files will be added to the project</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Header */}
       <div className="flex items-center justify-between px-3 h-9 border-b bg-card/50 shrink-0">
         <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/80 uppercase">Explorer</span>

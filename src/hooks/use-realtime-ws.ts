@@ -44,8 +44,16 @@ export function useRealtimeWS() {
   }, [fetchAgents, fetchTasks, fetchMessages, fetchBuildLogs, fetchActivities])
 
   useEffect(() => {
-    // Connect to the WS service via gateway
-    const socket = io('/?XTransformPort=3003', {
+    // Connect to the WS service
+    // When accessed through the Caddy gateway (port 81), use XTransformPort query param
+    // When accessed directly (localhost:3000 dev mode), connect directly to WS service
+    const isDevDirect = typeof window !== 'undefined' && window.location.port === '3000'
+    const socketUrl = isDevDirect ? 'http://localhost:3003' : ''
+    const socketPath = isDevDirect ? undefined : '/'
+
+    const socket = io(socketUrl, {
+      path: socketPath,
+      query: isDevDirect ? undefined : { XTransformPort: '3003' },
       transports: ['websocket', 'polling'],
       forceNew: true,
       reconnection: true,

@@ -4,7 +4,7 @@ import { useAppStore } from '@/lib/store'
 import { type ProjectFile } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
-import { X, Code2, Keyboard, Zap, Command, Save, Play, ChevronRight, FileCode2, Clock, Terminal, Search, WrapText, Loader2 } from 'lucide-react'
+import { X, Code2, Keyboard, Zap, Command, Save, Play, ChevronRight, FileCode2, Clock, Terminal, Search, WrapText, Loader2, Settings, FilePlus, FolderOpen, Copy } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
@@ -366,9 +366,8 @@ function Minimap({ lines, scrollHeight, clientHeight, scrollTop }: {
 function WelcomeScreen() {
   const files = useAppStore((s) => s.files)
   const setActiveFileId = useAppStore((s) => s.setActiveFileId)
-  const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
-  const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
   const setFileSearchOpen = useAppStore((s) => s.setFileSearchOpen)
+  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen)
   const [showNewFileDialog, setShowNewFileDialog] = useState(false)
   const [recentFileIds, setRecentFileIds] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -380,159 +379,166 @@ function WelcomeScreen() {
     return []
   })
 
-  // Get recent files by ID
+  // Get recent files by ID (last 5)
   const recentFiles = useMemo(() => {
     return recentFileIds
       .map((id) => files.find((f) => f.id === id))
       .filter((f): f is ProjectFile => !!f && !f.isDirectory)
-      .slice(0, 10)
+      .slice(0, 5)
   }, [recentFileIds, files])
 
+  // Keyboard shortcuts cheat sheet (5 most common)
   const shortcuts = [
-    { icon: <Command className="size-4 text-emerald-500" />, title: 'Command Palette', shortcut: 'Ctrl+K', keys: ['Ctrl', 'K'] },
-    { icon: <Code2 className="size-4 text-violet-500" />, title: 'Toggle Terminal', shortcut: 'Ctrl+J', keys: ['Ctrl', 'J'] },
-    { icon: <Keyboard className="size-4 text-amber-500" />, title: 'Save File', shortcut: 'Ctrl+S', keys: ['Ctrl', 'S'] },
-    { icon: <Zap className="size-4 text-pink-500" />, title: 'Run Project', shortcut: 'F5', keys: ['F5'] },
+    { icon: <Save className="size-4 text-emerald-500" />, title: 'Save File', keys: ['Ctrl', 'S'] },
+    { icon: <Search className="size-4 text-emerald-500" />, title: 'Quick Open', keys: ['Ctrl', 'P'] },
+    { icon: <FilePlus className="size-4 text-emerald-500" />, title: 'New File', keys: ['Ctrl', 'N'] },
+    { icon: <Terminal className="size-4 text-emerald-500" />, title: 'Toggle Terminal', keys: ['Ctrl', 'J'] },
+    { icon: <Command className="size-4 text-emerald-500" />, title: 'Command Palette', keys: ['Ctrl', 'Shift', 'P'] },
   ]
 
+  // Quick action buttons
   const quickActions = [
-    { icon: <Search className="size-3.5" />, label: 'Search Files', action: () => { setFileSearchOpen(true) } },
-    { icon: <Terminal className="size-3.5" />, label: 'Open Terminal', action: () => { setBottomPanelOpen(true); setActiveBottomTab('terminal') } },
-    { icon: <Code2 className="size-3.5" />, label: 'New File', action: () => { setShowNewFileDialog(true) } },
+    { icon: <FilePlus className="size-4" />, label: 'New File', action: () => { setShowNewFileDialog(true) } },
+    { icon: <FolderOpen className="size-4" />, label: 'Open File', action: () => { setFileSearchOpen(true) } },
+    { icon: <Settings className="size-4" />, label: 'Open Settings', action: () => { setSettingsOpen(true) } },
   ]
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-zinc-900 dark:bg-zinc-950">
+    <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-900 via-zinc-900 dark:from-zinc-950 dark:via-zinc-950 to-emerald-950/20 dark:to-emerald-950/30 relative overflow-hidden">
+      {/* Subtle background decorations */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-1/4 -right-1/4 w-1/2 h-1/2 bg-emerald-500/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-1/4 -left-1/4 w-1/2 h-1/2 bg-emerald-500/3 rounded-full blur-3xl" />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="text-center max-w-md px-6"
+        className="relative z-10 max-w-lg w-full mx-4"
       >
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.4, ease: 'easeOut' }}
-          className="flex items-center justify-center mb-8"
-        >
-          <div className="animated-gradient-border">
-            <div className="flex items-center justify-center size-20 rounded-2xl bg-zinc-900">
-              <Zap className="size-9 text-emerald-500" />
-            </div>
-          </div>
-        </motion.div>
-        <motion.h1
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="text-2xl font-bold text-foreground mb-1 tracking-tight"
-        >
-          TeamForge IDE
-        </motion.h1>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.25 }}
-          className="text-muted-foreground/50 text-[10px] mb-3 font-mono"
-        >
-          v1.0.0
-        </motion.p>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-muted-foreground text-sm mb-6"
-        >
-          Where AI agents collaborate to build software 24/7
-        </motion.p>
-
-        {/* Quick Actions Row */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="flex items-center justify-center gap-2 mb-6"
-        >
-          {quickActions.map((action, i) => (
-            <motion.button
-              key={action.label}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 + i * 0.05 }}
-              onClick={action.action}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/8 text-muted-foreground hover:text-foreground text-[11px] transition-colors border border-white/5 hover:border-white/10"
-            >
-              {action.icon}
-              <span>{action.label}</span>
-            </motion.button>
-          ))}
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="grid grid-cols-2 gap-3 text-xs"
-        >
-          {shortcuts.map((item, i) => (
-            <motion.div
-              key={item.title}
-              initial={{ opacity: 0, x: i % 2 === 0 ? -10 : 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 + i * 0.08 }}
-              className="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 hover:bg-white/8 text-muted-foreground transition-colors cursor-default border border-white/5"
-            >
-              {item.icon}
-              <div className="text-left flex-1">
-                <div className="text-foreground font-medium">{item.title}</div>
-                <div className="flex items-center gap-0.5 mt-0.5">
-                  {item.keys.map((key, ki) => (
-                    <span key={ki}>
-                      {ki > 0 && <span className="text-muted-foreground/30 mx-0.5">+</span>}
-                      <span className="kbd-badge">{key}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Recent Files Section */}
-        {recentFiles.length > 0 && (
+        {/* Glassmorphism welcome panel */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl shadow-black/20 p-8">
+          {/* Logo */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="mt-6 text-left"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.4, ease: 'easeOut' }}
+            className="flex items-center justify-center mb-6"
           >
-            <div className="flex items-center gap-1.5 mb-2 px-1">
-              <Clock className="size-3 text-muted-foreground/50" />
-              <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/60 uppercase">Recent Files</span>
-            </div>
-            <div className="space-y-0.5">
-              {recentFiles.map((file) => (
-                <button
-                  key={file.id}
-                  onClick={() => setActiveFileId(file.id)}
-                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
-                >
-                  <FileCode2 className="size-3 text-emerald-500/50 shrink-0" />
-                  <span className="truncate">{file.path}</span>
-                </button>
-              ))}
+            <div className="relative">
+              <div className="absolute inset-0 bg-emerald-500/20 rounded-2xl blur-xl" />
+              <div className="relative flex items-center justify-center size-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/20">
+                <Zap className="size-8 text-emerald-500" />
+              </div>
             </div>
           </motion.div>
-        )}
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.9 }}
-          className="text-muted-foreground/40 text-[10px] mt-6"
-        >
-          Select a file from the explorer to start editing
-        </motion.p>
+          {/* Heading */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-center mb-6"
+          >
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+              Welcome to TeamForge IDE
+            </h1>
+            <p className="text-muted-foreground text-sm mt-2">
+              Where AI agents collaborate to build software 24/7
+            </p>
+          </motion.div>
+
+          {/* Quick Action Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="flex items-center justify-center gap-3 mb-6"
+          >
+            {quickActions.map((action, i) => (
+              <motion.button
+                key={action.label}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 + i * 0.05 }}
+                onClick={action.action}
+                className="flex flex-col items-center gap-1.5 px-5 py-3 rounded-xl bg-white/5 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-400 text-xs transition-all border border-white/5 hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5"
+              >
+                {action.icon}
+                <span className="font-medium">{action.label}</span>
+              </motion.button>
+            ))}
+          </motion.div>
+
+          {/* Divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-6" />
+
+          {/* Two-column layout: Recent Files + Shortcuts */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Recent Files */}
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="text-left"
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <Clock className="size-3 text-muted-foreground/50" />
+                <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/60 uppercase">Recent Files</span>
+              </div>
+              {recentFiles.length > 0 ? (
+                <div className="space-y-0.5">
+                  {recentFiles.map((file) => (
+                    <button
+                      key={file.id}
+                      onClick={() => setActiveFileId(file.id)}
+                      className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                    >
+                      <FileCode2 className="size-3 text-emerald-500/50 shrink-0" />
+                      <span className="truncate">{file.path}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] text-muted-foreground/40 px-2 py-2">
+                  No recent files yet
+                </p>
+              )}
+            </motion.div>
+
+            {/* Keyboard Shortcuts Cheat Sheet */}
+            <motion.div
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.45 }}
+              className="text-left"
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <Keyboard className="size-3 text-muted-foreground/50" />
+                <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/60 uppercase">Shortcuts</span>
+              </div>
+              <div className="space-y-0.5">
+                {shortcuts.map((item) => (
+                  <div
+                    key={item.title}
+                    className="flex items-center justify-between px-2 py-1.5 rounded-md text-xs text-muted-foreground"
+                  >
+                    <span className="truncate mr-2">{item.title}</span>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {item.keys.map((key, ki) => (
+                        <span key={ki}>
+                          {ki > 0 && <span className="text-muted-foreground/30 mx-0.5">+</span>}
+                          <span className="kbd-badge">{key}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
       </motion.div>
 
       {/* New File Dialog for Welcome Screen */}
@@ -568,8 +574,11 @@ export function IDEEditor() {
   const goToLineOpen = useAppStore((s) => s.goToLineOpen)
   const settings = useAppStore((s) => s.settings)
   const updateSettings = useAppStore((s) => s.updateSettings)
+  // Store-based tab management
+  const openFileIds = useAppStore((s) => s.openFileIds)
+  const removeOpenFile = useAppStore((s) => s.removeOpenFile)
+  const reorderOpenFiles = useAppStore((s) => s.reorderOpenFiles)
 
-  const [manuallyOpenIds, setManuallyOpenIds] = useState<string[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [saveFlash, setSaveFlash] = useState(false)
   const codeAreaRef = useRef<HTMLDivElement>(null)
@@ -637,40 +646,25 @@ export function IDEEditor() {
     [activeFile],
   )
 
-  const openFileIds = useMemo(() => {
-    const ids = [...manuallyOpenIds]
-    if (activeFileId && !ids.includes(activeFileId)) {
-      ids.push(activeFileId)
-    }
-    return ids
-  }, [manuallyOpenIds, activeFileId])
-
   const openFiles = useMemo(
     () => openFileIds.map((id) => files.find((f) => f.id === id)).filter(Boolean) as ProjectFile[],
     [openFileIds, files],
   )
 
   const handleFileClick = useCallback((fileId: string) => {
-    setActiveFileId(fileId)
-    if (!manuallyOpenIds.includes(fileId)) {
-      setManuallyOpenIds((prev) => [...prev, fileId])
-    }
+    setActiveFileId(fileId) // setActiveFileId now automatically adds to openFileIds
     // Track recently opened files
     setRecentlyOpenedFiles((prev) => {
       const next = [fileId, ...prev.filter((id) => id !== fileId)].slice(0, 10)
       try { localStorage.setItem('teamforge-recent-files', JSON.stringify(next)) } catch { /* ignore */ }
       return next
     })
-  }, [manuallyOpenIds, setActiveFileId])
+  }, [setActiveFileId])
 
   const handleCloseFile = useCallback((fileId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    setManuallyOpenIds((prev) => prev.filter((id) => id !== fileId))
-    if (activeFileId === fileId) {
-      const remaining = manuallyOpenIds.filter((id) => id !== fileId)
-      setActiveFileId(remaining.length > 0 ? remaining[remaining.length - 1] : null)
-    }
-  }, [activeFileId, manuallyOpenIds, setActiveFileId])
+    removeOpenFile(fileId) // removeOpenFile handles switching active file if needed
+  }, [removeOpenFile])
 
   // Save handler
   const handleSave = useCallback(async () => {
@@ -1525,10 +1519,11 @@ export function IDEEditor() {
                 className={cn(
                   'transition-colors rounded px-0.5',
                   i === arr.length - 1
-                    ? 'text-foreground/70 font-medium cursor-default'
+                    ? 'text-emerald-500/80 font-medium cursor-default'
                     : 'hover:text-foreground/70 hover:bg-muted/50 cursor-pointer',
                 )}
                 onClick={() => {
+                  if (i === arr.length - 1) return
                   // Navigate to folder in sidebar
                   const folderPath = activeFile.path.split('/').slice(0, i + 1).join('/')
                   // Use a custom event to communicate with sidebar
@@ -1540,13 +1535,27 @@ export function IDEEditor() {
               </button>
             </span>
           ))}
+          {/* Copy Path button */}
+          <button
+            className="ml-auto shrink-0 p-0.5 rounded hover:bg-muted/50 hover:text-foreground/70 transition-colors"
+            onClick={() => {
+              navigator.clipboard.writeText(activeFile.path).then(() => {
+                toast.success('Path copied to clipboard')
+              }).catch(() => {
+                toast.error('Failed to copy path')
+              })
+            }}
+            title="Copy file path"
+          >
+            <Copy className="size-3" />
+          </button>
         </div>
       )}
 
-      {/* File tabs with drag & drop and context menu */}
+      {/* File tabs with drag & drop and context menu — always visible when files are open */}
       {openFiles.length > 0 && (
-        <div className="flex items-center h-9 bg-muted/20 border-b overflow-x-auto scrollbar-none shrink-0">
-          {openFiles.map((file, index) => (
+        <div className="flex items-center h-9 bg-muted/20 border-b shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {openFiles.map((file) => (
             <FileTab
               key={file.id}
               file={file}
@@ -1562,16 +1571,14 @@ export function IDEEditor() {
               onDragOver={(e) => {
                 e.preventDefault()
                 if (draggedTabId && draggedTabId !== file.id) {
-                  setManuallyOpenIds((prev) => {
-                    const arr = [...prev]
-                    const fromIdx = arr.indexOf(draggedTabId)
-                    const toIdx = arr.indexOf(file.id)
-                    if (fromIdx >= 0 && toIdx >= 0) {
-                      arr.splice(fromIdx, 1)
-                      arr.splice(toIdx, 0, draggedTabId)
-                    }
-                    return arr
-                  })
+                  const arr = [...openFileIds]
+                  const fromIdx = arr.indexOf(draggedTabId)
+                  const toIdx = arr.indexOf(file.id)
+                  if (fromIdx >= 0 && toIdx >= 0) {
+                    arr.splice(fromIdx, 1)
+                    arr.splice(toIdx, 0, draggedTabId)
+                  }
+                  reorderOpenFiles(arr)
                 }
               }}
               onDrop={() => setDraggedTabId(null)}
@@ -1603,8 +1610,8 @@ export function IDEEditor() {
           <button
             className="w-full px-3 py-1.5 text-left hover:bg-muted/50 transition-colors"
             onClick={() => {
-              const others = manuallyOpenIds.filter((id) => id !== tabContextMenu.fileId)
-              setManuallyOpenIds(others)
+              const others = openFileIds.filter((id) => id !== tabContextMenu.fileId)
+              reorderOpenFiles(others)
               if (activeFileId === tabContextMenu.fileId) {
                 setActiveFileId(others.length > 0 ? others[others.length - 1] : null)
               }
@@ -1616,7 +1623,7 @@ export function IDEEditor() {
           <button
             className="w-full px-3 py-1.5 text-left hover:bg-muted/50 transition-colors"
             onClick={() => {
-              setManuallyOpenIds([])
+              reorderOpenFiles([])
               setActiveFileId(null)
               setTabContextMenu(null)
             }}

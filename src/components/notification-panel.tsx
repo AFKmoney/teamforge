@@ -7,10 +7,30 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Bell, Check, CheckCheck, Trash2, Info, CheckCircle2, AlertTriangle, XCircle, Hammer, Bot, Settings, MessageSquare, Filter } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  Trash2,
+  Info,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Hammer,
+  Bot,
+  Settings,
+  MessageSquare,
+  Filter,
+  Activity,
+  FileCode2,
+  AlertCircle,
+  Volume2,
+  VolumeX,
+} from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 
 // Relative time formatter
 function formatRelativeTime(dateStr: string): string {
@@ -52,10 +72,10 @@ const TIME_GROUP_LABELS: Record<string, string> = {
 // Type config for colors and icons
 const NOTIFICATION_TYPE_CONFIG: Record<NotificationType, { borderColor: string; bgColor: string; icon: React.ElementType; iconColor: string; label: string }> = {
   info: {
-    borderColor: 'border-l-blue-500',
-    bgColor: 'bg-blue-500/5',
+    borderColor: 'border-l-zinc-400',
+    bgColor: 'bg-zinc-500/5',
     icon: Info,
-    iconColor: 'text-blue-500',
+    iconColor: 'text-zinc-500',
     label: 'Info',
   },
   success: {
@@ -83,10 +103,33 @@ const NOTIFICATION_TYPE_CONFIG: Record<NotificationType, { borderColor: string; 
 
 const NOTIFICATION_CATEGORY_CONFIG: Record<NotificationCategory, { icon: React.ElementType; label: string; color: string }> = {
   task: { icon: Check, label: 'Task', color: 'text-emerald-500' },
-  build: { icon: Hammer, label: 'Build', color: 'text-blue-500' },
+  build: { icon: Hammer, label: 'Build', color: 'text-orange-500' },
   agent: { icon: Bot, label: 'Agent', color: 'text-violet-500' },
   system: { icon: Settings, label: 'System', color: 'text-zinc-500' },
   chat: { icon: MessageSquare, label: 'Chat', color: 'text-pink-500' },
+  task_completed: { icon: CheckCircle2, label: 'Task Done', color: 'text-emerald-500' },
+  agent_status: { icon: Activity, label: 'Agent Status', color: 'text-sky-500' },
+  build_result: { icon: Hammer, label: 'Build Result', color: 'text-orange-500' },
+  code_change: { icon: FileCode2, label: 'Code Change', color: 'text-violet-500' },
+}
+
+// Web Audio API notification sound
+function playNotificationSound() {
+  try {
+    const ctx = new AudioContext()
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    oscillator.frequency.setValueAtTime(880, ctx.currentTime)
+    oscillator.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15)
+    gainNode.gain.setValueAtTime(0.12, ctx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2)
+    oscillator.start(ctx.currentTime)
+    oscillator.stop(ctx.currentTime + 0.2)
+  } catch {
+    // Web Audio API not available — silently skip
+  }
 }
 
 function NotificationItem({
@@ -163,6 +206,15 @@ function NotificationItem({
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<NotificationCategory | 'all'>('all')
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true
+    try {
+      return localStorage.getItem('teamforge-notification-sound') !== 'false'
+    } catch {
+      return true
+    }
+  })
+  const prevUnreadCountRef = useRef(0)
   const notifications = useAppStore((s) => s.notifications)
   const markNotificationRead = useAppStore((s) => s.markNotificationRead)
   const markAllNotificationsRead = useAppStore((s) => s.markAllNotificationsRead)
@@ -170,6 +222,26 @@ export function NotificationBell() {
 
   const unreadCount = notifications.filter((n) => !n.read).length
   const hasUnread = unreadCount > 0
+
+  // Play notification sound when new unread notifications appear
+  useEffect(() => {
+    if (soundEnabled && unreadCount > prevUnreadCountRef.current && prevUnreadCountRef.current >= 0) {
+      playNotificationSound()
+    }
+    prevUnreadCountRef.current = unreadCount
+  }, [unreadCount, soundEnabled])
+
+  const handleToggleSound = useCallback(() => {
+    setSoundEnabled((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('teamforge-notification-sound', String(next))
+      } catch {
+        // Ignore localStorage errors
+      }
+      return next
+    })
+  }, [])
 
   const handleMarkAllRead = useCallback(() => {
     markAllNotificationsRead()
@@ -262,6 +334,16 @@ export function NotificationBell() {
             )}
           </div>
           <div className="flex items-center gap-0.5">
+            {/* Sound toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+              onClick={handleToggleSound}
+              title={soundEnabled ? 'Mute notifications' : 'Unmute notifications'}
+            >
+              {soundEnabled ? <Volume2 className="size-3" /> : <VolumeX className="size-3" />}
+            </Button>
             {hasUnread && (
               <Button
                 variant="ghost"
@@ -279,8 +361,10 @@ export function NotificationBell() {
                 size="sm"
                 className="h-6 px-1.5 text-[10px] gap-1 text-muted-foreground hover:text-destructive"
                 onClick={handleClear}
+                title="Clear all notifications"
               >
                 <Trash2 className="size-3" />
+                Clear
               </Button>
             )}
           </div>

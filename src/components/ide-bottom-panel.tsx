@@ -137,20 +137,80 @@ const HELP_TEXT = `Available commands:
   node -e <js>  Run inline JavaScript
   Any command   Execute via shell (30s timeout)`
 
+const TERMINAL_HISTORY_KEY = 'teamforge-terminal-history'
+const MAX_HISTORY_SIZE = 100
+
+// Helper: detect output type and return appropriate color class
+function getOutputColorClass(content: string): string {
+  const lower = content.toLowerCase()
+  // Success patterns
+  if (
+    /\b(passed|success|succeeded|completed|done|ok|✓|✔|finished|built successfully|no errors|all tests passed)\b/i.test(lower) ||
+    lower.includes('0 errors') ||
+    lower.includes('0 warnings')
+  ) {
+    return 'text-emerald-400'
+  }
+  // Error patterns
+  if (
+    /\b(error|failed|failure|fatal|abort|crash|exception|uncaught|cannot find|cannot resolve|module not found|enoent|segfault)\b/i.test(lower) ||
+    /^\s*✗|^\s*✘|^\s*err:/i.test(lower)
+  ) {
+    return 'text-red-400'
+  }
+  // Warning patterns
+  if (
+    /\b(warning|warn|deprecated|caution|note:)\b/i.test(lower) ||
+    /^\s*⚠|^\s*warn:/i.test(lower)
+  ) {
+    return 'text-amber-400'
+  }
+  return 'text-zinc-300 dark:text-zinc-300'
+}
+
+// Helper: render output with per-line color coding
+function renderColoredOutput(content: string) {
+  const lines = content.split('\n')
+  return lines.map((line, i) => {
+    const colorClass = getOutputColorClass(line)
+    const isDefault = colorClass === 'text-zinc-300 dark:text-zinc-300'
+    return (
+      <span key={i} className={isDefault ? colorClass : colorClass}>
+        {line}{i < lines.length - 1 ? '\n' : ''}
+      </span>
+    )
+  })
+}
+
 function TerminalView() {
   const buildLogs = useAppStore((s) => s.buildLogs)
   const [lines, setLines] = useState<TerminalLine[]>([])
   const [inputValue, setInputValue] = useState('')
-  const [commandHistory, setCommandHistory] = useState<string[]>([])
+  const [commandHistory, setCommandHistory] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const stored = localStorage.getItem(TERMINAL_HISTORY_KEY)
+      if (stored) return JSON.parse(stored) as string[]
+    } catch { /* ignore */ }
+    return []
+  })
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [isExecuting, setIsExecuting] = useState(false)
   const [cwd, setCwd] = useState('~/project')
+  const [autocompleteSuggestion, setAutocompleteSuggestion] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const commandHistoryRef = useRef<string[]>([])
 
   // Keep ref in sync
   commandHistoryRef.current = commandHistory
+
+  // Persist command history to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(TERMINAL_HISTORY_KEY, JSON.stringify(commandHistory))
+    } catch { /* ignore */ }
+  }, [commandHistory])
 
   // Auto-scroll to bottom on new lines (smooth scroll)
   useEffect(() => {
@@ -212,9 +272,14 @@ function TerminalView() {
     const trimmed = command.trim()
     if (!trimmed) return
 
-    // Add to history
-    setCommandHistory((prev) => [...prev, trimmed])
+    // Add to history (avoid duplicates of the last command, cap at MAX_HISTORY_SIZE)
+    setCommandHistory((prev) => {
+      const filtered = prev.filter((c) => c !== trimmed)
+      const next = [...filtered, trimmed]
+      return next.length > MAX_HISTORY_SIZE ? next.slice(next.length - MAX_HISTORY_SIZE) : next
+    })
     setHistoryIndex(-1)
+    setAutocompleteSuggestion(null)
 
     // Show the command
     addLine('input', `${cwd} ❯ ${trimmed}`)
@@ -319,12 +384,37 @@ function TerminalView() {
     return () => window.removeEventListener('teamforge-terminal-execute', handler)
   }, [handleCommand])
 
+  // Compute autocomplete suggestion based on current input
+  useEffect(() => {
+    if (!inputValue || inputValue.length === 0) {
+      setAutocompleteSuggestion(null)
+      return
+    }
+    const history = commandHistoryRef.current
+    // Find the most recent command that starts with the current input
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i] !== inputValue && history[i].startsWith(inputValue)) {
+        setAutocompleteSuggestion(history[i])
+        return
+      }
+    }
+    setAutocompleteSuggestion(null)
+  }, [inputValue])
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       const val = inputValue
       setInputValue('')
+      setAutocompleteSuggestion(null)
       handleCommand(val)
+    } else if (e.key === 'Tab') {
+      e.preventDefault()
+      // Accept autocomplete suggestion
+      if (autocompleteSuggestion) {
+        setInputValue(autocompleteSuggestion)
+        setAutocompleteSuggestion(null)
+      }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       const history = commandHistoryRef.current
@@ -332,6 +422,7 @@ function TerminalView() {
       const newIndex = historyIndex === -1 ? history.length - 1 : Math.max(0, historyIndex - 1)
       setHistoryIndex(newIndex)
       setInputValue(history[newIndex])
+      setAutocompleteSuggestion(null)
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
       const history = commandHistoryRef.current
@@ -344,11 +435,12 @@ function TerminalView() {
         setHistoryIndex(newIndex)
         setInputValue(history[newIndex])
       }
+      setAutocompleteSuggestion(null)
     } else if (e.key === 'l' && e.ctrlKey) {
       e.preventDefault()
       setLines([])
     }
-  }, [inputValue, handleCommand, historyIndex])
+  }, [inputValue, handleCommand, historyIndex, autocompleteSuggestion])
 
   const focusInput = useCallback(() => {
     inputRef.current?.focus()
@@ -422,10 +514,10 @@ function TerminalView() {
           lines.map((line) => (
             <div key={line.id}>
               {line.type === 'input' && (
-                <div className="text-emerald-500/80 whitespace-pre-wrap">{line.content}</div>
+                <div className="text-emerald-500 whitespace-pre-wrap font-semibold">{line.content}</div>
               )}
               {line.type === 'output' && (
-                <pre className="text-zinc-300 dark:text-zinc-300 whitespace-pre-wrap">{line.content}</pre>
+                <pre className="whitespace-pre-wrap">{renderColoredOutput(line.content)}</pre>
               )}
               {line.type === 'error' && (
                 <pre className="text-red-400 whitespace-pre-wrap">{line.content}</pre>
@@ -460,21 +552,30 @@ function TerminalView() {
       </div>
 
       {/* Command input */}
-      <div className="flex items-center gap-2 px-3 py-2 border-t border-border/40 bg-muted/10">
+      <div className="flex items-center gap-2 px-3 py-2 border-t border-border/40 bg-muted/10 relative">
         <span className="text-emerald-500 font-mono text-xs shrink-0 select-none font-bold">{cwd} ❯</span>
-        <input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={isExecuting ? 'Running...' : 'Type a command... (↑↓ for history)'}
-          disabled={isExecuting}
-          className="flex-1 bg-transparent font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/50 disabled:opacity-50"
-          autoFocus
-          spellCheck={false}
-          autoComplete="off"
-        />
+        <div className="flex-1 relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={isExecuting ? 'Running...' : 'Type a command... (↑↓ history · Tab autocomplete)'}
+            disabled={isExecuting}
+            className="w-full bg-transparent font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/50 disabled:opacity-50"
+            autoFocus
+            spellCheck={false}
+            autoComplete="off"
+          />
+          {/* Autocomplete suggestion overlay */}
+          {autocompleteSuggestion && !isExecuting && (
+            <div className="absolute top-0 left-0 font-mono text-xs pointer-events-none">
+              <span className="text-transparent">{inputValue}</span>
+              <span className="text-muted-foreground/40">{autocompleteSuggestion.slice(inputValue.length)}</span>
+            </div>
+          )}
+        </div>
         {isExecuting && (
           <Loader2 className="size-3.5 text-emerald-500 animate-spin shrink-0" />
         )}

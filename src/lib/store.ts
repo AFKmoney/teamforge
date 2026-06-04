@@ -163,6 +163,12 @@ interface AppState {
   cursorColumn: number
   setCursorPosition: (line: number, column: number) => void
 
+  // Open file tabs
+  openFileIds: string[]
+  addOpenFile: (id: string) => void
+  removeOpenFile: (id: string) => void
+  reorderOpenFiles: (ids: string[]) => void
+
   // Find & Replace
   findReplaceOpen: boolean
   setFindReplaceOpen: (open: boolean) => void
@@ -314,7 +320,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeBottomTab: 'terminal',
   setActiveBottomTab: (tab) => set({ activeBottomTab: tab }),
   activeFileId: null,
-  setActiveFileId: (id) => set({ activeFileId: id }),
+  setActiveFileId: (id) => {
+    set({ activeFileId: id })
+    if (id) {
+      // Automatically add to open files when setting active
+      const { openFileIds } = get()
+      if (!openFileIds.includes(id)) {
+        set({ openFileIds: [...openFileIds, id] })
+      }
+    }
+  },
   bottomPanelOpen: true,
   setBottomPanelOpen: (open) => set({ bottomPanelOpen: open }),
   bottomPanelHeight: 220,
@@ -341,6 +356,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   cursorLine: 1,
   cursorColumn: 1,
   setCursorPosition: (line, column) => set({ cursorLine: line, cursorColumn: column }),
+
+  // Open file tabs
+  openFileIds: [],
+  addOpenFile: (id) => set((s) => {
+    if (s.openFileIds.includes(id)) return s
+    return { openFileIds: [...s.openFileIds, id] }
+  }),
+  removeOpenFile: (id) => set((s) => {
+    const newOpenIds = s.openFileIds.filter((fid) => fid !== id)
+    const newActiveId = s.activeFileId === id
+      ? (newOpenIds.length > 0 ? newOpenIds[newOpenIds.length - 1] : null)
+      : s.activeFileId
+    return { openFileIds: newOpenIds, activeFileId: newActiveId }
+  }),
+  reorderOpenFiles: (ids) => set({ openFileIds: ids }),
 
   // Find & Replace
   findReplaceOpen: false,

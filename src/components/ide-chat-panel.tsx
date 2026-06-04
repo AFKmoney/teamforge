@@ -57,6 +57,28 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
+
+// Recent commands localStorage key
+const RECENT_COMMANDS_KEY = 'teamforge-recent-commands'
+const MAX_RECENT_COMMANDS = 5
+
+function loadRecentCommands(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(RECENT_COMMANDS_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveRecentCommands(commands: string[]) {
+  try {
+    localStorage.setItem(RECENT_COMMANDS_KEY, JSON.stringify(commands))
+  } catch {
+    // Ignore localStorage errors
+  }
+}
 import { cn, useHydrated } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'
@@ -815,6 +837,48 @@ export function IDEChatPanel() {
   const [showSlashCommands, setShowSlashCommands] = useState(false)
   const [selectedSlashIndex, setSelectedSlashIndex] = useState(0)
   const [isScrolledUp, setIsScrolledUp] = useState(false)
+  const [recentCommands, setRecentCommands] = useState<string[]>(() => loadRecentCommands())
+
+  // Add a command to the recent commands list
+  const addRecentCommand = useCallback((command: string) => {
+    setRecentCommands((prev) => {
+      const filtered = prev.filter((c) => c !== command)
+      const next = [command, ...filtered].slice(0, MAX_RECENT_COMMANDS)
+      saveRecentCommands(next)
+      return next
+    })
+  }, [])
+
+  // Build context-aware suggestion order
+  const activeFileId = useAppStore((s) => s.activeFileId)
+  const files = useAppStore((s) => s.files)
+  const buildLogs = useAppStore((s) => s.buildLogs)
+
+  const contextAwareCommandOrder = useMemo(() => {
+    // Commands that should be prioritized in different contexts
+    const hasActiveFile = !!activeFileId
+    const lastBuildFailed = buildLogs.length > 0 && buildLogs[0]?.status === 'failed'
+
+    // Priority commands based on context
+    const priorityCommands: string[] = []
+
+    if (lastBuildFailed) {
+      // If build just failed, suggest /run bun run lint first
+      priorityCommands.push('/run', '/fix', '/explain')
+    }
+
+    if (hasActiveFile) {
+      // If user has a file open, suggest file-related commands
+      const fileCommands = ['/explain', '/fix', '/refactor']
+      for (const cmd of fileCommands) {
+        if (!priorityCommands.includes(cmd)) {
+          priorityCommands.push(cmd)
+        }
+      }
+    }
+
+    return priorityCommands
+  }, [activeFileId, buildLogs])
   const [runTaskDialogOpen, setRunTaskDialogOpen] = useState(false)
   const [runTaskTitle, setRunTaskTitle] = useState('')
   const [runTaskAssigneeId, setRunTaskAssigneeId] = useState('')
@@ -955,14 +1019,47 @@ export function IDEChatPanel() {
     }
   }, [runTaskTitle, runTaskAssigneeId, currentProject, fetchTasks, updateAgent, addMessage])
 
-  // Filter slash commands based on input
+  // Recent slash commands as SlashCommand objects
+  const recentSlashCommands = useMemo(() => {
+    return recentCommands
+      .map((cmd) => SLASH_COMMANDS.find((c) => c.command === cmd))
+      .filter((c): c is SlashCommand => !!c)
+  }, [recentCommands])
+
+  // Filter slash commands based on input, with context-aware ordering
   const filteredSlashCommands = useMemo(() => {
     if (!inputValue.startsWith('/')) return []
     const query = inputValue.toLowerCase()
-    return SLASH_COMMANDS.filter((cmd) =>
+    const filtered = SLASH_COMMANDS.filter((cmd) =>
       cmd.command.startsWith(query) || cmd.label.toLowerCase().includes(query.slice(1))
     )
-  }, [inputValue])
+
+    // Sort by context-aware priority: priority commands first, then alphabetical
+    const sorted = [...filtered].sort((a, b) => {
+      const aIdx = contextAwareCommandOrder.indexOf(a.command)
+      const bIdx = contextAwareCommandOrder.indexOf(b.command)
+      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
+      if (aIdx !== -1) return -1
+      if (bIdx !== -1) return 1
+      return 0
+    })
+
+    return sorted
+  }, [inputValue, contextAwareCommandOrder])
+
+  // Flat list of visible commands for keyboard navigation (recent first, then non-recent)
+  const visibleSlashCommands = useMemo(() => {
+    const recentFiltered = recentSlashCommands.filter((cmd) =>
+      filteredSlashCommands.some((f) => f.command === cmd.command)
+    )
+    const nonRecent = filteredSlashCommands.filter((cmd) =>
+      !recentSlashCommands.some((r) => r.command === cmd.command)
+    )
+    return [
+      ...recentFiltered.map((cmd) => ({ cmd, isRecent: true })),
+      ...nonRecent.map((cmd) => ({ cmd, isRecent: false })),
+    ]
+  }, [filteredSlashCommands, recentSlashCommands])
 
   // Show/hide slash commands
   useEffect(() => {
@@ -1015,6 +1112,9 @@ export function IDEChatPanel() {
 
   // Handle slash command execution
   const executeSlashCommand = useCallback(async (cmd: SlashCommand) => {
+    // Save to recent commands
+    addRecentCommand(cmd.command)
+
     setInputValue('')
 
     // For /run, /edit, /explain, /fix, /refactor, /optimize, /search — these are handled server-side via the AI chat API
@@ -1350,6 +1450,15 @@ export function IDEChatPanel() {
     const msg = inputValue.trim()
     setInputValue('')
     setIsSending(true)
+
+    // Save slash command to recent list
+    if (msg.startsWith('/')) {
+      const commandPart = msg.split(/\s+/)[0]
+      const matchingCmd = SLASH_COMMANDS.find((c) => c.command === commandPart)
+      if (matchingCmd) {
+        addRecentCommand(matchingCmd.command)
+      }
+    }
 
     // Track whether this is the first message in a new session for auto-title
     const isNewSession = currentChatSessionId
@@ -1709,26 +1818,64 @@ export function IDEChatPanel() {
             exit={{ opacity: 0, y: 4 }}
             className="border-t bg-card/95 backdrop-blur-sm"
           >
-            <div className="p-1.5 space-y-0.5">
+            <div className="p-1.5 space-y-0.5 max-h-72 overflow-y-auto">
+              {/* Recently Used section */}
+              {visibleSlashCommands.some((v) => v.isRecent) && (
+                <>
+                  <div className="px-2 py-1 text-[9px] text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-1">
+                    <Clock className="size-2.5" />
+                    Recently Used
+                  </div>
+                  {visibleSlashCommands.map((item, i) => {
+                    if (!item.isRecent) return null
+                    return (
+                      <button
+                        key={`recent-${item.cmd.command}`}
+                        onClick={() => executeSlashCommand(item.cmd)}
+                        className={cn(
+                          'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition-colors',
+                          selectedSlashIndex === i ? 'bg-emerald-500/10 text-foreground' : 'hover:bg-muted/50 text-foreground/80',
+                        )}
+                      >
+                        {item.cmd.icon}
+                        <div className="flex-1 min-w-0 text-left">
+                          <span className="font-medium">{item.cmd.command}</span>
+                          <span className="text-muted-foreground ml-1.5">{item.cmd.description}</span>
+                        </div>
+                        <span className="text-[8px] text-emerald-500/60 shrink-0">recent</span>
+                      </button>
+                    )
+                  })}
+                  <div className="h-px bg-border/30 my-1" />
+                </>
+              )}
+              {/* All Commands section */}
               <div className="px-2 py-1 text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">
                 Commands
               </div>
-              {filteredSlashCommands.map((cmd, i) => (
-                <button
-                  key={cmd.command}
-                  onClick={() => executeSlashCommand(cmd)}
-                  className={cn(
-                    'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition-colors',
-                    i === selectedSlashIndex ? 'bg-emerald-500/10 text-foreground' : 'hover:bg-muted/50 text-foreground/80',
-                  )}
-                >
-                  {cmd.icon}
-                  <div className="flex-1 min-w-0 text-left">
-                    <span className="font-medium">{cmd.command}</span>
-                    <span className="text-muted-foreground ml-1.5">{cmd.description}</span>
-                  </div>
-                </button>
-              ))}
+              {visibleSlashCommands.map((item, i) => {
+                if (item.isRecent) return null
+                return (
+                  <button
+                    key={item.cmd.command}
+                    onClick={() => executeSlashCommand(item.cmd)}
+                    className={cn(
+                      'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition-colors',
+                      selectedSlashIndex === i ? 'bg-emerald-500/10 text-foreground' : 'hover:bg-muted/50 text-foreground/80',
+                    )}
+                  >
+                    {item.cmd.icon}
+                    <div className="flex-1 min-w-0 text-left">
+                      <span className="font-medium">{item.cmd.command}</span>
+                      <span className="text-muted-foreground ml-1.5">{item.cmd.description}</span>
+                    </div>
+                    {/* Context-aware badge */}
+                    {contextAwareCommandOrder.indexOf(item.cmd.command) !== -1 && (
+                      <span className="text-[8px] text-emerald-500/60 shrink-0">suggested</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </motion.div>
         )}
@@ -1757,17 +1904,21 @@ export function IDEChatPanel() {
               }
               // Navigate slash commands with arrow keys
               if (showSlashCommands) {
+                const totalItems = visibleSlashCommands.length
                 if (e.key === 'ArrowDown') {
                   e.preventDefault()
-                  setSelectedSlashIndex((prev) => Math.min(prev + 1, filteredSlashCommands.length - 1))
+                  setSelectedSlashIndex((prev) => Math.min(prev + 1, totalItems - 1))
                 }
                 if (e.key === 'ArrowUp') {
                   e.preventDefault()
                   setSelectedSlashIndex((prev) => Math.max(prev - 1, 0))
                 }
-                if (e.key === 'Tab' && filteredSlashCommands.length > 0) {
+                if (e.key === 'Tab' && totalItems > 0) {
                   e.preventDefault()
-                  executeSlashCommand(filteredSlashCommands[selectedSlashIndex])
+                  const selectedItem = visibleSlashCommands[selectedSlashIndex]
+                  if (selectedItem) {
+                    executeSlashCommand(selectedItem.cmd)
+                  }
                 }
               }
             }}

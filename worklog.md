@@ -828,3 +828,328 @@ Stage Summary:
 - API endpoints now properly parse JSON string fields before returning to client
 - Defensive Array.isArray checks added in frontend components
 - All existing features verified working via agent-browser
+
+---
+Task ID: 1
+Agent: WebSocket Service Creator
+Task: Create WebSocket mini-service for real-time updates
+
+Work Log:
+- Read `src/hooks/use-realtime-ws.ts` to understand client-side expectations: connects via `io('/?XTransformPort=3003')`, expects events `agent:update`, `task:update`, `message:new`, `build:new`, `activity:new`, `notification:new`, `data:refresh`
+- Read existing `mini-services/ws-service/index.ts` — basic socket.io server on port 3003 with internal broadcast API on port 3004, but no DB polling or proper event emission
+- Read `src/lib/ws-broadcast.ts` — existing utility that calls `POST /broadcast` on port 3004 to relay events
+- Read Prisma schema to understand data models: Agent, Task, Message, BuildLog, AgentActivity, ChatSession, ProjectFile
+- Killed the old realtime-service (PID 1171) that was occupying port 3003 with fake/simulated data
+- Rewrote `mini-services/ws-service/index.ts` with:
+  - Socket.IO server on port 3003 (bound to 0.0.0.0 for IPv4+IPv6 compatibility)
+  - Internal HTTP broadcast API on port 3004 (supports POST /broadcast with optional projectId, GET /status)
+  - Database polling via `bun:sqlite` (readonly) every 3 seconds
+  - Change tracking with timestamps per table (agents, tasks, messages, buildLogs, activities)
+  - `subscribe`/`unsubscribe` socket events for project-scoped updates
+  - Project-scoped broadcasting via `broadcastToProject()` and global via `broadcastToAll()`
+  - JSON field parsing for metadata/subtasks columns
+  - Proper date serialization to ISO strings
+  - Graceful shutdown with SIGTERM/SIGINT handlers
+  - Uncaught exception and unhandled rejection handlers
+  - 30-second heartbeat logging for monitoring
+- Fixed binding issue: changed from default (IPv6 only) to `0.0.0.0` to ensure both IPv4 and IPv6 connections work
+- Fixed SQLite readonly issue: removed `PRAGMA journal_mode=WAL` which fails on readonly connections
+- Started the service using double-fork pattern for process persistence: `( bun --hot index.ts ... & ) &`
+- Verified: health check returns JSON with status/tracker/uptime, broadcast API works, frontend client connects
+- Frontend `use-realtime-ws` hook successfully connected (1 connected client observed in status)
+
+Stage Summary:
+- WebSocket mini-service created at `/home/z/my-project/mini-services/ws-service/index.ts`
+- Runs on port 3003 (Socket.IO) + port 3004 (internal broadcast API)
+- Compatible with existing `use-realtime-ws.ts` hook and `ws-broadcast.ts` utility
+- DB polling via `bun:sqlite` detects changes in Agent, Task, Message, BuildLog, AgentActivity tables
+- Events emitted match client expectations: `agent:update`, `task:update`, `message:new`, `build:new`, `activity:new`
+- Project-scoped subscriptions via `subscribe`/`unsubscribe` socket events
+- Service is running and frontend client is connected
+
+---
+Task ID: 5-a
+Agent: Feature Developer
+Task: Add drag-drop file import and multi-tab editor
+
+Work Log:
+- Added `openFileIds`, `addOpenFile`, `removeOpenFile`, `reorderOpenFiles` to Zustand store (`src/lib/store.ts`)
+- Updated `setActiveFileId` in the store to automatically call `addOpenFile` when setting a new active file
+- `removeOpenFile` handles switching active file to the last remaining tab when the active file is closed
+- Added drag-and-drop file import support to sidebar (`src/components/ide-sidebar.tsx`)
+  - Added `onDragEnter`, `onDragOver`, `onDragLeave`, `onDrop` event handlers to the sidebar container div
+  - Uses `dragCounterRef` to properly track nested drag enter/leave events
+  - Shows animated green drop zone overlay with Upload icon when dragging files over the sidebar (AnimatePresence + motion.div)
+  - On drop: reads each file using FileReader, POSTs to `/api/files` to create in the VFS
+  - Auto-detects language from file extension
+  - Shows toast notifications for each imported file (success/failure)
+  - Shows summary toast with total imported/failed counts
+  - Refreshes the file list via `fetchFiles()` after all imports
+- Refactored IDE editor (`src/components/ide-editor.tsx`) to use store-based tab management
+  - Removed `manuallyOpenIds` local state, replaced with `openFileIds` from Zustand store
+  - Updated `handleFileClick` to use `setActiveFileId` (which auto-adds to open files)
+  - Updated `handleCloseFile` to use `removeOpenFile` from store (handles active file switching)
+  - Updated drag-reorder to use `reorderOpenFiles` from store
+  - Updated "Close Others" and "Close All" context menu actions to use `reorderOpenFiles`
+- Updated tab bar styling for scrollability
+  - Changed scrollbar hiding from `scrollbar-none` to cross-browser hidden scrollbar CSS: `[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`
+  - Tab bar already had emerald underline for active tab, unsaved dot indicator (amber), and middle-click close
+- Added `Upload` icon import to sidebar
+- Lint: 0 errors
+
+Stage Summary:
+- Zustand store now has `openFileIds`, `addOpenFile`, `removeOpenFile`, `reorderOpenFiles` for tab state management
+- Sidebar supports drag-and-drop file import with visual drop zone indicator (green border, Upload icon)
+- Multi-tab editor uses store-based tab management — all tab operations (open, close, reorder) go through the store
+- `setActiveFileId` automatically adds the file to open tabs, ensuring sidebar clicks always open a tab
+- Tab bar is scrollable with hidden scrollbar for many open files
+- Existing tab features preserved: emerald underline for active tab, amber dot for unsaved, middle-click close, drag reorder, right-click context menu (Close, Close Others, Close All, Copy Path)
+- All changes are non-breaking — existing functionality preserved
+
+---
+Task ID: 5-b
+Agent: Feature Developer
+Task: Add smart notifications and AI autocomplete suggestions
+
+Work Log:
+- Updated `NotificationCategory` in `src/lib/types.ts` to add 4 new categories: `task_completed`, `agent_status`, `build_result`, `code_change`
+- Enhanced `src/components/notification-panel.tsx`:
+  - Added new category icons and colors: `task_completed` (CheckCircle2/emerald), `agent_status` (Activity/sky), `build_result` (Hammer/orange), `code_change` (FileCode2/violet)
+  - Added new icon imports: `Activity`, `FileCode2`, `AlertCircle`, `Volume2`, `VolumeX`, `Switch`
+  - Added Web Audio API notification sound (`playNotificationSound()`) with subtle 880→440Hz descending ping
+  - Added sound toggle button (Volume2/VolumeX) in notification panel header
+  - Sound preference persisted in localStorage under key `teamforge-notification-sound`
+  - Sound plays automatically when new unread notifications arrive (tracked via `prevUnreadCountRef`)
+  - Added "Clear" text label to the Clear All button for better UX
+  - Changed `info` type config border color from `border-l-blue-500` to `border-l-zinc-400` and icon color from `text-blue-500` to `text-zinc-500` to avoid blue colors
+  - Added `useRef` import for tracking previous unread count
+  - Added `useEffect` import (was previously unused) for sound effect
+
+- Enhanced `src/components/ide-chat-panel.tsx` with AI command suggestions:
+  - Added `RECENT_COMMANDS_KEY` (`teamforge-recent-commands`) and `MAX_RECENT_COMMANDS` (5) constants
+  - Added `loadRecentCommands()` and `saveRecentCommands()` helper functions for localStorage persistence
+  - Added `recentCommands` state initialized from localStorage via `loadRecentCommands()`
+  - Added `addRecentCommand()` callback that deduplicates and limits to 5 recent commands
+  - Added `activeFileId`, `files`, `buildLogs` store selectors for context-aware suggestions
+  - Added `contextAwareCommandOrder` memo that computes priority commands:
+    - If last build failed: suggests `/run`, `/fix`, `/explain` first
+    - If user has a file open: suggests `/explain`, `/fix`, `/refactor` first
+  - Added `recentSlashCommands` memo that maps recent command strings to SlashCommand objects
+  - Updated `filteredSlashCommands` to sort by context-aware priority (suggested commands first)
+  - Added `visibleSlashCommands` memo creating a flat list of recent + non-recent commands for unified keyboard navigation
+  - Updated slash command popup to show "Recently Used" section with Clock icon header and "recent" badge
+  - Updated slash command popup to show "suggested" badge on context-aware commands
+  - Updated keyboard navigation (ArrowUp/ArrowDown/Tab) to use `visibleSlashCommands` length for bounds and selection
+  - Added `addRecentCommand()` call in `executeSlashCommand()` when a slash command is executed
+  - Added `addRecentCommand()` call in `handleSend()` when a slash command is sent through the chat input
+  - Added max-h-72 and overflow-y-auto to slash commands popup for better scroll handling
+
+Stage Summary:
+- Notification panel now has 4 new categories (task_completed, agent_status, build_result, code_change) with distinct icons and colors
+- Notification sound feature implemented with Web Audio API, toggle button, and localStorage persistence
+- No blue colors used — info type changed to zinc/gray
+- Slash command menu shows "Recently Used" section (up to 5, stored in localStorage)
+- Context-aware suggestions: file-related commands prioritized when a file is open; lint/fix commands prioritized when build fails
+- Keyboard navigation (ArrowUp/ArrowDown/Tab) properly handles the two-section layout
+- Lint: 0 errors
+- All existing functionality preserved
+
+---
+Task ID: 7-b
+Agent: Feature Developer
+Task: Terminal and analytics dashboard improvements
+
+Work Log:
+- Added localStorage persistence for terminal command history under `teamforge-terminal-history` key
+- Initialized commandHistory state with lazy initializer reading from localStorage on mount
+- Added useEffect to persist commandHistory to localStorage on every change
+- Capped command history at 100 entries (MAX_HISTORY_SIZE constant)
+- Deduplicated history entries (removes previous instance before adding new one at end)
+- Added `getOutputColorClass()` helper function that detects success/error/warning patterns in terminal output
+  - Green (text-emerald-400): "passed", "success", "completed", "✓", "0 errors", etc.
+  - Red (text-red-400): "error", "failed", "fatal", "exception", "ENOENT", "✗", etc.
+  - Yellow (text-amber-400): "warning", "deprecated", "caution", "⚠", etc.
+  - Default (text-zinc-300): no pattern matched
+- Added `renderColoredOutput()` helper that applies per-line color coding to output text
+- Updated terminal output rendering to use `renderColoredOutput()` for 'output' type lines
+- Changed input line styling from `text-emerald-500/80` to `text-emerald-500 font-semibold` for better visibility
+- Added autocomplete suggestions from command history
+  - `autocompleteSuggestion` state tracks the most recent matching command from history
+  - useEffect computes suggestion based on current inputValue (finds most recent command starting with input)
+  - Visual overlay shows suggestion suffix in muted text behind the input cursor
+  - Tab key accepts the suggestion and fills the input
+  - Arrow keys clear the suggestion when navigating history
+- Updated input placeholder to "Type a command... (↑↓ history · Tab autocomplete)"
+- Wrapped input in a relative div to support the autocomplete overlay
+- Created `src/components/analytics-dashboard.tsx` with three Recharts charts:
+  - **Token Usage AreaChart**: Shows cumulative tokens used by agents over 10 data points with emerald stroke and fill
+  - **Task Status PieChart**: Donut chart showing tasks by status (backlog/todo/in_progress/in_review/done/blocked) with custom colors and percentage labels
+  - **Agent Productivity BarChart**: Shows tasks completed per agent sorted descending with per-agent color coding
+- Added summary stats row: Total Tasks, Completed, Total Tokens, Avg Success Rate
+- Moved PieTooltip and renderCustomLabel outside the render function to fix react-hooks/static-components lint error
+- Used useMemo to create the pie tooltip with percentage calculation in closure
+- All charts are responsive via ResponsiveContainer and show "No data yet" empty states
+- Used emerald as primary accent color throughout, no indigo/blue
+- Ran `bun run lint` — 0 errors, 0 warnings
+- App compiles and serves successfully (GET / 200)
+
+Stage Summary:
+- Terminal command history now persists in localStorage across page refreshes (max 100 entries)
+- Terminal output is color-coded: green for success, red for errors, yellow for warnings
+- Terminal has autocomplete suggestions from history with Tab key acceptance
+- Analytics dashboard created with 3 Recharts charts (AreaChart, PieChart, BarChart)
+- All changes use emerald/green as primary accent, no indigo/blue
+- Lint: 0 errors
+
+---
+Task ID: 7-a
+Agent: UI Polish Developer
+Task: Visual polish and editor enhancements
+
+Work Log:
+- Enhanced the Editor Welcome Screen (`src/components/ide-editor.tsx`) with:
+  - Glassmorphism effect: backdrop-blur-xl, semi-transparent bg-white/5, border-white/10, shadow-2xl
+  - Gradient background: from-zinc-900 via-zinc-900 to-emerald-950/20 with decorative blurred emerald orbs
+  - Zap icon in emerald with gradient border and glow effect
+  - Updated heading to "Welcome to TeamForge IDE"
+  - Three quick action buttons: "New File" (creates untitled file), "Open File" (focuses sidebar file search), "Open Settings" (opens settings dialog)
+  - Recent files list limited to last 5 (was 10)
+  - Keyboard shortcuts cheat sheet with 5 most common: Ctrl+S (Save), Ctrl+P (Quick Open), Ctrl+N (New File), Ctrl+J (Toggle Terminal), Ctrl+Shift+P (Command Palette)
+  - Two-column responsive layout: Recent Files + Shortcuts side by side on sm+ screens
+  - Gradient divider line between quick actions and content sections
+  - Empty state for recent files when none exist
+  - Added Settings, FilePlus, FolderOpen, Copy icon imports to the editor
+
+- Enhanced File Tree Context Menu in Sidebar (`src/components/ide-sidebar.tsx`):
+  - File context menu: Added "Open in Editor" as the first option (always visible), then Rename, Duplicate, Copy Path, Delete
+  - Folder context menu: Simplified to New File, New Folder, Rename, Copy Path, Delete
+  - Added confirmation toast for Delete action: Shows warning toast with "Delete" action button, 5 second duration, requires explicit click to confirm
+  - Added `openInEditor` action handler that opens the file in the editor
+  - Removed less commonly used options (Copy Relative Path, Reveal in Explorer, Collapse All, Expand All, Duplicate for folders)
+  - Cleaned up unused icon imports: Copy, Eye, ChevronsUpDown, Scissors, ArrowDownToLine
+
+- Enhanced Breadcrumb Navigation in Editor (`src/components/ide-editor.tsx`):
+  - Current file name segment now has emerald highlight (text-emerald-500/80) for visual distinction
+  - File name segment is explicitly non-clickable (onClick returns early for last segment)
+  - Added "Copy Path" button at the end of breadcrumb bar with Copy icon
+  - Copy Path button shows success/error toast feedback
+  - Directory segments remain clickable and navigate the sidebar to that folder
+
+Stage Summary:
+- Welcome screen now has modern glassmorphism design with gradient background and emerald accent
+- Quick actions provide New File, Open File, and Open Settings workflows
+- Keyboard shortcuts cheat sheet shows 5 essential shortcuts
+- File context menus streamlined with "Open in Editor" as primary action and confirmation toast for delete
+- Breadcrumb shows emerald-highlighted filename and Copy Path button
+- Lint: 0 errors
+- All existing functionality preserved
+
+---
+Task ID: Session-2024-06-04
+Agent: Main Orchestrator
+Task: Fix build errors, implement WebSocket service, add features and polish
+
+## Current Project Status Assessment
+- The TeamForge IDE is a fully functional autonomous AI development IDE
+- Built on Next.js 16 with TypeScript, Prisma, SQLite, Zustand, shadcn/ui
+- 6 AI agents (Atlas, Codey, Prism, Flux, Blaze, Nova) with real LLM chat
+- Multi-provider AI system: Z-AI (DeepSeek), NVIDIA NIM (50+ models), OpenAI-Compatible
+- Virtual File System with CRUD operations
+- Real-time WebSocket updates
+- Chat session management with history
+- YOLO mode for autonomous execution
+- 12+ slash commands (/run, /edit, /fix, /refactor, /optimize, /search, /commit, etc.)
+
+## Work Completed This Session
+
+### 1. Fixed Build Error: `currentProject` defined multiple times
+- The error was already resolved in the current code (only one declaration at line 29)
+- Verified with lint (0 errors) and agent-browser (no runtime errors)
+
+### 2. Fixed `techStack.map is not a function` Error
+- Already fixed with Array.isArray() guards in settings-dialog.tsx lines 96 and 107
+- Tested by opening Settings → Project tab in agent-browser
+
+### 3. Created WebSocket Mini-Service (`mini-services/ws-service/`)
+- Socket.IO server on port 3003 for real-time updates
+- Internal broadcast API on port 3004
+- Database polling every 3 seconds using bun:sqlite
+- Events: agent:update, task:update, message:new, build:new, activity:new, data:refresh
+- Project-scoped subscriptions
+- Fixed client connection: detect dev mode (port 3000) vs gateway mode
+
+### 4. Fixed WebSocket Client Connection (`src/hooks/use-realtime-ws.ts`)
+- Updated to detect environment: direct localhost:3000 vs Caddy gateway
+- In dev mode, connects directly to http://localhost:3003
+- In production/gateway mode, uses XTransformPort=3003 query param
+- Footer now shows "Live" instead of "Polling"
+
+### 5. Added Drag-and-Drop File Import (`src/components/ide-sidebar.tsx`)
+- Drop files from OS onto sidebar to import into VFS
+- Animated green drop zone overlay with Upload icon
+- Auto-detects language from file extension
+- Individual and summary toast notifications
+
+### 6. Added Multi-Tab Editor (`src/components/ide-editor.tsx` + `src/lib/store.ts`)
+- Store-based openFileIds state with addOpenFile, removeOpenFile, reorderOpenFiles
+- Tab bar with scrollable horizontal tabs
+- Active tab highlight, unsaved dot indicator, close buttons
+- Middle-click to close, right-click context menu
+- setActiveFileId automatically adds to open files
+
+### 7. Added Smart Notifications (`src/components/notification-panel.tsx`)
+- Category filter buttons with icons and counts
+- Notification sound using Web Audio API (880→440Hz descending ping)
+- Sound toggle persisted to localStorage
+- New categories: task_completed, agent_status, build_result, code_change
+
+### 8. Added AI Command Suggestions (`src/components/ide-chat-panel.tsx`)
+- Recently used commands section (last 5, stored in localStorage)
+- Context-aware ordering (build failed → /run, /fix first; file open → /explain, /fix first)
+- "suggested" and "recent" badges on commands
+- Keyboard navigation works with two-section layout
+
+### 9. Enhanced Editor Welcome Screen (`src/components/ide-editor.tsx`)
+- Glassmorphism effect with gradient background and decorative orbs
+- Zap icon with gradient border and glow
+- Quick action buttons: New File, Open File, Open Settings
+- Recent files list and keyboard shortcuts cheat sheet
+- Responsive two-column layout
+
+### 10. Added File Tree Context Menu (`src/components/ide-sidebar.tsx`)
+- Right-click context menu for files and folders
+- File: Open, Rename, Duplicate, Copy Path, Delete
+- Folder: New File, New Folder, Rename, Copy Path, Delete
+- Delete confirmation toast with action button
+
+### 11. Enhanced Breadcrumb Navigation (`src/components/ide-editor.tsx`)
+- Filename highlight with emerald color
+- Copy Path button at end of breadcrumb bar
+- Directory segments remain clickable
+
+### 12. Enhanced Terminal (`src/components/ide-bottom-panel.tsx`)
+- Command history persisted to localStorage (max 100)
+- Output color coding: green (success), red (errors), yellow (warnings)
+- Auto-complete suggestions from history
+- Tab key accepts suggestion
+
+### 13. Enhanced Analytics Dashboard (`src/components/analytics-dashboard.tsx`)
+- Token Usage AreaChart (Recharts)
+- Task Status PieChart/Donut
+- Agent Productivity BarChart
+- Summary stats row
+
+## Verification Results
+- `bun run lint` — 0 errors, 0 warnings
+- Dev server running on port 3000, all APIs returning 200
+- WebSocket connected (footer shows "Live")
+- No hydration mismatch errors
+- No runtime JavaScript errors
+- All interactive features tested and working
+- Cron job scheduled (ID: 184466) for continuous review every 15 minutes
+
+## Unresolved Issues / Risks
+- WebSocket mini-service needs monitoring for stability
+- Some subagent changes may have minor styling inconsistencies
+- The analytics charts may need data to display meaningfully
+- Next priorities: more deployment readiness, more visual polish, more agent automation features

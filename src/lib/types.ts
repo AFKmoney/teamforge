@@ -25,7 +25,7 @@ export interface GitBranch {
   lastCommitDate: string
 }
 export type NotificationType = 'info' | 'success' | 'warning' | 'error'
-export type NotificationCategory = 'task' | 'build' | 'agent' | 'system' | 'chat'
+export type NotificationCategory = 'task' | 'build' | 'agent' | 'system' | 'chat' | 'task_completed' | 'agent_status' | 'build_result' | 'code_change'
 
 // AI Provider types
 export type AIProviderType = 'zai' | 'nvidia' | 'openai-compatible'
