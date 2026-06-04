@@ -275,7 +275,14 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   // Current project
   currentProject: null,
-  setCurrentProject: (project) => set({ currentProject: project }),
+  setCurrentProject: (project) => {
+    // Ensure techStack is always an array (API may return JSON string from Prisma)
+    if (project && typeof project.techStack === 'string') {
+      try { project.techStack = JSON.parse(project.techStack as unknown as string) } catch { project.techStack = [] }
+    }
+    if (project && !Array.isArray(project.techStack)) project.techStack = []
+    set({ currentProject: project })
+  },
 
   // Settings — always start with defaults to avoid hydration mismatch
   // (loadSettings() reads localStorage which differs between server and client)

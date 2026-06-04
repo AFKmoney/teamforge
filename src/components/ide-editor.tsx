@@ -13,6 +13,7 @@ import { FindReplaceBar } from '@/components/find-replace-bar'
 import { GoToLineDialog } from '@/components/go-to-line-dialog'
 import { FileCreationDialog } from '@/components/file-creation-dialog'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // Auto-detect language from file extension
 function detectLanguage(path: string): string {
@@ -581,6 +582,32 @@ export function IDEEditor() {
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null)
   const [renameTabId, setRenameTabId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
+
+  // Track file loading state (when activeFileId changes but file content hasn't loaded yet)
+  const [fileLoading, setFileLoading] = useState(false)
+  const prevActiveFileIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (activeFileId !== prevActiveFileIdRef.current) {
+      prevActiveFileIdRef.current = activeFileId
+      if (activeFileId) {
+        const fileExists = files.find((f) => f.id === activeFileId)
+        if (!fileExists) {
+          setFileLoading(true)
+        } else {
+          setFileLoading(false)
+        }
+      } else {
+        setFileLoading(false)
+      }
+    }
+  }, [activeFileId, files])
+
+  // Clear file loading when the file appears
+  useEffect(() => {
+    if (fileLoading && activeFileId && files.find((f) => f.id === activeFileId)) {
+      setFileLoading(false)
+    }
+  }, [fileLoading, activeFileId, files])
 
   // Recently opened files (persisted to localStorage)
   const [recentlyOpenedFiles, setRecentlyOpenedFiles] = useState<string[]>(() => {
@@ -1659,7 +1686,14 @@ export function IDEEditor() {
       <FindReplaceBar />
 
       {/* Code editor area */}
-      {activeFile ? (
+      {fileLoading ? (
+        <div className="flex-1 flex items-center justify-center bg-zinc-900 dark:bg-zinc-950">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="size-6 text-emerald-500 animate-spin" />
+            <p className="text-xs text-muted-foreground/60">Loading file...</p>
+          </div>
+        </div>
+      ) : activeFile ? (
         <div className="flex-1 flex overflow-hidden relative">
           <GoToLineDialog />
           <div

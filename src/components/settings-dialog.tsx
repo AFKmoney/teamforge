@@ -93,7 +93,7 @@ function ProjectTab() {
 
   const [projectName, setProjectName] = useState(currentProject?.name || '')
   const [projectDescription, setProjectDescription] = useState(currentProject?.description || '')
-  const [techStack, setTechStack] = useState<string[]>(currentProject?.techStack || [])
+  const [techStack, setTechStack] = useState<string[]>(Array.isArray(currentProject?.techStack) ? currentProject.techStack : [])
   const [status, setStatus] = useState(currentProject?.status || 'active')
   const [repoUrl, setRepoUrl] = useState(currentProject?.repoUrl || '')
   const [isSaving, setIsSaving] = useState(false)
@@ -104,7 +104,7 @@ function ProjectTab() {
     if (currentProject) {
       setProjectName(currentProject.name)
       setProjectDescription(currentProject.description)
-      setTechStack(currentProject.techStack)
+      setTechStack(Array.isArray(currentProject.techStack) ? currentProject.techStack : [])
       setStatus(currentProject.status)
       setRepoUrl(currentProject.repoUrl || '')
     }
@@ -133,10 +133,11 @@ function ProjectTab() {
       })
       if (res.ok) {
         const updated = await res.json()
-        // Parse techStack back from JSON if needed
+        // Ensure techStack is an array (API should return arrays, but be defensive)
         if (typeof updated.techStack === 'string') {
-          updated.techStack = JSON.parse(updated.techStack)
+          try { updated.techStack = JSON.parse(updated.techStack) } catch { updated.techStack = [] }
         }
+        if (!Array.isArray(updated.techStack)) updated.techStack = []
         setCurrentProject(updated)
         toast.success('Project settings saved')
       } else {

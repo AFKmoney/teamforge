@@ -16,6 +16,7 @@ interface ChatRequest {
   openaiCompatibleApiKey?: string
   openaiCompatibleModelId?: string
   yoloMode?: boolean
+  activeFilePath?: string
 }
 
 export async function POST(req: NextRequest) {
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
       openaiCompatibleApiKey,
       openaiCompatibleModelId,
       yoloMode = false,
+      activeFilePath,
     } = body
 
     if (!message) {
@@ -45,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     // Handle slash commands via the AI chat endpoint as well
     if (message.startsWith('/')) {
-      return handleSlashCommand(message, projectId, agentId ?? null, provider, model, nvidiaApiKey, openaiCompatibleBaseUrl, openaiCompatibleApiKey, openaiCompatibleModelId)
+      return handleSlashCommand(message, projectId, agentId ?? null, provider, model, nvidiaApiKey, openaiCompatibleBaseUrl, openaiCompatibleApiKey, openaiCompatibleModelId, activeFilePath)
     }
 
     // Ensure a chat session exists — create one if needed
@@ -83,7 +85,8 @@ export async function POST(req: NextRequest) {
     })
 
     // Fetch project context for the LLM — rich context for awareness
-    const [files, tasks, agents, buildLogs, recentMessages] = await Promise.all([
+    const [project, files, tasks, agents, buildLogs, recentMessages] = await Promise.all([
+      db.project.findUnique({ where: { id: projectId } }),
       db.projectFile.findMany({
         where: { projectId },
         orderBy: { path: 'asc' },
@@ -108,8 +111,19 @@ export async function POST(req: NextRequest) {
       }),
     ])
 
+    // Fetch active file content if activeFilePath is provided
+    let activeFile: { path: string; content: string } | null = null
+    if (activeFilePath) {
+      const activeFileRecord = await db.projectFile.findFirst({
+        where: { projectId, path: activeFilePath, isDirectory: false },
+      })
+      if (activeFileRecord) {
+        activeFile = { path: activeFileRecord.path, content: activeFileRecord.content }
+      }
+    }
+
     // Build context-aware system prompt
-    const systemPrompt = buildContextAwareSystemPrompt(files, tasks, agents, buildLogs, recentMessages, yoloMode)
+    const systemPrompt = buildContextAwareSystemPrompt(files, tasks, agents, buildLogs, recentMessages, yoloMode, project, activeFile)
 
     const conversationHistory = sessionMessages.map((m) => {
       try {
@@ -192,6 +206,8 @@ function buildContextAwareSystemPrompt(
   buildLogs: { output: string; status: string; type: string; createdAt: Date }[],
   recentMessages: { content: string; type: string; agent: { name: string; role: string } | null; createdAt: Date }[],
   yoloMode: boolean = false,
+  project: { name: string; description: string; status: string; techStack: string } | null = null,
+  activeFile: { path: string; content: string } | null = null,
 ): string {
   // File tree structure — list all paths
   const directoryPaths = files.filter((f) => f.isDirectory).map((f) => f.path)
@@ -235,9 +251,62 @@ function buildContextAwareSystemPrompt(
         .join('\n')
     : 'No recent chat history.'
 
+  // Project structure awareness
+  let projectContext = ''
+  if (project) {
+    let techStack: string[] = []
+    try {
+      techStack = typeof project.techStack === 'string' ? JSON.parse(project.techStack) : project.techStack
+    } catch {
+      techStack = []
+    }
+    projectContext = `## Project Info:
+- **Name**: ${project.name}
+- **Description**: ${project.description || 'No description'}
+- **Status**: ${project.status}
+- **Tech Stack**: ${techStack.length > 0 ? techStack.join(', ') : 'Not specified'}`
+  }
+
+  // Dependency awareness — scan package.json from VFS
+  let dependencyContext = ''
+  const packageJsonFile = files.find((f) => !f.isDirectory && (f.path.endsWith('/package.json') || f.path === 'package.json'))
+  if (packageJsonFile) {
+    try {
+      const pkg = JSON.parse(packageJsonFile.content)
+      const deps = pkg.dependencies ? Object.keys(pkg.dependencies) : []
+      const devDeps = pkg.devDependencies ? Object.keys(pkg.devDependencies) : []
+      if (deps.length > 0 || devDeps.length > 0) {
+        dependencyContext = `## Dependencies:
+**Runtime**: ${deps.length > 0 ? deps.slice(0, 30).join(', ') : 'none'}
+**Dev**: ${devDeps.length > 0 ? devDeps.slice(0, 30).join(', ') : 'none'}`
+      }
+    } catch {
+      // Invalid JSON, skip
+    }
+  }
+
+  // Active file context
+  let activeFileContext = ''
+  if (activeFile) {
+    const lines = activeFile.content.split('\n')
+    const preview = lines.length > 100 ? lines.slice(0, 100).join('\n') + '\n... (truncated)' : activeFile.content
+    activeFileContext = `## 📌 Active File (User is currently editing this file):
+### ${activeFile.path} (${lines.length} lines)
+\`\`\`
+${preview}
+\`\`\`
+Pay special attention to this file — the user is actively working on it. Reference it by name and provide contextual suggestions.`
+  }
+
   return `You are an AI development assistant in the TeamForge IDE — an autonomous development platform where AI agents collaborate to build software.
 
-You have deep access to the project environment. Use this information to give relevant, specific, and actionable answers.
+You have deep access to the project environment. You can directly execute commands, edit files, and make changes — you are not just a chatbot, you are an active participant in the development workflow. When the user asks you to do something, prefer taking action over explaining what you would do.
+
+${projectContext}
+
+${dependencyContext}
+
+${activeFileContext}
 
 ## Project File Tree:
 ${directoryPaths.length > 0 ? `Directories:\n${directoryPaths.map((p) => `  📁 ${p}`).join('\n')}` : 'No directories.'}
@@ -261,24 +330,36 @@ ${buildContext}
 ${chatSummary}
 
 ## Your Capabilities:
-You can help with:
-- Code analysis, review, and suggestions
-- File creation and editing (use /edit or /create_file commands)
-- Running tests and builds (use /run or /run_tests commands)
-- Explaining code and architecture (use /explain command)
-- Project status and agent management
-- Debugging and troubleshooting
+You are an autonomous agent that can directly:
+- **Edit files** — Use /edit <file_path> <instruction> to modify files in-place
+- **Create files** — Use /create_file <path> [content] to create new files
+- **Run commands** — Use /run <command> to execute whitelisted shell commands (bun run lint/build/test/check)
+- **Explain code** — Use /explain <file_path> to analyze and explain any file
+- **Fix bugs** — Use /fix <file_path> to analyze and fix issues in a file
+- **Refactor code** — Use /refactor <file_path> to improve code quality
+- **Optimize performance** — Use /optimize <file_path> to improve performance
+- **Search codebase** — Use /search <query> to search through project files
+- **Generate commits** — Use /commit to generate a meaningful commit message
+- **Manage agents** — Assign tasks, check status, coordinate the team
+- **Debug and troubleshoot** — Analyze errors, suggest fixes, run diagnostics
+
+When suggesting code changes, include COMPLETE, WORKING code — not snippets. When you identify issues, fix them directly rather than just describing the problem.
 
 ## Available Slash Commands:
 - /run <command> — Execute a whitelisted command (bun run lint/build/test/check)
 - /edit <file_path> <instruction> — AI-assisted file editing
 - /explain <file_path> — Get an AI explanation of a file
+- /fix <file_path> — AI analyzes and fixes bugs/issues in a file
+- /refactor <file_path> — AI refactors a file for better code quality
+- /optimize <file_path> — AI optimizes a file for performance
+- /search <query> — AI searches project files for relevant code
+- /commit — AI generates a commit message based on current changes
 - /create_file <path> [content] — Create a new project file
 - /run_tests — Assign a test task to the tester agent
 - /deploy — Assign a deploy task to the DevOps agent
 - /status — Show project status overview
 
-Be concise, helpful, and action-oriented. If you see issues in the code or tasks, mention them. If someone asks about the project state, reference real file names and task statuses. When suggesting code, include complete, working examples.${yoloMode ? `
+Be concise, helpful, and action-oriented. If you see issues in the code or tasks, mention them proactively. If someone asks about the project state, reference real file names and task statuses. When suggesting code, include complete, working examples.${yoloMode ? `
 
 ## ⚡ YOLO MODE ACTIVE ⚡
 YOLO mode is enabled. You have FULL AUTONOMY to execute tasks without asking for user confirmation. This means:
@@ -303,6 +384,7 @@ async function handleSlashCommand(
   openaiCompatibleBaseUrl?: string,
   openaiCompatibleApiKey?: string,
   openaiCompatibleModelId?: string,
+  activeFilePath?: string,
 ) {
   const parts = message.trim().split(/\s+/)
   const command = parts[0].toLowerCase()
@@ -670,9 +752,423 @@ ${statusSummary.recentActivity.map((a) => `  - **${a.from}**: ${a.content}${a.co
       return NextResponse.json({ message: statusMessage, data: statusSummary })
     }
 
+    case '/fix': {
+      const filePath = parts[1] || activeFilePath
+
+      if (!filePath) {
+        return NextResponse.json({
+          error: 'Usage: /fix <file_path>\nExample: /fix src/app/page.tsx',
+        }, { status: 400 })
+      }
+
+      const file = await db.projectFile.findFirst({
+        where: { projectId, path: filePath, isDirectory: false },
+      })
+
+      if (!file) {
+        return NextResponse.json({ error: `File not found: ${filePath}` }, { status: 404 })
+      }
+
+      const fixPrompt = `You are an expert bug-finder and fixer. Analyze the following file for bugs, issues, anti-patterns, and potential runtime errors. Then provide the COMPLETE fixed file content. Do not include explanations — just the fixed code. If there are no issues, return the file unchanged.
+
+File: ${file.path} (${file.content.split('\n').length} lines)
+
+\`\`\`
+${file.content.length > 6000 ? file.content.slice(0, 6000) + '\n... (truncated)' : file.content}
+\`\`\`
+
+Analyze for: type errors, null/undefined access, missing error handling, race conditions, memory leaks, incorrect logic, security vulnerabilities, and other bugs. Output the COMPLETE fixed file:`
+
+      let fixedContent = ''
+      try {
+        fixedContent = await callAI(fixPrompt)
+      } catch {
+        // fall through
+      }
+
+      if (!fixedContent) {
+        const fallbackMsg = await db.message.create({
+          data: {
+            projectId,
+            content: `⚠️ Could not generate fix for ${filePath}. The AI provider returned an empty response. Try again.`,
+            type: 'system',
+            metadata: JSON.stringify({ sender: 'system', command: 'fix', path: filePath }),
+          },
+        })
+        return NextResponse.json({ message: fallbackMsg })
+      }
+
+      // Clean the response — remove markdown code fences if present
+      const cleanedContent = fixedContent
+        .replace(/^```[\w]*\n?/, '')
+        .replace(/\n?```$/, '')
+        .trim()
+
+      // Update the file if content changed
+      if (cleanedContent !== file.content) {
+        await db.projectFile.update({
+          where: { id: file.id },
+          data: { content: cleanedContent },
+        })
+
+        const fixMsg = await db.message.create({
+          data: {
+            projectId,
+            content: `🔧 Fixed ${filePath}\n\nThe file has been analyzed and fixes have been applied. Review the changes in the editor.`,
+            type: 'code_change',
+            metadata: JSON.stringify({
+              sender: 'system',
+              command: 'fix',
+              path: filePath,
+              provider,
+            }),
+          },
+        })
+
+        return NextResponse.json({ message: fixMsg, file: { ...file, content: cleanedContent } })
+      } else {
+        const noFixMsg = await db.message.create({
+          data: {
+            projectId,
+            content: `✅ ${filePath} — No issues found. The file looks correct.`,
+            type: 'system',
+            metadata: JSON.stringify({ sender: 'system', command: 'fix', path: filePath, noChangesNeeded: true }),
+          },
+        })
+        return NextResponse.json({ message: noFixMsg })
+      }
+    }
+
+    case '/refactor': {
+      const filePath = parts[1] || activeFilePath
+
+      if (!filePath) {
+        return NextResponse.json({
+          error: 'Usage: /refactor <file_path>\nExample: /refactor src/app/page.tsx',
+        }, { status: 400 })
+      }
+
+      const file = await db.projectFile.findFirst({
+        where: { projectId, path: filePath, isDirectory: false },
+      })
+
+      if (!file) {
+        return NextResponse.json({ error: `File not found: ${filePath}` }, { status: 404 })
+      }
+
+      const refactorPrompt = `You are an expert code refactoring assistant. Refactor the following file for better code quality while preserving its exact functionality. Apply these improvements:
+- Better naming (variables, functions, types)
+- DRY principle — remove duplication
+- SOLID principles where applicable
+- Better error handling
+- Cleaner control flow
+- Proper TypeScript typing
+- Extract reusable utilities
+
+Output the COMPLETE refactored file. Do not include explanations, just the code.
+
+File: ${file.path} (${file.content.split('\n').length} lines)
+
+\`\`\`
+${file.content.length > 6000 ? file.content.slice(0, 6000) + '\n... (truncated)' : file.content}
+\`\`\`
+
+Output the complete refactored file:`
+
+      let refactoredContent = ''
+      try {
+        refactoredContent = await callAI(refactorPrompt)
+      } catch {
+        // fall through
+      }
+
+      if (!refactoredContent) {
+        const fallbackMsg = await db.message.create({
+          data: {
+            projectId,
+            content: `⚠️ Could not refactor ${filePath}. The AI provider returned an empty response. Try again.`,
+            type: 'system',
+            metadata: JSON.stringify({ sender: 'system', command: 'refactor', path: filePath }),
+          },
+        })
+        return NextResponse.json({ message: fallbackMsg })
+      }
+
+      // Clean the response
+      const cleanedContent = refactoredContent
+        .replace(/^```[\w]*\n?/, '')
+        .replace(/\n?```$/, '')
+        .trim()
+
+      // Update the file
+      await db.projectFile.update({
+        where: { id: file.id },
+        data: { content: cleanedContent },
+      })
+
+      const refactorMsg = await db.message.create({
+        data: {
+          projectId,
+          content: `♻️ Refactored ${filePath}\n\nThe file has been refactored for better code quality. Review the changes in the editor.`,
+          type: 'code_change',
+          metadata: JSON.stringify({
+            sender: 'system',
+            command: 'refactor',
+            path: filePath,
+            provider,
+          }),
+        },
+      })
+
+      return NextResponse.json({ message: refactorMsg, file: { ...file, content: cleanedContent } })
+    }
+
+    case '/optimize': {
+      const filePath = parts[1] || activeFilePath
+
+      if (!filePath) {
+        return NextResponse.json({
+          error: 'Usage: /optimize <file_path>\nExample: /optimize src/app/page.tsx',
+        }, { status: 400 })
+      }
+
+      const file = await db.projectFile.findFirst({
+        where: { projectId, path: filePath, isDirectory: false },
+      })
+
+      if (!file) {
+        return NextResponse.json({ error: `File not found: ${filePath}` }, { status: 404 })
+      }
+
+      const optimizePrompt = `You are an expert performance optimization assistant. Optimize the following file for better performance while preserving its exact functionality. Apply these optimizations:
+- Reduce unnecessary re-renders (React)
+- Memoize expensive computations
+- Optimize loops and algorithms
+- Reduce bundle size (remove unused imports, tree-shake)
+- Use efficient data structures
+- Lazy loading where appropriate
+- Optimize database queries if present
+- Reduce time/space complexity where possible
+
+Output the COMPLETE optimized file. Do not include explanations, just the code.
+
+File: ${file.path} (${file.content.split('\n').length} lines)
+
+\`\`\`
+${file.content.length > 6000 ? file.content.slice(0, 6000) + '\n... (truncated)' : file.content}
+\`\`\`
+
+Output the complete optimized file:`
+
+      let optimizedContent = ''
+      try {
+        optimizedContent = await callAI(optimizePrompt)
+      } catch {
+        // fall through
+      }
+
+      if (!optimizedContent) {
+        const fallbackMsg = await db.message.create({
+          data: {
+            projectId,
+            content: `⚠️ Could not optimize ${filePath}. The AI provider returned an empty response. Try again.`,
+            type: 'system',
+            metadata: JSON.stringify({ sender: 'system', command: 'optimize', path: filePath }),
+          },
+        })
+        return NextResponse.json({ message: fallbackMsg })
+      }
+
+      // Clean the response
+      const cleanedContent = optimizedContent
+        .replace(/^```[\w]*\n?/, '')
+        .replace(/\n?```$/, '')
+        .trim()
+
+      // Update the file
+      await db.projectFile.update({
+        where: { id: file.id },
+        data: { content: cleanedContent },
+      })
+
+      const optimizeMsg = await db.message.create({
+        data: {
+          projectId,
+          content: `⚡ Optimized ${filePath}\n\nThe file has been optimized for performance. Review the changes in the editor.`,
+          type: 'code_change',
+          metadata: JSON.stringify({
+            sender: 'system',
+            command: 'optimize',
+            path: filePath,
+            provider,
+          }),
+        },
+      })
+
+      return NextResponse.json({ message: optimizeMsg, file: { ...file, content: cleanedContent } })
+    }
+
+    case '/search': {
+      const query = parts.slice(1).join(' ')
+
+      if (!query) {
+        return NextResponse.json({
+          error: 'Usage: /search <query>\nExample: /search database connection',
+        }, { status: 400 })
+      }
+
+      // Search through project files for relevant code
+      const allFiles = await db.projectFile.findMany({
+        where: { projectId, isDirectory: false },
+        orderBy: { path: 'asc' },
+      })
+
+      // Simple text search across file contents and paths
+      const results: { path: string; matches: string[]; relevance: number }[] = []
+      const queryLower = query.toLowerCase()
+      const queryWords = queryLower.split(/\s+/)
+
+      for (const file of allFiles) {
+        const pathLower = file.path.toLowerCase()
+        const contentLower = file.content.toLowerCase()
+        let relevance = 0
+        const matches: string[] = []
+
+        // Check path match
+        if (pathLower.includes(queryLower)) {
+          relevance += 10
+          matches.push(`Path matches: ${file.path}`)
+        }
+
+        // Check individual words in path and content
+        for (const word of queryWords) {
+          if (word.length < 2) continue
+          if (pathLower.includes(word)) {
+            relevance += 3
+          }
+          if (contentLower.includes(word)) {
+            const idx = contentLower.indexOf(word)
+            const lineStart = contentLower.lastIndexOf('\n', idx) + 1
+            const lineEnd = contentLower.indexOf('\n', idx)
+            const line = file.content.substring(lineStart, lineEnd === -1 ? lineStart + 100 : lineEnd).trim()
+            matches.push(`Line: ${line.slice(0, 120)}`)
+            relevance += 2
+          }
+        }
+
+        if (relevance > 0) {
+          results.push({ path: file.path, matches: matches.slice(0, 5), relevance })
+        }
+      }
+
+      // Sort by relevance
+      results.sort((a, b) => b.relevance - a.relevance)
+      const topResults = results.slice(0, 10)
+
+      if (topResults.length === 0) {
+        const noResultsMsg = await db.message.create({
+          data: {
+            projectId,
+            content: `🔍 No results found for "${query}". Try different keywords.`,
+            type: 'system',
+            metadata: JSON.stringify({ sender: 'system', command: 'search', query }),
+          },
+        })
+        return NextResponse.json({ message: noResultsMsg })
+      }
+
+      const searchResultsText = `🔍 **Search results for "${query}"** (${results.length} files matched, showing top ${topResults.length})\n\n${topResults.map((r, i) => `${i + 1}. **${r.path}** (relevance: ${r.relevance})\n${r.matches.map((m) => `   - ${m}`).join('\n')}`).join('\n\n')}`
+
+      const searchMsg = await db.message.create({
+        data: {
+          projectId,
+          content: searchResultsText,
+          type: 'system',
+          metadata: JSON.stringify({ sender: 'system', command: 'search', query, resultCount: results.length }),
+        },
+      })
+
+      return NextResponse.json({ message: searchMsg })
+    }
+
+    case '/commit': {
+      // Generate a commit message based on current project state
+      const [recentFileChanges, recentTaskUpdates] = await Promise.all([
+        db.projectFile.findMany({
+          where: { projectId, isDirectory: false },
+          orderBy: { updatedAt: 'desc' },
+          take: 10,
+        }),
+        db.task.findMany({
+          where: { projectId, status: { in: ['done', 'in_review'] } },
+          orderBy: { updatedAt: 'desc' },
+          take: 5,
+          include: { assignee: true },
+        }),
+      ])
+
+      // Gather git status info
+      let gitStatus = ''
+      try {
+        const { exec } = await import('child_process')
+        const { promisify } = await import('util')
+        const execAsync = promisify(exec)
+
+        try {
+          const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: '/home/z/my-project', timeout: 5000 })
+          gitStatus += `Current branch: ${branch.trim()}\n`
+        } catch { /* no git */ }
+
+        try {
+          const { stdout: status } = await execAsync('git status --short', { cwd: '/home/z/my-project', timeout: 5000 })
+          if (status.trim()) {
+            gitStatus += `Uncommitted changes:\n${status.trim()}\n`
+          } else {
+            gitStatus += 'Working tree clean (no uncommitted changes)\n'
+          }
+        } catch { /* no git */ }
+      } catch { /* exec not available */ }
+
+      const commitPrompt = `Generate a meaningful, conventional commit message for the current state of this project. Use the Conventional Commits format (type(scope): description).
+
+Recent file changes (most recently updated):
+${recentFileChanges.map((f) => `- ${f.path} (${f.content.split('\n').length} lines, updated: ${f.updatedAt.toISOString()})`).join('\n')}
+
+Completed/recently updated tasks:
+${recentTaskUpdates.map((t) => `- [${t.status}] ${t.title} (${t.priority}, ${t.assignee?.name || 'unassigned'})`).join('\n') || 'No completed tasks.'}
+
+${gitStatus ? `Git status:\n${gitStatus}` : ''}
+
+Generate a single commit message line (under 72 characters) followed by an optional bullet-point body listing the key changes. Format:
+\`\`\`
+type(scope): short description
+
+- change 1
+- change 2
+\`\`\``
+
+      let commitMessage = ''
+      try {
+        commitMessage = await callAI(commitPrompt)
+      } catch {
+        commitMessage = 'Could not generate commit message. Please check your AI provider settings.'
+      }
+
+      const commitMsg = await db.message.create({
+        data: {
+          projectId,
+          content: `📝 **Suggested Commit Message**\n\n${commitMessage}${gitStatus ? `\n\n---\n📂 ${gitStatus}` : ''}`,
+          type: 'system',
+          metadata: JSON.stringify({ sender: 'system', command: 'commit', provider }),
+        },
+      })
+
+      return NextResponse.json({ message: commitMsg })
+    }
+
     default:
       return NextResponse.json({
-        error: `Unknown command: ${command}. Available: /run, /edit, /explain, /create_file, /run_tests, /deploy, /status`,
+        error: `Unknown command: ${command}. Available: /run, /edit, /explain, /fix, /refactor, /optimize, /search, /commit, /create_file, /run_tests, /deploy, /status`,
       }, { status: 400 })
   }
 }

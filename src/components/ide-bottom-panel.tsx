@@ -68,6 +68,24 @@ const BOTTOM_TABS: { id: IDEBottomTab; label: string; icon: React.ReactNode }[] 
   { id: 'activities', label: 'Activities', icon: <Activity className="size-3.5" /> },
 ]
 
+function BuildStatusBadge({ buildLogs }: { buildLogs: BuildLog[] }) {
+  if (buildLogs.length === 0) return null
+  const lastBuild = buildLogs[buildLogs.length - 1]
+  if (lastBuild.status === 'success') {
+    return <span className="text-[9px] text-emerald-500 font-bold ml-0.5">✓</span>
+  }
+  if (lastBuild.status === 'failed') {
+    return <span className="text-[9px] text-red-500 font-bold ml-0.5">✗</span>
+  }
+  if (lastBuild.status === 'warning') {
+    return <span className="text-[9px] text-amber-500 font-bold ml-0.5">⚠</span>
+  }
+  if (lastBuild.status === 'running') {
+    return <Loader2 className="size-2.5 text-blue-500 animate-spin ml-0.5" />
+  }
+  return null
+}
+
 function BuildStatusIcon({ status }: { status: string }) {
   switch (status) {
     case 'success':
@@ -134,10 +152,13 @@ function TerminalView() {
   // Keep ref in sync
   commandHistoryRef.current = commandHistory
 
-  // Auto-scroll to bottom on new lines
+  // Auto-scroll to bottom on new lines (smooth scroll)
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth',
+      })
     }
   }, [lines])
 
@@ -370,15 +391,32 @@ function TerminalView() {
         style={{ scrollbarWidth: 'thin' }}
       >
         {lines.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
-            <Terminal className="size-4 mr-2 opacity-40" />
-            <span>Terminal ready. Type a command or</span>
-            <button
-              onClick={() => handleCommand('bun run build')}
-              className="ml-1 text-emerald-500 hover:text-emerald-400 underline underline-offset-2 transition-colors"
-            >
-              Run Build
-            </button>
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-xs gap-2">
+            <Terminal className="size-5 opacity-30" />
+            <span>Terminal ready</span>
+            <span className="text-[10px] text-muted-foreground/50">Type a command and press Enter to execute</span>
+            <div className="flex items-center gap-2 mt-1">
+              <button
+                onClick={() => handleCommand('bun run lint')}
+                className="text-emerald-500 hover:text-emerald-400 text-[11px] underline underline-offset-2 transition-colors"
+              >
+                Run Lint
+              </button>
+              <span className="text-muted-foreground/30">·</span>
+              <button
+                onClick={() => handleCommand('bun run build')}
+                className="text-emerald-500 hover:text-emerald-400 text-[11px] underline underline-offset-2 transition-colors"
+              >
+                Run Build
+              </button>
+              <span className="text-muted-foreground/30">·</span>
+              <button
+                onClick={() => handleCommand('help')}
+                className="text-sky-500 hover:text-sky-400 text-[11px] underline underline-offset-2 transition-colors"
+              >
+                Help
+              </button>
+            </div>
           </div>
         ) : (
           lines.map((line) => (
@@ -423,14 +461,14 @@ function TerminalView() {
 
       {/* Command input */}
       <div className="flex items-center gap-2 px-3 py-2 border-t border-border/40 bg-muted/10">
-        <span className="text-emerald-500/80 font-mono text-xs shrink-0 select-none">{cwd} ❯</span>
+        <span className="text-emerald-500 font-mono text-xs shrink-0 select-none font-bold">{cwd} ❯</span>
         <input
           ref={inputRef}
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isExecuting ? 'Running...' : 'Type a command...'}
+          placeholder={isExecuting ? 'Running...' : 'Type a command... (↑↓ for history)'}
           disabled={isExecuting}
           className="flex-1 bg-transparent font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/50 disabled:opacity-50"
           autoFocus
@@ -1127,29 +1165,88 @@ function ProblemsView() {
 }
 
 // Activity type config for bottom panel
-const ACTIVITY_TYPE_CONFIG_FULL: Record<string, { icon: React.ReactNode; borderColor: string; label: string }> = {
-  task_started: { icon: <Play className="size-4 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'Task Started' },
-  code_written: { icon: <FileCode2 className="size-4 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'Code Written' },
-  review_completed: { icon: <CheckCircle2 className="size-4 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Review Completed' },
-  test_run: { icon: <TestTube2 className="size-4 text-amber-500" />, borderColor: 'border-l-amber-500', label: 'Test Run' },
-  deploy_triggered: { icon: <Rocket className="size-4 text-orange-500" />, borderColor: 'border-l-orange-500', label: 'Deploy Triggered' },
-  message_sent: { icon: <MessageSquare className="size-4 text-pink-500" />, borderColor: 'border-l-pink-500', label: 'Message Sent' },
+const ACTIVITY_TYPE_CONFIG_FULL: Record<string, { icon: React.ReactNode; borderColor: string; label: string; bgColor: string }> = {
+  task_started: { icon: <Play className="size-4 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'Task Started', bgColor: 'bg-emerald-500/5' },
+  code_written: { icon: <FileCode2 className="size-4 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'Code Written', bgColor: 'bg-blue-500/5' },
+  review_completed: { icon: <CheckCircle2 className="size-4 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Review Completed', bgColor: 'bg-violet-500/5' },
+  test_run: { icon: <TestTube2 className="size-4 text-amber-500" />, borderColor: 'border-l-amber-500', label: 'Test Run', bgColor: 'bg-amber-500/5' },
+  deploy_triggered: { icon: <Rocket className="size-4 text-orange-500" />, borderColor: 'border-l-orange-500', label: 'Deploy Triggered', bgColor: 'bg-orange-500/5' },
+  message_sent: { icon: <MessageSquare className="size-4 text-pink-500" />, borderColor: 'border-l-pink-500', label: 'Message Sent', bgColor: 'bg-pink-500/5' },
+  file_created: { icon: <FileCode2 className="size-4 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'File Created', bgColor: 'bg-emerald-500/5' },
+  file_updated: { icon: <FileCode2 className="size-4 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'File Updated', bgColor: 'bg-blue-500/5' },
+  code_change: { icon: <FileCode2 className="size-4 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Code Change', bgColor: 'bg-violet-500/5' },
 }
 
 function ActivitiesView() {
   const activities = useAppStore((s) => s.activities)
+  const [activityFilter, setActivityFilter] = useState<string>('all')
+
+  // Get unique action types
+  const actionTypes = useMemo(() => {
+    const types = new Set<string>()
+    for (const a of activities) {
+      types.add(a.action)
+    }
+    return Array.from(types).sort()
+  }, [activities])
 
   const sortedActivities = useMemo(() => {
-    return [...activities].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [activities])
+    let filtered = [...activities]
+    if (activityFilter !== 'all') {
+      filtered = filtered.filter((a) => a.action === activityFilter)
+    }
+    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  }, [activities, activityFilter])
 
   return (
     <ScrollArea className="h-full">
       <div className="p-3 space-y-1.5">
+        {/* Filter bar */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-1 flex-wrap">
+            <button
+              onClick={() => setActivityFilter('all')}
+              className={cn(
+                'text-[10px] px-2 py-0.5 rounded-full border transition-colors',
+                activityFilter === 'all'
+                  ? 'bg-foreground/10 border-foreground/20 text-foreground'
+                  : 'bg-transparent border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30',
+              )}
+            >
+              All
+            </button>
+            {actionTypes.map((type) => {
+              const config = ACTIVITY_TYPE_CONFIG_FULL[type]
+              return (
+                <button
+                  key={type}
+                  onClick={() => setActivityFilter(type)}
+                  className={cn(
+                    'text-[10px] px-2 py-0.5 rounded-full border transition-colors',
+                    activityFilter === type
+                      ? 'bg-foreground/10 border-foreground/20 text-foreground'
+                      : 'bg-transparent border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30',
+                  )}
+                >
+                  {config?.label || type}
+                </button>
+              )
+            })}
+          </div>
+          {activityFilter !== 'all' && (
+            <button
+              onClick={() => setActivityFilter('all')}
+              className="text-[10px] text-emerald-500 hover:text-emerald-400 ml-auto transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
         {sortedActivities.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground text-xs">
             <Activity className="size-4 mr-2 opacity-40" />
-            No agent activity yet
+            {activityFilter !== 'all' ? 'No matching activity' : 'No agent activity yet'}
           </div>
         ) : (
           sortedActivities.map((activity) => {
@@ -1157,6 +1254,7 @@ function ActivitiesView() {
               icon: <Activity className="size-4 text-muted-foreground" />,
               borderColor: 'border-l-muted-foreground/40',
               label: activity.action,
+              bgColor: 'bg-muted/5',
             }
             const agent = activity.agent
             const roleConfig = agent ? AGENT_ROLE_CONFIG[agent.role as AgentRole] : null
@@ -1169,6 +1267,7 @@ function ActivitiesView() {
                 className={cn(
                   'flex items-start gap-3 px-3 py-2.5 rounded-md border-l-2 transition-colors hover:bg-muted/30',
                   typeConfig.borderColor,
+                  typeConfig.bgColor,
                 )}
               >
                 <div className="shrink-0 mt-0.5">{typeConfig.icon}</div>
@@ -1411,14 +1510,34 @@ export function IDEBottomPanel({ isMobile = false }: { isMobile?: boolean }) {
           >
             {tab.icon}
             <span>{tab.label}</span>
-            {tab.id === 'tasks' && tasks.length > 0 && (
-              <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">{tasks.length}</Badge>
+            {/* Terminal: show "idle" or command count */}
+            {tab.id === 'terminal' && (
+              <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-muted/50 text-muted-foreground/60">
+                idle
+              </Badge>
             )}
+            {/* Build: show last build status */}
+            {tab.id === 'build' && (
+              <BuildStatusBadge buildLogs={buildLogs} />
+            )}
+            {/* Problems: show problem count */}
             {tab.id === 'problems' && problemCount > 0 && (
               <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4">{problemCount}</Badge>
             )}
-            {tab.id === 'terminal' && buildLogs.length > 0 && (
-              <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">{buildLogs.length}</Badge>
+            {tab.id === 'problems' && problemCount === 0 && (
+              <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+                ✓
+              </Badge>
+            )}
+            {/* Tasks: show count */}
+            {tab.id === 'tasks' && tasks.length > 0 && (
+              <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">{tasks.length}</Badge>
+            )}
+            {/* Output / Analytics: show "ready" status */}
+            {tab.id === 'analytics' && (
+              <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 bg-muted/50 text-muted-foreground/60">
+                ready
+              </Badge>
             )}
           </button>
         ))}

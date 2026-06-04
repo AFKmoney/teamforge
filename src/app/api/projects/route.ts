@@ -11,7 +11,12 @@ export async function GET() {
         },
       },
     })
-    return NextResponse.json(projects)
+    // Parse JSON string fields back to arrays
+    const parsed = projects.map((p) => ({
+      ...p,
+      techStack: typeof p.techStack === 'string' ? JSON.parse(p.techStack) : p.techStack,
+    }))
+    return NextResponse.json(parsed)
   } catch (error) {
     console.error('Failed to fetch projects:', error)
     return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 })
@@ -37,7 +42,12 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json(project, { status: 201 })
+    // Parse JSON string fields back to arrays
+    const parsed = {
+      ...project,
+      techStack: typeof project.techStack === 'string' ? JSON.parse(project.techStack) : project.techStack,
+    }
+    return NextResponse.json(parsed, { status: 201 })
   } catch (error) {
     console.error('Failed to create project:', error)
     return NextResponse.json({ error: 'Failed to create project' }, { status: 500 })

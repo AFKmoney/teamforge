@@ -6,6 +6,7 @@ import { AI_PROVIDERS, getModelsForProvider, type AIProviderType } from '@/lib/a
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -48,9 +49,14 @@ import {
   Terminal,
   FileEdit,
   BookOpen,
+  Wrench,
+  RefreshCw,
+  Gauge,
+  Search,
+  GitCommitHorizontal,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { cn, useHydrated } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'
@@ -81,6 +87,11 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { command: '/run', label: 'Run Command', description: 'Execute a whitelisted shell command', icon: <Terminal className="size-3 text-emerald-500" />, action: 'run' },
   { command: '/edit', label: 'Edit File', description: 'AI-assisted file editing', icon: <FileEdit className="size-3 text-violet-500" />, action: 'edit' },
   { command: '/explain', label: 'Explain File', description: 'Get AI explanation of a file', icon: <BookOpen className="size-3 text-blue-500" />, action: 'explain' },
+  { command: '/fix', label: 'Fix File', description: 'AI analyzes and fixes bugs/issues', icon: <Wrench className="size-3 text-red-500" />, action: 'fix' },
+  { command: '/refactor', label: 'Refactor File', description: 'AI refactors for better code quality', icon: <RefreshCw className="size-3 text-teal-500" />, action: 'refactor' },
+  { command: '/optimize', label: 'Optimize File', description: 'AI optimizes for performance', icon: <Gauge className="size-3 text-amber-500" />, action: 'optimize' },
+  { command: '/search', label: 'Search Code', description: 'Search project files for code', icon: <Search className="size-3 text-sky-500" />, action: 'search' },
+  { command: '/commit', label: 'Commit Message', description: 'Generate a commit message', icon: <GitCommitHorizontal className="size-3 text-orange-500" />, action: 'commit' },
   { command: '/status', label: 'Status', description: 'Get current project status', icon: <BarChart3 className="size-3 text-emerald-500" />, action: 'status' },
   { command: '/create_file', label: 'Create File', description: 'Create a new file in the project', icon: <FilePlus className="size-3 text-violet-500" />, action: 'create_file' },
   { command: '/run_tests', label: 'Run Tests', description: 'Run the test suite', icon: <TestTube className="size-3 text-amber-500" />, action: 'run_tests' },
@@ -122,7 +133,7 @@ const QUICK_PROMPTS = [
 
 const REACTION_EMOJIS = ['👍', '❤️', '🎉', '🚀', '👀']
 
-function ChatMessage({ message }: { message: Message }) {
+const ChatMessage = React.memo(function ChatMessage({ message }: { message: Message }) {
   const typeConfig = MESSAGE_TYPE_CONFIG[message.type] || MESSAGE_TYPE_CONFIG.chat
   const agent = message.agent
   const roleConfig = agent ? AGENT_ROLE_CONFIG[agent.role] : null
@@ -322,7 +333,7 @@ function ChatMessage({ message }: { message: Message }) {
       </div>
     </motion.div>
   )
-}
+})
 
 /** Model selector dropdown for the chat input area */
 function ModelSelector() {
@@ -490,6 +501,104 @@ function ModelSelector() {
           </>
         )}
       </AnimatePresence>
+    </div>
+  )
+}
+
+/** AI Status Bar for chat panel - shows provider/model, connection status, and token estimate */
+function ChatAIStatusBar({ messages }: { messages: Message[] }) {
+  const aiSettings = useAppStore((s) => s.aiSettings)
+  const mounted = useHydrated()
+
+  // Determine provider display info
+  const providerInfo = useMemo(() => {
+    if (!mounted) return { label: 'DeepSeek', icon: <Bot className="size-2.5 text-emerald-500" />, color: 'text-emerald-500' }
+    switch (aiSettings.provider) {
+      case 'nvidia': {
+        const models = getModelsForProvider('nvidia')
+        const model = models.find((m) => m.id === aiSettings.model)
+        return {
+          label: model?.name || aiSettings.model.split('/').pop() || 'NVIDIA',
+          icon: <Zap className="size-2.5 text-green-500" />,
+          color: 'text-green-500',
+        }
+      }
+      case 'openai-compatible':
+        return {
+          label: aiSettings.openaiCompatibleModelId === 'custom' ? 'OpenAI' : aiSettings.openaiCompatibleModelId,
+          icon: <Sparkles className="size-2.5 text-violet-500" />,
+          color: 'text-violet-500',
+        }
+      default:
+        return {
+          label: 'DeepSeek',
+          icon: <Bot className="size-2.5 text-emerald-500" />,
+          color: 'text-emerald-500',
+        }
+    }
+  }, [aiSettings, mounted])
+
+  // Connection status: green=connected, yellow=testing/no-key, red=error
+  const connectionStatus = useMemo(() => {
+    if (!mounted) return 'connected' as const
+    if (aiSettings.provider === 'zai') return 'connected' as const
+    if (aiSettings.provider === 'nvidia') {
+      return aiSettings.nvidiaApiKey ? 'connected' as const : 'nokey' as const
+    }
+    if (aiSettings.provider === 'openai-compatible') {
+      return aiSettings.openaiCompatibleBaseUrl ? 'connected' as const : 'nokey' as const
+    }
+    return 'connected' as const
+  }, [aiSettings, mounted])
+
+  // Estimate tokens (rough: ~4 chars per token)
+  const estimatedTokens = useMemo(() => {
+    const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0)
+    return Math.round(totalChars / 4)
+  }, [messages])
+
+  const statusDotColor = connectionStatus === 'connected'
+    ? 'bg-emerald-500'
+    : connectionStatus === 'nokey'
+      ? 'bg-amber-500'
+      : 'bg-red-500'
+
+  const statusTooltip = connectionStatus === 'connected'
+    ? 'Connected'
+    : connectionStatus === 'nokey'
+      ? 'No API key configured'
+      : 'Connection error'
+
+  if (!mounted) return null
+
+  return (
+    <div className="flex items-center gap-2 px-3 h-6 border-b bg-muted/10 shrink-0 text-[9px]">
+      {/* Provider/Model badge */}
+      <Badge variant="outline" className={cn('text-[8px] px-1.5 py-0 h-3.5 gap-0.5', providerInfo.color)}>
+        {providerInfo.icon}
+        <span className="max-w-[80px] truncate">{providerInfo.label}</span>
+      </Badge>
+
+      {/* Connection status indicator */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-1">
+            <span className={cn('size-1.5 rounded-full shrink-0', statusDotColor)} />
+            <span className="text-muted-foreground/60">{statusTooltip}</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-[10px]">
+          AI Provider: {providerInfo.label} — {statusTooltip}
+        </TooltipContent>
+      </Tooltip>
+
+      <div className="flex-1" />
+
+      {/* Token counter */}
+      <div className="flex items-center gap-0.5 text-muted-foreground/50">
+        <BarChart3 className="size-2" />
+        <span className="tabular-nums">~{estimatedTokens > 1000 ? `${(estimatedTokens / 1000).toFixed(1)}k` : estimatedTokens} tok</span>
+      </div>
     </div>
   )
 }
@@ -908,14 +1017,18 @@ export function IDEChatPanel() {
   const executeSlashCommand = useCallback(async (cmd: SlashCommand) => {
     setInputValue('')
 
-    // For /run, /edit, /explain — these are handled server-side via the AI chat API
+    // For /run, /edit, /explain, /fix, /refactor, /optimize, /search — these are handled server-side via the AI chat API
     // so we route them through handleSend by setting the input and triggering send
-    if (cmd.action === 'run' || cmd.action === 'edit' || cmd.action === 'explain') {
+    if (cmd.action === 'run' || cmd.action === 'edit' || cmd.action === 'explain' || cmd.action === 'fix' || cmd.action === 'refactor' || cmd.action === 'optimize' || cmd.action === 'search') {
       // These commands need arguments, so just set the prefix and let the user type the rest
       const prefixes: Record<string, string> = {
         run: '/run ',
         edit: '/edit ',
         explain: '/explain ',
+        fix: '/fix ',
+        refactor: '/refactor ',
+        optimize: '/optimize ',
+        search: '/search ',
       }
       setInputValue(prefixes[cmd.action] || '')
       setTimeout(() => { if (textareaRef.current) textareaRef.current.focus() }, 50)
@@ -953,6 +1066,13 @@ export function IDEChatPanel() {
               openaiCompatibleBaseUrl: aiSettings.openaiCompatibleBaseUrl || undefined,
               openaiCompatibleApiKey: aiSettings.openaiCompatibleApiKey || undefined,
               openaiCompatibleModelId: aiSettings.openaiCompatibleModelId || undefined,
+              activeFilePath: (() => {
+                const state = useAppStore.getState()
+                const activeId = state.activeFileId
+                if (!activeId) return undefined
+                const activeFile = state.files.find((f) => f.id === activeId)
+                return activeFile?.path || undefined
+              })(),
             }),
           })
           if (res.ok) {
@@ -1124,6 +1244,66 @@ export function IDEChatPanel() {
           createdAt: new Date().toISOString(),
         })
         break
+      case 'commit': {
+        // Send /commit to the AI chat endpoint for a server-side commit message
+        setIsSending(true)
+        try {
+          const activeFile = useAppStore.getState().activeFileId
+            ? useAppStore.getState().files.find((f) => f.id === useAppStore.getState().activeFileId)
+            : null
+          const res = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: '/commit',
+              projectId: currentProject?.id || '',
+              chatSessionId: currentChatSessionId || undefined,
+              provider: aiSettings.provider,
+              model: aiSettings.provider === 'openai-compatible'
+                ? (aiSettings.openaiCompatibleModelId || aiSettings.model)
+                : aiSettings.model,
+              nvidiaApiKey: aiSettings.nvidiaApiKey || undefined,
+              openaiCompatibleBaseUrl: aiSettings.openaiCompatibleBaseUrl || undefined,
+              openaiCompatibleApiKey: aiSettings.openaiCompatibleApiKey || undefined,
+              openaiCompatibleModelId: aiSettings.openaiCompatibleModelId || undefined,
+              activeFilePath: activeFile?.path || undefined,
+            }),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.message) {
+              const msg = data.message
+              if (typeof msg.metadata === 'string') {
+                try { msg.metadata = JSON.parse(msg.metadata) } catch { msg.metadata = {} }
+              }
+              addMessage(msg)
+            }
+          } else {
+            addMessage({
+              id: `sys_${Date.now()}`,
+              projectId: currentProject?.id || '',
+              agentId: null,
+              content: '⚠️ Could not generate commit message. Please try again.',
+              type: 'system',
+              metadata: {} as Record<string, unknown>,
+              createdAt: new Date().toISOString(),
+            })
+          }
+        } catch {
+          addMessage({
+            id: `sys_${Date.now()}`,
+            projectId: currentProject?.id || '',
+            agentId: null,
+            content: '⚠️ Could not generate commit message. Please try again.',
+            type: 'system',
+            metadata: {} as Record<string, unknown>,
+            createdAt: new Date().toISOString(),
+          })
+        } finally {
+          setIsSending(false)
+        }
+        break
+      }
     }
   }, [currentProject, agents, onlineCount, messages, addMessage, addBuildLog, setIsRunning, setBottomPanelOpen, setActiveBottomTab, aiSettings, currentChatSessionId])
 
@@ -1155,9 +1335,9 @@ export function IDEChatPanel() {
         executeSlashCommand(cmd)
         return
       }
-      // For parameterized commands (/run <cmd>, /edit <path> <instruction>, /explain <path>)
+      // For parameterized commands (/run <cmd>, /edit <path> <instruction>, /explain <path>, /fix <path>, /refactor <path>, /optimize <path>, /search <query>, /commit)
       // or any /status, /create_file, /deploy, /run_tests — route through the AI chat API
-      const serverHandledCommands = ['/run', '/edit', '/explain', '/status', '/create_file', '/deploy', '/run_tests']
+      const serverHandledCommands = ['/run', '/edit', '/explain', '/fix', '/refactor', '/optimize', '/search', '/commit', '/status', '/create_file', '/deploy', '/run_tests']
       const commandPart = trimmedInput.split(/\s+/)[0]
       if (serverHandledCommands.includes(commandPart)) {
         // Fall through to the AI chat API send below
@@ -1194,6 +1374,13 @@ export function IDEChatPanel() {
           openaiCompatibleApiKey: aiSettings.openaiCompatibleApiKey || undefined,
           openaiCompatibleModelId: aiSettings.openaiCompatibleModelId || undefined,
           yoloMode: yoloMode,
+          activeFilePath: (() => {
+            const state = useAppStore.getState()
+            const activeId = state.activeFileId
+            if (!activeId) return undefined
+            const activeFile = state.files.find((f) => f.id === activeId)
+            return activeFile?.path || undefined
+          })(),
         }),
       })
 
@@ -1227,8 +1414,8 @@ export function IDEChatPanel() {
             try { sysMsg.metadata = JSON.parse(sysMsg.metadata) } catch { sysMsg.metadata = {} }
           }
           addMessage(sysMsg)
-          // Refresh files if this was an /edit command
-          if (sysMsg.metadata?.command === 'edit' || sysMsg.metadata?.command === 'create_file') {
+          // Refresh files if this was an /edit, /fix, /refactor, or /optimize command
+          if (sysMsg.metadata?.command === 'edit' || sysMsg.metadata?.command === 'create_file' || sysMsg.metadata?.command === 'fix' || sysMsg.metadata?.command === 'refactor' || sysMsg.metadata?.command === 'optimize') {
             fetchFiles()
           }
         } else {
@@ -1385,6 +1572,9 @@ export function IDEChatPanel() {
         </div>
       </div>
 
+      {/* AI Status Bar */}
+      <ChatAIStatusBar messages={messages} />
+
       {/* Messages */}
       <div className="flex-1 relative overflow-hidden">
         {!currentProject ? (
@@ -1442,7 +1632,24 @@ export function IDEChatPanel() {
                 </span>
               </motion.div>
             )}
-            {messages.length === 0 && (
+            {/* Skeleton loading while waiting for AI response */}
+            {isSending && messages.length > 0 && (
+              <div className="px-3 py-2.5 mx-2 mb-1.5 rounded-xl bg-muted/20">
+                <div className="flex items-start gap-2">
+                  <Skeleton className="size-6 rounded-md shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-3 w-12" />
+                      <Skeleton className="h-3 w-10 ml-auto" />
+                    </div>
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-3/4" />
+                  </div>
+                </div>
+              </div>
+            )}
+            {messages.length === 0 && !isSending && (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground px-4">
                 <div className="empty-state-illustration mb-1">
                   <div className="size-14 rounded-2xl bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 flex items-center justify-center border border-emerald-500/10">

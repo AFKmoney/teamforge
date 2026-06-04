@@ -12,6 +12,7 @@ import { KeyboardShortcutsOverlay } from '@/components/keyboard-shortcuts-overla
 import { FileSearchOverlay } from '@/components/file-search-overlay'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { GlobalSearchPanel } from '@/components/global-search-panel'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { useAppStore } from '@/lib/store'
 import { useAgentOrchestrator } from '@/hooks/use-agent-orchestrator'
 import { useRealtimeWS } from '@/hooks/use-realtime-ws'
@@ -37,6 +38,13 @@ export default function Home() {
   const setGoToLineOpen = useAppStore((s) => s.setGoToLineOpen)
   const setGlobalSearchOpen = useAppStore((s) => s.setGlobalSearchOpen)
   const currentBranch = useAppStore((s) => s.currentBranch)
+  const activeFileId = useAppStore((s) => s.activeFileId)
+  const files = useAppStore((s) => s.files)
+  const unsavedFileIds = useAppStore((s) => s.unsavedFileIds)
+  const markFileSaved = useAppStore((s) => s.markFileSaved)
+  const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
+  const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
+  const bottomPanelOpen = useAppStore((s) => s.bottomPanelOpen)
 
   const aiSettings = useAppStore((s) => s.aiSettings)
   const yoloMode = useAppStore((s) => s.yoloMode)
@@ -66,6 +74,43 @@ export default function Home() {
         e.preventDefault()
         setSettingsOpen(true)
       }
+      // Ctrl+S for save (active file or all files)
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        if (activeFileId && unsavedFileIds.has(activeFileId)) {
+          // Save the active file
+          const file = files.find((f) => f.id === activeFileId)
+          if (file && !file.isDirectory) {
+            fetch(`/api/files/${file.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: file.content }),
+            }).then((res) => {
+              if (res.ok) {
+                markFileSaved(file.id)
+                toast.success(`Saved ${file.path}`)
+              } else {
+                toast.error(`Failed to save ${file.path}`)
+              }
+            }).catch(() => {
+              toast.error(`Failed to save ${file.path}`)
+            })
+          }
+        } else if (unsavedFileIds.size > 0) {
+          // Save all unsaved files
+          saveAllFiles().then(({ saved, failed }) => {
+            if (failed > 0) {
+              toast.error(`Failed to save ${failed} file${failed > 1 ? 's' : ''}`)
+            } else if (saved > 0) {
+              toast.success(`Saved ${saved} file${saved > 1 ? 's' : ''}`)
+            } else {
+              toast.info('No unsaved files')
+            }
+          })
+        } else {
+          toast.info('No unsaved files')
+        }
+      }
       // Ctrl+Shift+S for save all
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault()
@@ -77,6 +122,49 @@ export default function Home() {
           } else {
             toast.info('No unsaved files')
           }
+        })
+      }
+      // Ctrl+J for toggle terminal
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'j') {
+        e.preventDefault()
+        if (bottomPanelOpen) {
+          // If terminal tab is active, close the panel; otherwise switch to terminal
+          const state = useAppStore.getState()
+          if (state.activeBottomTab === 'terminal') {
+            setBottomPanelOpen(false)
+          } else {
+            setActiveBottomTab('terminal')
+          }
+        } else {
+          setBottomPanelOpen(true)
+          setActiveBottomTab('terminal')
+        }
+      }
+      // Ctrl+N for new file
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault()
+        const path = `untitled-${Date.now()}.ts`
+        fetch('/api/files', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: currentProject?.id || '',
+            path,
+            content: '',
+            language: 'typescript',
+            isDirectory: false,
+          }),
+        }).then((res) => {
+          if (res.ok) {
+            res.json().then((newFile) => {
+              useAppStore.getState().addFile(newFile)
+              useAppStore.getState().setActiveFileId(newFile.id)
+              useAppStore.getState().fetchFiles()
+              toast.success('New file created')
+            })
+          }
+        }).catch(() => {
+          toast.error('Failed to create new file')
         })
       }
       // Ctrl+F or Ctrl+H for find & replace
@@ -97,7 +185,7 @@ export default function Home() {
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [setFileSearchOpen, setSettingsOpen, saveAllFiles, setFindReplaceOpen, setGoToLineOpen, setGlobalSearchOpen])
+  }, [setFileSearchOpen, setSettingsOpen, saveAllFiles, setFindReplaceOpen, setGoToLineOpen, setGlobalSearchOpen, activeFileId, files, unsavedFileIds, markFileSaved, setBottomPanelOpen, setActiveBottomTab, bottomPanelOpen, currentProject])
 
   // Track uptime
   const startTime = useRef(Date.now())
@@ -196,6 +284,7 @@ export default function Home() {
   }, [isMobile, isTablet, setSidebarCollapsed, setRightPanelOpen])
 
   return (
+    <ErrorBoundary>
     <div className="h-screen flex flex-col bg-background overflow-hidden noise-overlay">
       {/* Top Bar */}
       <div className="animate-page-load">
@@ -536,5 +625,6 @@ export default function Home() {
         </motion.div>
       )}
     </div>
+    </ErrorBoundary>
   )
 }

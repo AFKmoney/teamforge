@@ -29,7 +29,14 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    return NextResponse.json(project)
+    // Parse JSON string fields back to arrays
+    const parsed = {
+      ...project,
+      techStack: typeof project.techStack === 'string' ? JSON.parse(project.techStack) : project.techStack,
+      tasks: project.tasks?.map((t: Record<string, unknown>) => t), // already objects
+      messages: project.messages?.map((m: Record<string, unknown>) => m), // already objects
+    }
+    return NextResponse.json(parsed)
   } catch (error) {
     console.error('Failed to fetch project:', error)
     return NextResponse.json({ error: 'Failed to fetch project' }, { status: 500 })
@@ -61,7 +68,12 @@ export async function PATCH(
       data,
     })
 
-    return NextResponse.json(project)
+    // Parse JSON string fields back to arrays
+    const parsed = {
+      ...project,
+      techStack: typeof project.techStack === 'string' ? JSON.parse(project.techStack) : project.techStack,
+    }
+    return NextResponse.json(parsed)
   } catch (error) {
     console.error('Failed to update project:', error)
     return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })

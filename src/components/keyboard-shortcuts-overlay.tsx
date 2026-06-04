@@ -16,19 +16,37 @@ interface ShortcutCategory {
 
 const shortcutCategories: ShortcutCategory[] = [
   {
+    title: 'Build & Run',
+    shortcuts: [
+      { keys: ['Ctrl', 'Shift', 'B'], action: 'Build' },
+      { keys: ['Ctrl', 'Shift', 'T'], action: 'Test' },
+      { keys: ['Ctrl', 'Shift', 'L'], action: 'Lint' },
+      { keys: ['Ctrl', 'Shift', 'D'], action: 'Deploy' },
+    ],
+  },
+  {
     title: 'General',
     shortcuts: [
-      { keys: ['Ctrl', 'K'], action: 'Command Palette' },
+      { keys: ['Ctrl', 'Shift', 'P'], action: 'Command Palette' },
       { keys: ['Ctrl', 'Shift', '/'], action: 'Keyboard Shortcuts' },
       { keys: ['F1'], action: 'Keyboard Shortcuts' },
+      { keys: ['Ctrl', ','], action: 'Settings' },
     ],
   },
   {
     title: 'File',
     shortcuts: [
       { keys: ['Ctrl', 'S'], action: 'Save File' },
-      { keys: ['Ctrl', 'P'], action: 'Quick Open File' },
+      { keys: ['Ctrl', 'Shift', 'S'], action: 'Save All Files' },
+      { keys: ['Ctrl', 'P'], action: 'Quick File Open' },
       { keys: ['Ctrl', 'N'], action: 'New File' },
+    ],
+  },
+  {
+    title: 'Terminal & Panels',
+    shortcuts: [
+      { keys: ['Ctrl', 'J'], action: 'Toggle Terminal' },
+      { keys: ['Ctrl', 'B'], action: 'Toggle Sidebar' },
     ],
   },
   {
@@ -36,43 +54,21 @@ const shortcutCategories: ShortcutCategory[] = [
     shortcuts: [
       { keys: ['Ctrl', 'F'], action: 'Find' },
       { keys: ['Ctrl', 'H'], action: 'Find & Replace' },
+      { keys: ['Ctrl', 'G'], action: 'Go to Line' },
       { keys: ['Ctrl', 'Shift', 'F'], action: 'Global Search' },
-      { keys: ['Enter'], action: 'Next Match' },
-      { keys: ['Shift', 'Enter'], action: 'Previous Match' },
     ],
   },
   {
     title: 'Editor',
     shortcuts: [
-      { keys: ['Ctrl', 'G'], action: 'Go to Line' },
       { keys: ['Ctrl', '/'], action: 'Toggle Comment' },
       { keys: ['Tab'], action: 'Indent Selection' },
       { keys: ['Shift', 'Tab'], action: 'Outdent Selection' },
       { keys: ['Alt', '↑'], action: 'Move Line Up' },
       { keys: ['Alt', '↓'], action: 'Move Line Down' },
-      { keys: ['Shift', 'Alt', '↓'], action: 'Duplicate Line' },
-      { keys: ['Ctrl', 'Shift', 'K'], action: 'Delete Line' },
-      { keys: ['Ctrl', 'L'], action: 'Select Current Line' },
+      { keys: ['Ctrl', 'Enter'], action: 'Run Current File' },
       { keys: ['Ctrl', '+'], action: 'Increase Font Size' },
       { keys: ['Ctrl', '-'], action: 'Decrease Font Size' },
-      { keys: ['F5'], action: 'Run Build' },
-    ],
-  },
-  {
-    title: 'View',
-    shortcuts: [
-      { keys: ['Ctrl', 'B'], action: 'Toggle Sidebar' },
-      { keys: ['Ctrl', 'J'], action: 'Toggle Terminal' },
-      { keys: ['Ctrl', 'Shift', 'E'], action: 'Explorer' },
-      { keys: ['Ctrl', 'Shift', 'M'], action: 'Chat' },
-    ],
-  },
-  {
-    title: 'Tasks',
-    shortcuts: [
-      { keys: ['Ctrl', 'Shift', 'T'], action: 'Run Tests' },
-      { keys: ['Ctrl', 'Shift', 'B'], action: 'Build' },
-      { keys: ['Ctrl', 'Shift', 'D'], action: 'Deploy' },
     ],
   },
 ]
@@ -125,6 +121,15 @@ export function KeyboardShortcutsOverlay() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [open])
+
+  // Listen for custom event from top bar Shortcuts button
+  useEffect(() => {
+    const handler = () => {
+      setOpen((prev) => !prev)
+    }
+    window.addEventListener('teamforge-toggle-shortcuts', handler)
+    return () => window.removeEventListener('teamforge-toggle-shortcuts', handler)
+  }, [])
 
   const handleClose = useCallback(() => {
     setOpen(false)

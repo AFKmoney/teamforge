@@ -9,12 +9,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer, TestTube2, Rocket, Sparkles, Activity, Settings, FolderOpen, Download, Upload, SaveAll, Shield, ShieldAlert, Command, FilePlus, FolderPlus, Terminal as TerminalIcon, Paintbrush } from 'lucide-react'
+import { Play, Square, Plus, Sun, Moon, Zap, ChevronDown, Pause, Loader2, Hammer, TestTube2, Rocket, Sparkles, Activity, Settings, FolderOpen, Download, Upload, SaveAll, Shield, ShieldAlert, Command, FilePlus, FolderPlus, Terminal as TerminalIcon, Paintbrush, Keyboard } from 'lucide-react'
 import { NotificationBell } from '@/components/notification-panel'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn, useHydrated } from '@/lib/utils'
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react'
 import { toast } from 'sonner'
 
 // Agent pill color mapping by role
@@ -27,7 +27,7 @@ const ROLE_PILL_COLORS: Record<AgentRole, { bg: string; border: string; activeBg
   pm: { bg: 'bg-pink-500/10 border-pink-500/30', border: 'border-pink-500/30', activeBg: 'bg-pink-500/20' },
 }
 
-function AgentPill({ agent, currentTaskTitle }: { agent: { id: string; name: string; role: AgentRole; status: AgentStatus; avatar: string; currentTaskId: string | null }; currentTaskTitle?: string }) {
+const AgentPill = memo(function AgentPill({ agent, currentTaskTitle }: { agent: { id: string; name: string; role: AgentRole; status: AgentStatus; avatar: string; currentTaskId: string | null }; currentTaskTitle?: string }) {
   const roleConfig = AGENT_ROLE_CONFIG[agent.role]
   const statusConfig = AGENT_STATUS_CONFIG[agent.status]
   const pillColors = ROLE_PILL_COLORS[agent.role]
@@ -90,7 +90,7 @@ function AgentPill({ agent, currentTaskTitle }: { agent: { id: string; name: str
       </Tooltip>
     </TooltipProvider>
   )
-}
+})
 
 // Task template definitions
 const TASK_TEMPLATES: { id: string; label: string; icon: string; title: string; description: string; priority: string; type: string }[] = [
@@ -1051,6 +1051,21 @@ export function IDETopBar() {
         </div>
         <div className="h-4 w-px bg-border mx-0.5" />
         <NotificationBell />
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                onClick={() => window.dispatchEvent(new CustomEvent('teamforge-toggle-shortcuts'))}
+              >
+                <Keyboard className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">Shortcuts (Ctrl+Shift+/)</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>

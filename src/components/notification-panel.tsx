@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Bell, Check, CheckCheck, Trash2, Info, CheckCircle2, AlertTriangle, XCircle, Hammer, Bot, Settings, MessageSquare } from 'lucide-react'
+import { Bell, Check, CheckCheck, Trash2, Info, CheckCircle2, AlertTriangle, XCircle, Hammer, Bot, Settings, MessageSquare, Filter } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 
 // Relative time formatter
 function formatRelativeTime(dateStr: string): string {
@@ -30,40 +30,63 @@ function formatRelativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString()
 }
 
+// Group notifications by time period
+function getTimeGroup(dateStr: string): 'today' | 'yesterday' | 'older' {
+  const d = new Date(dateStr)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today.getTime() - 86400000)
+  const messageDate = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+  if (messageDate.getTime() === today.getTime()) return 'today'
+  if (messageDate.getTime() === yesterday.getTime()) return 'yesterday'
+  return 'older'
+}
+
+const TIME_GROUP_LABELS: Record<string, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  older: 'Older',
+}
+
 // Type config for colors and icons
-const NOTIFICATION_TYPE_CONFIG: Record<NotificationType, { borderColor: string; bgColor: string; icon: React.ElementType; iconColor: string }> = {
+const NOTIFICATION_TYPE_CONFIG: Record<NotificationType, { borderColor: string; bgColor: string; icon: React.ElementType; iconColor: string; label: string }> = {
   info: {
     borderColor: 'border-l-blue-500',
     bgColor: 'bg-blue-500/5',
     icon: Info,
     iconColor: 'text-blue-500',
+    label: 'Info',
   },
   success: {
     borderColor: 'border-l-emerald-500',
     bgColor: 'bg-emerald-500/5',
     icon: CheckCircle2,
     iconColor: 'text-emerald-500',
+    label: 'Success',
   },
   warning: {
     borderColor: 'border-l-amber-500',
     bgColor: 'bg-amber-500/5',
     icon: AlertTriangle,
     iconColor: 'text-amber-500',
+    label: 'Warning',
   },
   error: {
     borderColor: 'border-l-red-500',
     bgColor: 'bg-red-500/5',
     icon: XCircle,
     iconColor: 'text-red-500',
+    label: 'Error',
   },
 }
 
-const NOTIFICATION_CATEGORY_CONFIG: Record<NotificationCategory, { icon: React.ElementType; label: string }> = {
-  task: { icon: Check, label: 'Task' },
-  build: { icon: Hammer, label: 'Build' },
-  agent: { icon: Bot, label: 'Agent' },
-  system: { icon: Settings, label: 'System' },
-  chat: { icon: MessageSquare, label: 'Chat' },
+const NOTIFICATION_CATEGORY_CONFIG: Record<NotificationCategory, { icon: React.ElementType; label: string; color: string }> = {
+  task: { icon: Check, label: 'Task', color: 'text-emerald-500' },
+  build: { icon: Hammer, label: 'Build', color: 'text-blue-500' },
+  agent: { icon: Bot, label: 'Agent', color: 'text-violet-500' },
+  system: { icon: Settings, label: 'System', color: 'text-zinc-500' },
+  chat: { icon: MessageSquare, label: 'Chat', color: 'text-pink-500' },
 }
 
 function NotificationItem({
@@ -115,13 +138,19 @@ function NotificationItem({
           {notification.message}
         </p>
         <div className="flex items-center gap-2 mt-1">
-          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
+          {/* Category badge */}
+          <span className={cn('flex items-center gap-0.5 text-[10px]', categoryConfig.color)}>
             {(() => {
               const CatIcon = categoryConfig.icon
               return <CatIcon className="size-2.5" />
             })()}
             {categoryConfig.label}
           </span>
+          {/* Priority badge */}
+          <span className={cn('text-[10px]', typeConfig.iconColor)}>
+            {typeConfig.label}
+          </span>
+          {/* Timestamp */}
           <span className="text-[10px] text-muted-foreground/70">
             {formatRelativeTime(notification.createdAt)}
           </span>
@@ -133,6 +162,7 @@ function NotificationItem({
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState<NotificationCategory | 'all'>('all')
   const notifications = useAppStore((s) => s.notifications)
   const markNotificationRead = useAppStore((s) => s.markNotificationRead)
   const markAllNotificationsRead = useAppStore((s) => s.markAllNotificationsRead)
@@ -148,6 +178,31 @@ export function NotificationBell() {
   const handleClear = useCallback(() => {
     clearNotifications()
   }, [clearNotifications])
+
+  // Filter notifications by category
+  const filteredNotifications = useMemo(() => {
+    if (categoryFilter === 'all') return notifications
+    return notifications.filter((n) => n.category === categoryFilter)
+  }, [notifications, categoryFilter])
+
+  // Group notifications by time
+  const groupedNotifications = useMemo(() => {
+    const groups: Record<string, Notification[]> = { today: [], yesterday: [], older: [] }
+    for (const notif of filteredNotifications) {
+      const group = getTimeGroup(notif.createdAt)
+      groups[group].push(notif)
+    }
+    return groups
+  }, [filteredNotifications])
+
+  // Count per category for filter badges
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: notifications.length }
+    for (const n of notifications) {
+      counts[n.category] = (counts[n.category] || 0) + 1
+    }
+    return counts
+  }, [notifications])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -231,7 +286,46 @@ export function NotificationBell() {
           </div>
         </div>
 
-        {/* Notification list */}
+        {/* Category filter */}
+        {notifications.length > 0 && (
+          <div className="flex items-center gap-1 px-3 py-1.5 border-b bg-muted/10 overflow-x-auto scrollbar-none">
+            <Filter className="size-3 text-muted-foreground/50 shrink-0" />
+            <button
+              onClick={() => setCategoryFilter('all')}
+              className={cn(
+                'px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors whitespace-nowrap',
+                categoryFilter === 'all'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground/60 hover:text-foreground',
+              )}
+            >
+              All ({categoryCounts.all})
+            </button>
+            {(Object.keys(NOTIFICATION_CATEGORY_CONFIG) as NotificationCategory[]).map((cat) => {
+              const config = NOTIFICATION_CATEGORY_CONFIG[cat]
+              const CatIcon = config.icon
+              const count = categoryCounts[cat] || 0
+              if (count === 0) return null
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={cn(
+                    'flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors whitespace-nowrap',
+                    categoryFilter === cat
+                      ? `${config.color} bg-primary/10`
+                      : 'text-muted-foreground/60 hover:text-foreground',
+                  )}
+                >
+                  <CatIcon className="size-2.5" />
+                  {config.label} ({count})
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Notification list grouped by time */}
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
             <div className="size-10 rounded-full bg-muted/50 flex items-center justify-center mb-2">
@@ -240,17 +334,39 @@ export function NotificationBell() {
             <p className="text-xs text-muted-foreground font-medium">No notifications</p>
             <p className="text-[10px] text-muted-foreground/70 mt-0.5">You&apos;re all caught up!</p>
           </div>
+        ) : filteredNotifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+            <div className="size-10 rounded-full bg-muted/50 flex items-center justify-center mb-2">
+              <Filter className="size-5 text-muted-foreground/50" />
+            </div>
+            <p className="text-xs text-muted-foreground font-medium">No matching notifications</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">Try a different category filter</p>
+          </div>
         ) : (
           <ScrollArea className="max-h-96">
-            <AnimatePresence mode="popLayout">
-              {notifications.map((notification) => (
-                <NotificationItem
-                  key={notification.id}
-                  notification={notification}
-                  onMarkRead={markNotificationRead}
-                />
-              ))}
-            </AnimatePresence>
+            {(['today', 'yesterday', 'older'] as const).map((group) => {
+              const groupNotifs = groupedNotifications[group]
+              if (groupNotifs.length === 0) return null
+              return (
+                <div key={group}>
+                  {/* Time group header */}
+                  <div className="sticky top-0 z-10 px-3 py-1 bg-muted/20 border-b border-border/30">
+                    <span className="text-[9px] font-semibold tracking-wider text-muted-foreground/60 uppercase">
+                      {TIME_GROUP_LABELS[group]}
+                    </span>
+                  </div>
+                  <AnimatePresence mode="popLayout">
+                    {groupNotifs.map((notification) => (
+                      <NotificationItem
+                        key={notification.id}
+                        notification={notification}
+                        onMarkRead={markNotificationRead}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )
+            })}
           </ScrollArea>
         )}
 

@@ -42,6 +42,8 @@ import {
   Check,
   MessageSquare,
   Timer,
+  Wrench,
+  Sparkles,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo, useState, useCallback } from 'react'
@@ -223,6 +225,19 @@ export function AgentDetailDialog() {
     }
   }, [agent, assignTaskTitle, updateAgent])
 
+  // Get capabilities for an agent role
+  function getCapabilitiesForRole(role: AgentRole): string[] {
+    const capabilities: Record<AgentRole, string[]> = {
+      architect: ['System Design', 'API Design', 'Tech Decisions', 'Documentation', 'Code Review', 'Architecture Patterns'],
+      developer: ['Code Implementation', 'Bug Fixes', 'Refactoring', 'Feature Development', 'Testing', 'Debugging'],
+      reviewer: ['Code Review', 'Quality Assurance', 'Best Practices', 'Security Audit', 'Performance Review', 'Style Guide'],
+      tester: ['Unit Tests', 'Integration Tests', 'E2E Tests', 'Performance Tests', 'Edge Cases', 'Test Automation'],
+      devops: ['CI/CD', 'Docker', 'Infrastructure', 'Deployment', 'Monitoring', 'Scaling'],
+      pm: ['Sprint Planning', 'Task Breakdown', 'Progress Tracking', 'Stakeholder Comm', 'Risk Assessment', 'Prioritization'],
+    }
+    return capabilities[role] || []
+  }
+
   if (!agent || !roleConfig || !statusConfig) return null
 
   const successRatePct = Math.round(agent.successRate * 100)
@@ -231,7 +246,7 @@ export function AgentDetailDialog() {
     <Dialog open={!!selectedAgentId} onOpenChange={(v) => !v && setSelectedAgentId(null)}>
       <DialogContent
         showCloseButton={false}
-        className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-clip"
+        className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
       >
         {/* Header with gradient background */}
         <div className={cn(
@@ -331,6 +346,32 @@ export function AgentDetailDialog() {
               <span className="font-semibold text-foreground tabular-nums">{successRatePct}%</span>
             </div>
             <Progress value={successRatePct} className="h-1.5" />
+          </div>
+
+          {/* Specialty & Capabilities */}
+          {agent.specialty && (
+            <div className="mt-3 p-2.5 rounded-lg bg-muted/20 border border-border/40">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground mb-1.5">
+                <Sparkles className="size-3 text-amber-500" />
+                Specialty
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{agent.specialty}</p>
+            </div>
+          )}
+
+          {/* Capabilities based on role */}
+          <div className="mt-2 p-2.5 rounded-lg bg-muted/15 border border-border/30">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground mb-1.5">
+              <Wrench className="size-3 text-blue-500" />
+              Capabilities
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {roleConfig && getCapabilitiesForRole(agent.role).map((cap) => (
+                <Badge key={cap} variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal">
+                  {cap}
+                </Badge>
+              ))}
+            </div>
           </div>
         </div>
 

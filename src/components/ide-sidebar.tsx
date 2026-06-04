@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import {
   ContextMenu,
@@ -50,10 +51,11 @@ import {
   Eye,
   GitBranch,
   RefreshCw,
+  BarChart3,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { cn, formatRelativeTime } from '@/lib/utils'
+import { useState, useMemo, useRef, useEffect, useCallback, memo } from 'react'
+import { cn, formatRelativeTime, useHydrated } from '@/lib/utils'
 import { toast } from 'sonner'
 
 // File tree node type
@@ -154,7 +156,7 @@ function formatLineInfo(content: string): string {
   return `${lines}L`
 }
 
-function FileTreeNodeView({
+const FileTreeNodeView = memo(function FileTreeNodeView({
   node,
   depth,
   activeFileId,
@@ -322,7 +324,7 @@ function FileTreeNodeView({
           {isActive && (
             <Pin className="size-2.5 text-emerald-500/60 shrink-0 ml-auto" />
           )}
-          {!isActive && !gitStatus && fileSize > 0 && (
+          {!isActive && !gitStatus && fileSize > 0 && node.file && (
             <span className="text-[9px] text-muted-foreground/40 ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
               {formatLineInfo(node.file.content)} · {formatFileSize(fileSize)}
             </span>
@@ -360,16 +362,19 @@ function FileTreeNodeView({
       </ContextMenuContent>
     </ContextMenu>
   )
-}
+})
 
 // Activity type config
-const ACTIVITY_TYPE_CONFIG: Record<string, { icon: React.ReactNode; borderColor: string }> = {
-  task_started: { icon: <Play className="size-3 text-emerald-500" />, borderColor: 'border-l-emerald-500' },
-  code_written: { icon: <FileCode2 className="size-3 text-blue-500" />, borderColor: 'border-l-blue-500' },
-  review_completed: { icon: <CheckCircle2 className="size-3 text-violet-500" />, borderColor: 'border-l-violet-500' },
-  test_run: { icon: <TestTube2 className="size-3 text-amber-500" />, borderColor: 'border-l-amber-500' },
-  deploy_triggered: { icon: <Rocket className="size-3 text-orange-500" />, borderColor: 'border-l-orange-500' },
-  message_sent: { icon: <MessageSquare className="size-3 text-pink-500" />, borderColor: 'border-l-pink-500' },
+const ACTIVITY_TYPE_CONFIG: Record<string, { icon: React.ReactNode; borderColor: string; label: string }> = {
+  task_started: { icon: <Play className="size-3 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'Task Started' },
+  code_written: { icon: <FileCode2 className="size-3 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'Code Written' },
+  review_completed: { icon: <CheckCircle2 className="size-3 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Review' },
+  test_run: { icon: <TestTube2 className="size-3 text-amber-500" />, borderColor: 'border-l-amber-500', label: 'Test' },
+  deploy_triggered: { icon: <Rocket className="size-3 text-orange-500" />, borderColor: 'border-l-orange-500', label: 'Deploy' },
+  message_sent: { icon: <MessageSquare className="size-3 text-pink-500" />, borderColor: 'border-l-pink-500', label: 'Message' },
+  file_created: { icon: <FilePlus className="size-3 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'File Created' },
+  file_updated: { icon: <FileCode2 className="size-3 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'File Updated' },
+  code_change: { icon: <FileCode2 className="size-3 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Code Change' },
 }
 
 // Format relative timestamp
@@ -445,13 +450,28 @@ function ActivityFeedSection() {
   const setActiveBottomTab = useAppStore((s) => s.setActiveBottomTab)
   const setBottomPanelOpen = useAppStore((s) => s.setBottomPanelOpen)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [activityFilter, setActivityFilter] = useState<string>('all')
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
 
-  // Show last 20 activities, newest first
+  // Get unique action types from current activities
+  const actionTypes = useMemo(() => {
+    const types = new Set<string>()
+    for (const a of activities) {
+      types.add(a.action)
+    }
+    return Array.from(types).sort()
+  }, [activities])
+
+  // Filter and sort activities
   const recentActivities = useMemo(() => {
-    return [...activities]
+    let filtered = [...activities]
+    if (activityFilter !== 'all') {
+      filtered = filtered.filter((a) => a.action === activityFilter)
+    }
+    return filtered
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 20)
-  }, [activities])
+  }, [activities, activityFilter])
 
   // Auto-scroll to top (newest) when new activities arrive
   useEffect(() => {
@@ -472,7 +492,79 @@ function ActivityFeedSection() {
             {recentActivities.length}
           </Badge>
         )}
+        {/* Filter dropdown */}
+        {actionTypes.length > 1 && (
+          <div className="relative">
+            <button
+              onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+              className={cn(
+                'size-4 flex items-center justify-center rounded-sm transition-colors',
+                activityFilter !== 'all'
+                  ? 'text-violet-500 bg-violet-500/10'
+                  : 'text-muted-foreground/40 hover:text-muted-foreground/70 hover:bg-muted/40',
+              )}
+              title="Filter activity type"
+            >
+              <Search className="size-2.5" />
+            </button>
+            <AnimatePresence>
+              {filterDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setFilterDropdownOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute right-0 top-full mt-1 w-36 bg-card border border-border/60 rounded-lg shadow-xl z-50 overflow-hidden"
+                  >
+                    <button
+                      onClick={() => { setActivityFilter('all'); setFilterDropdownOpen(false) }}
+                      className={cn(
+                        'flex items-center gap-1.5 w-full px-2 py-1.5 text-[10px] transition-colors',
+                        activityFilter === 'all' ? 'bg-emerald-500/10 text-foreground' : 'hover:bg-muted/50 text-foreground/80',
+                      )}
+                    >
+                      <Activity className="size-2.5 text-muted-foreground" />
+                      All
+                    </button>
+                    {actionTypes.map((type) => {
+                      const config = ACTIVITY_TYPE_CONFIG[type] || {
+                        icon: <Activity className="size-2.5 text-muted-foreground" />,
+                        label: type,
+                      }
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => { setActivityFilter(type); setFilterDropdownOpen(false) }}
+                          className={cn(
+                            'flex items-center gap-1.5 w-full px-2 py-1.5 text-[10px] transition-colors',
+                            activityFilter === type ? 'bg-emerald-500/10 text-foreground' : 'hover:bg-muted/50 text-foreground/80',
+                          )}
+                        >
+                          {config.icon}
+                          {config.label || type}
+                        </button>
+                      )
+                    })}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
+
+      {activityFilter !== 'all' && (
+        <div className="px-3 mt-0.5">
+          <button
+            onClick={() => setActivityFilter('all')}
+            className="text-[9px] text-violet-500 hover:text-violet-400 transition-colors"
+          >
+            ← Clear filter
+          </button>
+        </div>
+      )}
 
       <div
         ref={scrollRef}
@@ -481,7 +573,7 @@ function ActivityFeedSection() {
         {recentActivities.length === 0 ? (
           <div className="flex items-center justify-center py-6 text-muted-foreground/50 text-[10px]">
             <Activity className="size-3 mr-1.5 opacity-40" />
-            No recent activity
+            {activityFilter !== 'all' ? 'No matching activity' : 'No recent activity'}
           </div>
         ) : (
           <div className="flex flex-col gap-0.5">
@@ -512,6 +604,7 @@ function ActivityItem({ activity }: { activity: AgentActivity }) {
   const typeConfig = ACTIVITY_TYPE_CONFIG[activity.action] || {
     icon: <Activity className="size-3 text-muted-foreground" />,
     borderColor: 'border-l-muted-foreground/40',
+    label: activity.action,
   }
   const agent = activity.agent
   const roleConfig = agent ? AGENT_ROLE_CONFIG[agent.role as AgentRole] : null
@@ -544,6 +637,80 @@ function ActivityItem({ activity }: { activity: AgentActivity }) {
       </div>
     </div>
   )
+}
+
+// File Language Stats component - shows a summary of file types in the project
+function FileLanguageStats({ files }: { files: ProjectFile[] }) {
+  const mounted = useHydrated()
+
+  const languageStats = useMemo(() => {
+    const counts: Record<string, { count: number; color: string }> = {}
+    for (const file of files) {
+      if (file.isDirectory) continue
+      const ext = file.path.split('.').pop()?.toLowerCase() || ''
+      if (!ext) continue
+      const display = EXT_DISPLAY_MAP[ext] || ext.toUpperCase()
+      const color = EXT_COLOR_MAP[ext] || 'text-muted-foreground'
+      if (!counts[display]) {
+        counts[display] = { count: 0, color }
+      }
+      counts[display].count++
+    }
+    // Sort by count descending
+    return Object.entries(counts)
+      .sort(([, a], [, b]) => b.count - a.count)
+      .slice(0, 6)
+  }, [files])
+
+  if (!mounted || languageStats.length === 0) return null
+
+  return (
+    <div className="px-3 py-2 border-t bg-card/30 shrink-0">
+      <div className="flex items-center gap-1 mb-1">
+        <BarChart3 className="size-2.5 text-muted-foreground/50" />
+        <span className="text-[9px] font-semibold tracking-wider text-muted-foreground/50 uppercase">
+          Languages
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {languageStats.map(([lang, { count, color }]) => (
+          <span
+            key={lang}
+            className={cn(
+              'inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-muted/40 border border-border/30',
+              color,
+            )}
+          >
+            {count} {lang}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const EXT_DISPLAY_MAP: Record<string, string> = {
+  ts: 'TS', tsx: 'TSX', js: 'JS', jsx: 'JSX',
+  json: 'JSON', css: 'CSS', scss: 'SCSS', less: 'LESS',
+  md: 'MD', mdx: 'MDX', prisma: 'Prisma',
+  html: 'HTML', yaml: 'YAML', yml: 'YAML',
+  py: 'PY', rb: 'RB', go: 'GO', rs: 'RS',
+  sql: 'SQL', sh: 'SH', bash: 'SH', toml: 'TOML',
+  svg: 'SVG', txt: 'TXT', xml: 'XML',
+  env: 'ENV', gitignore: 'GIT',
+}
+
+const EXT_COLOR_MAP: Record<string, string> = {
+  ts: 'text-blue-500', tsx: 'text-blue-500',
+  js: 'text-amber-500', jsx: 'text-amber-500',
+  json: 'text-yellow-500', css: 'text-pink-500',
+  scss: 'text-pink-500', prisma: 'text-teal-500',
+  md: 'text-gray-400', mdx: 'text-gray-400',
+  html: 'text-orange-500', yaml: 'text-red-400',
+  yml: 'text-red-400', py: 'text-green-500',
+  go: 'text-cyan-500', rs: 'text-orange-600',
+  sql: 'text-violet-500', sh: 'text-emerald-400',
+  bash: 'text-emerald-400',
 }
 
 // Helper to get all directory paths in a tree
@@ -942,32 +1109,68 @@ export function IDESidebar() {
               {files.filter((f) => !f.isDirectory).length}
             </Badge>
           </div>
-          {fileTree.map((node) => (
-            <FileTreeNodeView
-              key={node.path}
-              node={node}
-              depth={0}
-              activeFileId={activeFileId}
-              onFileClick={handleFileClick}
-              expandedDirs={expandedDirs}
-              toggleDir={toggleDir}
-              onContextMenuAction={handleContextMenuAction}
-              highlightPath={highlightPath}
-              gitFileStatuses={gitFileStatuses}
-              unsavedFileIds={unsavedFileIds}
-            />
-          ))}
-          {fileTree.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground px-4">
-              <div className="empty-state-illustration">
-                <div className="size-10 rounded-xl bg-muted/30 flex items-center justify-center mb-2">
-                  <FileX2 className="size-4 text-muted-foreground/40" />
-                </div>
+          {/* Skeleton loading when files are being fetched */}
+          {files.length === 0 && !searchQuery ? (
+            <div className="px-3 py-2 space-y-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="size-3.5 rounded-sm" />
+                <Skeleton className="h-3 w-24" />
               </div>
-              <p className="text-[10px] text-center text-muted-foreground/50 mt-1">
-                {searchQuery ? 'No files match your search' : 'No files in project'}
-              </p>
+              <div className="flex items-center gap-2 pl-4">
+                <Skeleton className="size-3.5 rounded-sm" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <div className="flex items-center gap-2 pl-4">
+                <Skeleton className="size-3.5 rounded-sm" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Skeleton className="size-3.5 rounded-sm" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+              <div className="flex items-center gap-2 pl-4">
+                <Skeleton className="size-3.5 rounded-sm" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+              <div className="flex items-center gap-2 pl-4">
+                <Skeleton className="size-3.5 rounded-sm" />
+                <Skeleton className="h-3 w-22" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Skeleton className="size-3.5 rounded-sm" />
+                <Skeleton className="h-3 w-18" />
+              </div>
             </div>
+          ) : (
+            <>
+              {fileTree.map((node) => (
+                <FileTreeNodeView
+                  key={node.path}
+                  node={node}
+                  depth={0}
+                  activeFileId={activeFileId}
+                  onFileClick={handleFileClick}
+                  expandedDirs={expandedDirs}
+                  toggleDir={toggleDir}
+                  onContextMenuAction={handleContextMenuAction}
+                  highlightPath={highlightPath}
+                  gitFileStatuses={gitFileStatuses}
+                  unsavedFileIds={unsavedFileIds}
+                />
+              ))}
+              {fileTree.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground px-4">
+                  <div className="empty-state-illustration">
+                    <div className="size-10 rounded-xl bg-muted/30 flex items-center justify-center mb-2">
+                      <FileX2 className="size-4 text-muted-foreground/40" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-center text-muted-foreground/50 mt-1">
+                    No files match your search
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -1014,6 +1217,9 @@ export function IDESidebar() {
           <GitPanel />
         </div>
       </ScrollArea>
+
+      {/* File Language Stats */}
+      <FileLanguageStats files={files} />
 
       {/* File Creation Dialogs */}
       <FileCreationDialog

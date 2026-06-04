@@ -505,3 +505,326 @@ Stage Summary:
 - Lint passes with 0 errors
 - Agent-browser verification confirms all features working
 - YOLO mode, multi-provider chat, compile/run, chat history all functional
+
+---
+Task ID: 3
+Agent: Main
+Task: Improve AI Pipeline with Agent-Specific Context & More Slash Commands
+
+Work Log:
+
+### 1. Enhanced `buildContextAwareSystemPrompt` in `/api/ai/chat/route.ts`
+
+- **Active file context**: Added `activeFile` parameter to the function. When the user has a file open in the editor, the system prompt now includes the full file content (up to 100 lines) under a "📌 Active File" section, with instructions for the AI to pay special attention to it.
+- **Project structure awareness**: Added `project` parameter. The system prompt now includes Project Info section with name, description, status, and tech stack. Uses `typeof x === 'string' ? JSON.parse(x) : x` pattern to safely parse `techStack` from JSON string.
+- **Dependency awareness**: Scans VFS for `package.json` files and lists runtime and dev dependencies (up to 30 each) in the system prompt.
+- **Git status awareness**: The `/commit` command now queries actual git status (branch, uncommitted changes) and includes it in the AI prompt.
+- **Action-oriented prompt**: Rewrote the introductory prompt to emphasize the AI's active capabilities: "You can directly execute commands, edit files, and make changes — you are not just a chatbot, you are an active participant in the development workflow."
+- **Updated capabilities list**: Listed all slash commands as capabilities with descriptions, making the AI aware of what actions it can take.
+- **Updated available slash commands**: Added /fix, /refactor, /optimize, /search, /commit to the listed commands in the system prompt.
+
+### 2. Added `activeFilePath` parameter to POST handler
+
+- Added `activeFilePath?: string` to `ChatRequest` interface
+- Destructured `activeFilePath` from request body
+- When provided, fetches the file from VFS via `db.projectFile.findFirst()`
+- Passes the active file data to `buildContextAwareSystemPrompt()`
+- Also passes `activeFilePath` through to `handleSlashCommand()` so `/fix`, `/refactor`, `/optimize` can use it as a default when no path is specified
+
+### 3. Added new slash commands to `handleSlashCommand`
+
+- **`/fix <file_path>`**: AI analyzes the file for bugs, anti-patterns, null/undefined access, missing error handling, race conditions, memory leaks, incorrect logic, and security vulnerabilities. If issues are found, applies the fix to the file and returns a code_change message. If no issues found, returns a confirmation message. Falls back to `activeFilePath` if no path is provided.
+- **`/refactor <file_path>`**: AI refactors the file for better code quality (naming, DRY, SOLID, error handling, TypeScript typing, reusable utilities). Applies the refactored content to the file. Falls back to `activeFilePath`.
+- **`/optimize <file_path>`**: AI optimizes the file for performance (re-renders, memoization, bundle size, data structures, lazy loading, query optimization). Applies the optimized content to the file. Falls back to `activeFilePath`.
+- **`/search <query>`**: Searches through all project files in VFS for text matching the query. Uses relevance scoring (path match +10, word-in-path +3, word-in-content +2). Returns top 10 results with matched line previews.
+- **`/commit`**: Queries recent file changes and completed tasks from the DB, runs `git status` and `git branch` commands to gather git context, then asks the AI to generate a conventional commit message. Includes git status in the response.
+
+### 4. Updated `ide-chat-panel.tsx`
+
+- **New icon imports**: Added `Wrench`, `RefreshCw`, `Gauge`, `Search`, `GitCommitHorizontal` from lucide-react
+- **Updated SLASH_COMMANDS array**: Added 5 new entries:
+  - `/fix` — Wrench icon (red), "AI analyzes and fixes bugs/issues"
+  - `/refactor` — RefreshCw icon (teal), "AI refactors for better code quality"
+  - `/optimize` — Gauge icon (amber), "AI optimizes for performance"
+  - `/search` — Search icon (sky), "Search project files for code"
+  - `/commit` — GitCommitHorizontal icon (orange), "Generate a commit message"
+- **Updated `executeSlashCommand`**: Extended the prefix-based command handling to include `/fix`, `/refactor`, `/optimize`, `/search` (these set the input prefix and let user type arguments). Added `/commit` case that sends the command to the server with `activeFilePath`.
+- **Updated `handleSend`**: Added `activeFilePath` to the request body using `useAppStore.getState()` to read the current active file. Updated `serverHandledCommands` to include all new commands. Updated file refresh trigger to also refresh after `/fix`, `/refactor`, `/optimize` commands.
+- **Updated `/status` case**: Added `activeFilePath` to the status request body.
+
+### Lint and Build Verification
+- `bun run lint` — 0 errors, 0 warnings
+- Dev server compiles and runs successfully
+
+Stage Summary:
+- AI system prompt now includes active file context, project info, dependencies, and is action-oriented
+- `activeFilePath` parameter flows from frontend → API → system prompt
+- 5 new slash commands: /fix, /refactor, /optimize, /search, /commit
+- All commands properly integrated in both backend and frontend
+- Existing functionality preserved — no breaking changes
+- Lint: 0 errors
+
+---
+Task ID: 4
+Agent: Main
+Task: Fix Agent Detail Display & QoL Improvements
+
+Work Log:
+
+### 1. Fixed Agent Detail Dialog (`src/components/agent-detail-dialog.tsx`)
+- Fixed `overflow-clip` → `overflow-hidden` on DialogContent to prevent content clipping
+- Added "Specialty" section with Sparkles icon showing agent's specialty text in a styled card
+- Added "Capabilities" section with Wrench icon showing role-specific capabilities as Badge pills
+  - Each agent role now has 6 capabilities listed (e.g., architect: System Design, API Design, Tech Decisions, etc.)
+- Added `Wrench` and `Sparkles` icon imports from lucide-react
+- Added `getCapabilitiesForRole()` function mapping AgentRole to capability arrays
+- Both new sections are in the header area (non-scrollable) for immediate visibility
+
+### 2. Added Keyboard Shortcuts Dialog with Top Bar Button
+- Rewrote `src/components/keyboard-shortcuts-overlay.tsx` with comprehensive shortcuts list:
+  - Build & Run: Ctrl+Shift+B (Build), Ctrl+Shift+T (Test), Ctrl+Shift+L (Lint), Ctrl+Shift+D (Deploy)
+  - General: Ctrl+Shift+P (Command Palette), Ctrl+Shift+/ (Shortcuts), F1 (Shortcuts), Ctrl+, (Settings)
+  - File: Ctrl+S (Save File), Ctrl+Shift+S (Save All), Ctrl+P (Quick Open), Ctrl+N (New File)
+  - Terminal & Panels: Ctrl+J (Toggle Terminal), Ctrl+B (Toggle Sidebar)
+  - Search: Ctrl+F (Find), Ctrl+H (Find & Replace), Ctrl+G (Go to Line), Ctrl+Shift+F (Global Search)
+  - Editor: Ctrl+/ (Comment), Ctrl+Enter (Run File), Ctrl+/- (Font Size), etc.
+- Added custom event listener `teamforge-toggle-shortcuts` so the top bar button can open the overlay
+- Added "Shortcuts" button with Keyboard icon in `src/components/ide-top-bar.tsx`:
+  - Placed between NotificationBell and Settings button
+  - Uses `window.dispatchEvent(new CustomEvent('teamforge-toggle-shortcuts'))` to open the overlay
+  - Tooltip shows "Shortcuts (Ctrl+Shift+/)"
+  - Added `Keyboard` icon import from lucide-react
+
+### 3. Improved Terminal Panel (`src/components/ide-bottom-panel.tsx`)
+- Improved auto-scroll: changed from instant `scrollTop` to smooth `scrollTo({ behavior: 'smooth' })`
+- Enhanced empty state with better layout:
+  - Terminal icon centered with descriptive text
+  - Three quick action buttons: "Run Lint", "Run Build", "Help"
+  - Subtle sub-text: "Type a command and press Enter to execute"
+- Improved command input prompt:
+  - Changed prompt color from `text-emerald-500/80` to `text-emerald-500` with `font-bold` for better visibility
+  - Updated placeholder text to include hint: "Type a command... (↑↓ for history)"
+
+### 4. Added Ctrl+S Save Shortcut & Other Keyboard Shortcuts (`src/app/page.tsx`)
+- **Ctrl+S**: Saves the currently active file if it has unsaved changes; falls back to saving all unsaved files if no file is active
+- **Ctrl+Shift+S**: Save all unsaved files (already existed, kept in place)
+- **Ctrl+J**: Toggle terminal panel — opens/closes terminal, switches to terminal tab
+- **Ctrl+N**: Create new untitled TypeScript file via API, set as active
+- Added necessary store selectors: `activeFileId`, `files`, `unsavedFileIds`, `markFileSaved`, `setBottomPanelOpen`, `setActiveBottomTab`, `bottomPanelOpen`
+- All shortcuts show appropriate toast messages (success, error, info)
+
+Stage Summary:
+- Agent Detail Dialog now shows Specialty and Capabilities sections with proper layout
+- Keyboard Shortcuts overlay has comprehensive shortcut list matching IDE features
+- Shortcuts button added to top bar between Notifications and Settings
+- Terminal panel has smoother auto-scroll, better empty state, and more visible prompt
+- Ctrl+S, Ctrl+J, and Ctrl+N keyboard shortcuts fully implemented in page.tsx
+- Fixed duplicate `currentProject` variable definition in page.tsx
+- Lint: 0 errors
+- All pages and APIs returning 200
+
+---
+Task ID: 5
+Agent: Subagent
+Task: Add More Features and Polish
+
+Work Log:
+
+### 1. File Language Stats in Sidebar
+- Added `FileLanguageStats` component at the bottom of `ide-sidebar.tsx`
+- Counts file extensions from the VFS and displays them as color-coded badges (e.g., "3 TS", "2 CSS", "1 JSON")
+- Uses `EXT_DISPLAY_MAP` for display names (ts→TS, prisma→Prisma, etc.) and `EXT_COLOR_MAP` for colors
+- Sorted by count descending, showing top 6 languages
+- Guarded by `useHydrated()` to prevent hydration mismatch
+- Added `BarChart3` icon import and `useHydrated` import to sidebar
+
+### 2. Breadcrumb Navigation in Code Editor
+- Verified existing breadcrumb navigation in `ide-editor.tsx` (lines 1491-1517)
+- Already shows path segments with `ChevronRight` separators
+- Each directory segment is clickable and dispatches `navigate-to-folder` custom event
+- Sidebar already listens for this event and expands/highlights the directory
+- Last segment (filename) is bold and non-clickable
+- No changes needed — feature is fully implemented
+
+### 3. Activity Feed Improvements
+- **Sidebar ActivityFeedSection**: Added filter dropdown with animated popover
+  - Shows filter icon button when there are multiple activity types
+  - Dropdown lists all unique activity types with their icons
+  - Active filter shown with violet highlight
+  - "← Clear filter" link appears when filter is active
+  - Empty state messages differentiate between "No recent activity" and "No matching activity"
+- **Bottom Panel ActivitiesView**: Added filter bar with pill-style buttons
+  - All activity types shown as clickable filter pills
+  - Active filter highlighted, "Clear" button when filtered
+  - Added `bgColor` property to `ACTIVITY_TYPE_CONFIG_FULL` for subtle background tinting
+- **Color-coded activity types**: Added `label` property to `ACTIVITY_TYPE_CONFIG` in sidebar
+  - New activity types added: `file_created`, `file_updated`, `code_change`
+  - Each type has distinct icon, border color, and label
+- **Relative timestamps**: Already working via `formatRelativeTime()` utility
+- **No fake data**: Activity feed uses real data from `/api/activities` endpoint which queries the database
+
+### 4. Chat Panel Header Improvements
+- Added `ChatAIStatusBar` component below the main header in `ide-chat-panel.tsx`
+- **AI Provider/Model badge**: Shows current provider with icon and model name
+  - Z-AI: Bot icon + "DeepSeek" in emerald
+  - NVIDIA: Zap icon + model name in green
+  - OpenAI-Compatible: Sparkles icon + model name in violet
+- **Connection status indicator**: 
+  - Green dot + "Connected" for Z-AI (always) and when API key is configured
+  - Yellow/amber dot + "No API key configured" when key is missing for NVIDIA/OpenAI
+  - Tooltip shows full status on hover
+- **Token counter**: Shows estimated tokens based on ~4 chars per token
+  - Displays as "~1.2k tok" for large counts, "~342 tok" for small
+  - Uses `BarChart3` icon
+- Guarded by `useHydrated()` to prevent hydration mismatch
+- Fixed duplicate `BarChart3` import that was causing compilation error
+
+### 5. Bottom Panel Tab Improvements
+- **Terminal tab**: Shows "idle" badge (text-muted)
+- **Build tab**: Added `BuildStatusBadge` component showing last build status
+  - ✓ (emerald) for success
+  - ✗ (red) for failed
+  - ⚠ (amber) for warning
+  - Spinner (blue) for running
+- **Problems tab**: Shows problem count (destructive badge) when >0, ✓ badge (emerald) when 0
+- **Tasks tab**: Shows task count badge (already existed)
+- **Analytics tab**: Shows "ready" badge
+
+Stage Summary:
+- File Language Stats shows project language breakdown at sidebar bottom
+- Breadcrumb navigation already existed and works correctly
+- Activity Feed has filter dropdown in both sidebar and bottom panel
+- All activity types are color-coded with proper labels
+- Chat panel shows AI provider/model, connection status, and token estimate
+- Bottom panel tabs have proper status badges for all tabs
+- Lint: 0 errors
+- All APIs returning 200
+
+---
+Task ID: 6
+Agent: Main
+Task: Add Deployment Readiness Features
+
+Work Log:
+
+### 1. Project Health Dashboard (`src/components/analytics-dashboard.tsx`)
+- Added `files` selector from the store to access project files
+- Added `formatFileSize()` helper for human-readable file sizes
+- Created `BuildStatusIcon` component with animated icon per status (success=CheckCircle2, failed=AlertTriangle, warning=AlertTriangle, running=Hammer pulse, none=Hammer muted)
+- Created `BuildStatusLabel` component with color-coded status text
+- Added comprehensive **Project Health** section with 4 stat cards:
+  - **Files**: Total file count, largest file name+size, average file size — uses `useMemo` to compute from projectFiles
+  - **Tasks**: Completion rate with percentage, status breakdown with colored dots (backlog/todo/in_progress/in_review/done/blocked)
+  - **Build Status**: Last build result icon+label, build type, timestamp — reads from buildLogs
+  - **Agent Performance**: Average success rate, top performer name, per-agent breakdown (name + tasks completed + success rate) with scrollable list
+- Added **Tech Debt Indicators** sub-section:
+  - Lists files over 300 lines (potential refactoring candidates)
+  - Shows file path, line count, and a proportional progress bar (amber-to-red gradient based on line count relative to 1000L)
+  - Sorted by line count descending, capped at 10 entries
+  - Only shown when tech debt files exist
+- All computations wrapped in `useMemo` for performance
+
+### 2. Improved Notification System (`src/components/notification-panel.tsx`)
+- Added `Filter` icon import for category filter UI
+- Added `getTimeGroup()` function to categorize notifications as 'today', 'yesterday', or 'older'
+- Added `TIME_GROUP_LABELS` for display
+- Enhanced `NOTIFICATION_TYPE_CONFIG` with `label` property for each priority level (Info, Success, Warning, Error)
+- Enhanced `NOTIFICATION_CATEGORY_CONFIG` with `color` property for category-specific styling
+- Added **category filter** bar:
+  - Shows "All (count)" button plus one button per non-empty category
+  - Each button shows category icon, label, and count
+  - Active filter uses `bg-primary/10` highlight
+  - Horizontally scrollable with `scrollbar-none`
+- Added **time grouping** for notifications:
+  - Groups: Today, Yesterday, Older — each with a sticky header
+  - Only renders non-empty groups
+- Added **priority level badges** in each notification item showing type label (Info/Success/Warning/Error)
+- Added **empty state for filtered results** with Filter icon when no notifications match the active filter
+- All grouping/filtering computed with `useMemo`
+
+### 3. Error Boundary Wrapping (`src/app/page.tsx`)
+- Imported `ErrorBoundary` from `@/components/error-boundary`
+- Wrapped the entire IDE layout `<div>` with `<ErrorBoundary>` so any runtime error in a child component shows the friendly error fallback instead of crashing the whole app
+- ErrorBoundary already existed with: friendly error message, "Try Again" button, "Report Issue" button, sanitized error message display, console error logging
+
+### 4. Loading States (`src/components/ide-sidebar.tsx`, `ide-chat-panel.tsx`, `ide-editor.tsx`)
+
+**Sidebar file tree skeleton:**
+- Imported `Skeleton` from `@/components/ui/skeleton`
+- When `files.length === 0 && !searchQuery`, shows 7 skeleton rows mimicking a file tree:
+  - Each row has a small square skeleton (file icon) + a rectangular skeleton (file name)
+  - Alternating indentation levels (some rows with `pl-4` for nested files)
+  - Varying widths (w-16, w-18, w-20, w-22, w-24, w-28, w-32) for visual variety
+- When files are loaded, switches to the actual file tree rendering
+- Empty state now only shows "No files match your search" (not "No files in project") since skeleton handles the loading case
+
+**Chat panel skeleton:**
+- Imported `Skeleton` from `@/components/ui/skeleton`
+- Added `React` import for `React.memo`
+- Added skeleton message preview when `isSending && messages.length > 0`:
+  - Shows a chat message-shaped skeleton with avatar circle, header bars (name, badge, timestamp), and 2 content lines
+  - Uses consistent `bg-muted/20` background matching existing message style
+- Changed empty state condition from `messages.length === 0` to `messages.length === 0 && !isSending` to avoid showing empty state while AI is generating first response
+
+**Editor file loading spinner:**
+- Imported `Skeleton` from `@/ui/skeleton`
+- Added `fileLoading` state tracking in IDEEditor:
+  - `useEffect` detects when `activeFileId` changes to a file not yet in the files array
+  - Sets `fileLoading = true` while the file is being fetched
+  - Clears when the file appears in the files array
+- Added loading state UI: centered Loader2 spinner with "Loading file..." text, matching the editor's zinc-900 dark background
+- The loading state renders between the find/replace bar and the welcome screen/editor
+
+### 5. Performance: Memoize Components
+
+**ChatMessage** (`ide-chat-panel.tsx`):
+- Changed from `function ChatMessage` to `const ChatMessage = React.memo(function ChatMessage(...))`
+- Added `React` to the import from 'react'
+- Prevents re-renders when parent re-renders but the message props haven't changed
+
+**AgentPill** (`ide-top-bar.tsx`):
+- Changed from `function AgentPill` to `const AgentPill = memo(function AgentPill(...))`
+- Added `memo` to the import from 'react'
+- Prevents re-renders when other agent pills change but this one's props are the same
+
+**FileTreeNodeView** (`ide-sidebar.tsx`):
+- Changed from `function FileTreeNodeView` to `const FileTreeNodeView = memo(function FileTreeNodeView(...))`
+- Added `memo` to the import from 'react'
+- Prevents re-renders of unchanged tree nodes when other parts of the tree update
+
+### Lint and Build Verification
+- `bun run lint` — 0 errors, 0 warnings
+- Dev server compiles and runs successfully (GET / 200)
+- All API endpoints returning 200
+
+Stage Summary:
+- Project Health Dashboard added with Files, Tasks, Build Status, Agent Performance, and Tech Debt sections
+- Notification system enhanced with time grouping (Today/Yesterday/Older), category filtering, priority badges
+- ErrorBoundary wraps the main IDE layout — whole app won't crash on single component error
+- Skeleton loading states added for sidebar file tree, chat messages, and editor file loading
+- ChatMessage, AgentPill, and FileTreeNodeView memoized with React.memo for better render performance
+- Lint: 0 errors
+
+---
+Task ID: 7
+Agent: Main
+Task: Fix techStack.map runtime error, verify all features, continue upgrades
+
+Work Log:
+- **Fixed critical runtime error**: `techStack.map is not a function` in `settings-dialog.tsx:199`
+  - Root cause: Prisma stores `techStack` as a JSON string in SQLite (e.g., `'["TypeScript", "React"]'`), but the frontend expected an array
+  - Fix 1: Updated `/api/projects/route.ts` GET and POST handlers to parse `techStack` from JSON string to array before returning
+  - Fix 2: Updated `/api/projects/[id]/route.ts` GET and PATCH handlers to parse `techStack` similarly
+  - Fix 3: Added defensive coding in `settings-dialog.tsx` ProjectTab — `Array.isArray(currentProject?.techStack) ? currentProject.techStack : []`
+  - Fix 4: Added safety check in `store.ts` `setCurrentProject` — parses JSON string if needed
+- **Verified hydration fixes are working** — both ModelSelector and theme toggle use `useHydrated()` guard pattern
+- **Verified YOLO mode** — toggle button in top bar, state persisted to localStorage, AI system prompt modified
+- **Agent-browser verification**: Settings dialog Project tab renders correctly without techStack error
+- **Lint**: 0 errors
+- **All APIs**: 200 status codes
+
+Stage Summary:
+- Critical runtime TypeError fixed (techStack.map)
+- API endpoints now properly parse JSON string fields before returning to client
+- Defensive Array.isArray checks added in frontend components
+- All existing features verified working via agent-browser
