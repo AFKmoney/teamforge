@@ -1581,24 +1581,26 @@ export function IDEChatPanel() {
 
   if (!rightPanelOpen) {
     return (
-      <div className="flex flex-col items-center w-10 border-l bg-card/50 py-2 gap-1 shrink-0">
+      <div className="flex flex-col items-center w-12 border-l bg-gradient-to-b from-card/80 to-card/40 py-2 gap-1.5 shrink-0">
         <Button
           size="icon"
           variant="ghost"
-          className="size-8"
+          className="size-9 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+          title="Open Chat"
           onClick={() => setRightPanelOpen(true)}
         >
-          <MessageSquare className="size-4" />
+          <MessageSquare className="size-5" />
         </Button>
         <div className="relative flex size-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
           <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
         </div>
         {messages.length > 0 && (
-          <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3">
+          <Badge variant="secondary" className="text-[8px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
             {messages.length}
           </Badge>
         )}
+        <span className="text-[8px] text-muted-foreground/50 writing-vertical-rl [writing-mode:vertical-rl] mt-1">Chat</span>
       </div>
     )
   }
@@ -1901,6 +1903,7 @@ export function IDEChatPanel() {
         <div className="flex items-end gap-1.5">
           <textarea
             ref={textareaRef}
+            data-chat-input
             placeholder="Message the team... (/ for commands)"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}

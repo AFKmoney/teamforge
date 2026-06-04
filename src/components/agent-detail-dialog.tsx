@@ -87,13 +87,11 @@ export function AgentDetailDialog() {
   const statusConfig = agent ? AGENT_STATUS_CONFIG[agent.status] : null
   const isActive = agent ? (agent.status !== 'idle' && agent.status !== 'sleeping') : false
 
-  // Current task assignment
   const currentTask = useMemo(
     () => agent?.currentTaskId ? tasks.find((t) => t.id === agent.currentTaskId) : null,
     [agent, tasks],
   )
 
-  // Recent activities (last 10)
   const recentActivities = useMemo(
     () => agent
       ? activities
@@ -104,15 +102,12 @@ export function AgentDetailDialog() {
     [agent, activities],
   )
 
-  // Recently modified files — only show files related to agent's assigned tasks
   const recentFiles = useMemo(
     () => {
       if (!agent) return []
-      // Get activities for this agent that involve file changes
       const agentFileRelatedActivities = activities.filter(
         (a) => a.agentId === agent.id && (a.action === 'file_created' || a.action === 'file_updated' || a.action === 'code_change')
       )
-      // Get file paths mentioned in agent activities
       const relatedPaths = new Set<string>()
       agentFileRelatedActivities.forEach((a) => {
         try {
@@ -126,7 +121,6 @@ export function AgentDetailDialog() {
           // ignore parse errors
         }
       })
-      // Filter files: show only files related to agent's activities
       const filtered = files
         .filter((f) => !f.isDirectory && relatedPaths.has(f.path))
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -136,7 +130,6 @@ export function AgentDetailDialog() {
     [agent, files, activities],
   )
 
-  // Assigned tasks
   const assignedTasks = useMemo(
     () => agent
       ? tasks.filter((t) => t.assigneeId === agent.id && t.status !== 'done')
@@ -144,13 +137,11 @@ export function AgentDetailDialog() {
     [agent, tasks],
   )
 
-  // Total tasks (including done)
   const totalAssignedTasks = useMemo(
     () => agent ? tasks.filter((t) => t.assigneeId === agent.id).length : 0,
     [agent, tasks],
   )
 
-  // Compute last active display
   const lastActiveDisplay = useMemo(() => {
     if (!agent) return ''
     if (isActive) return 'Now'
@@ -225,7 +216,6 @@ export function AgentDetailDialog() {
     }
   }, [agent, assignTaskTitle, updateAgent])
 
-  // Get capabilities for an agent role
   function getCapabilitiesForRole(role: AgentRole): string[] {
     const capabilities: Record<AgentRole, string[]> = {
       architect: ['System Design', 'API Design', 'Tech Decisions', 'Documentation', 'Code Review', 'Architecture Patterns'],
@@ -248,139 +238,111 @@ export function AgentDetailDialog() {
         showCloseButton={false}
         className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
       >
-        {/* Header with gradient background */}
-        <div className={cn(
-          'relative px-6 pt-5 pb-4 shrink-0',
-          'bg-gradient-to-br',
-          isActive
-            ? 'from-emerald-500/5 via-transparent to-transparent'
-            : 'from-muted/30 via-transparent to-transparent',
-        )}>
-          {/* Custom close button in header */}
-          <button
-            onClick={() => setSelectedAgentId(null)}
-            className="absolute top-3 right-3 rounded-xs p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors"
-          >
-            <X className="size-4" />
-            <span className="sr-only">Close</span>
-          </button>
-
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 pr-8">
-              <div className={cn(
-                'size-12 rounded-xl flex items-center justify-center text-2xl shadow-sm shrink-0',
-                isActive ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/5 ring-1 ring-emerald-500/20' : 'bg-muted/50',
-              )}>
-                {agent.avatar}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={cn('text-lg font-bold', roleConfig.color)}>{agent.name}</span>
-                  <Badge variant="outline" className={cn('text-[10px] px-2 py-0 h-5 gap-0.5 font-medium', roleConfig.color, roleConfig.bgColor)}>
-                    {roleConfig.icon} {roleConfig.label}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={cn('size-2 rounded-full shrink-0', statusConfig.dotColor, isActive && 'animate-pulse')} />
-                  <span className={cn('text-xs font-medium', statusConfig.color)}>{statusConfig.label}</span>
-                  {agent.specialty && (
-                    <>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span className="text-xs text-muted-foreground truncate">{agent.specialty}</span>
-                    </>
-                  )}
-                  <span className="text-muted-foreground/40">·</span>
-                  <TooltipProvider delayDuration={300}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="text-xs text-muted-foreground/60 flex items-center gap-1 cursor-default">
-                          <Timer className="size-2.5" />
-                          {lastActiveDisplay}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs">
-                        Last active: {new Date(agent.lastActive || agent.updatedAt).toLocaleString()}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </div>
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              View agent details, current task assignment, and recent activity.
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Stats row */}
-          <div className="grid grid-cols-4 gap-2 mt-4">
-            <StatCard
-              label="Tasks Done"
-              value={agent.tasksCompleted}
-              icon={<CheckCircle2 className="size-4 text-emerald-500" />}
-              color="bg-emerald-500/10"
-            />
-            <StatCard
-              label="Success Rate"
-              value={`${successRatePct}%`}
-              icon={<Target className="size-4 text-violet-500" />}
-              color="bg-violet-500/10"
-            />
-            <StatCard
-              label="Tokens Used"
-              value={agent.tokensUsed >= 1000 ? `${(agent.tokensUsed / 1000).toFixed(1)}K` : String(agent.tokensUsed)}
-              icon={<Zap className="size-4 text-amber-500" />}
-              color="bg-amber-500/10"
-            />
-            <StatCard
-              label="Assigned"
-              value={totalAssignedTasks}
-              icon={<Activity className="size-4 text-blue-500" />}
-              color="bg-blue-500/10"
-            />
-          </div>
-
-          {/* Success rate progress */}
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-[11px] mb-1.5">
-              <span className="text-muted-foreground">Success Rate</span>
-              <span className="font-semibold text-foreground tabular-nums">{successRatePct}%</span>
-            </div>
-            <Progress value={successRatePct} className="h-1.5" />
-          </div>
-
-          {/* Specialty & Capabilities */}
-          {agent.specialty && (
-            <div className="mt-3 p-2.5 rounded-lg bg-muted/20 border border-border/40">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground mb-1.5">
-                <Sparkles className="size-3 text-amber-500" />
-                Specialty
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{agent.specialty}</p>
-            </div>
-          )}
-
-          {/* Capabilities based on role */}
-          <div className="mt-2 p-2.5 rounded-lg bg-muted/15 border border-border/30">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground mb-1.5">
-              <Wrench className="size-3 text-blue-500" />
-              Capabilities
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {roleConfig && getCapabilitiesForRole(agent.role).map((cap) => (
-                <Badge key={cap} variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal">
-                  {cap}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Scrollable content */}
+        {/* Scrollable content area */}
         <ScrollArea className="flex-1 min-h-0">
-          <div className="px-6 py-4 space-y-5">
+          <div className="px-6 pt-5 pb-2">
+            {/* Custom close button */}
+            <button
+              onClick={() => setSelectedAgentId(null)}
+              className="absolute top-3 right-3 rounded-xs p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors z-10"
+            >
+              <X className="size-4" />
+              <span className="sr-only">Close</span>
+            </button>
 
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3 pr-8">
+                <div className={cn(
+                  'size-12 rounded-xl flex items-center justify-center text-2xl shadow-sm shrink-0',
+                  isActive ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/5 ring-1 ring-emerald-500/20' : 'bg-muted/50',
+                )}>
+                  {agent.avatar}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={cn('text-lg font-bold', roleConfig.color)}>{agent.name}</span>
+                    <Badge variant="outline" className={cn('text-[10px] px-2 py-0 h-5 gap-0.5 font-medium', roleConfig.color, roleConfig.bgColor)}>
+                      {roleConfig.icon} {roleConfig.label}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={cn('size-2 rounded-full shrink-0', statusConfig.dotColor, isActive && 'animate-pulse')} />
+                    <span className={cn('text-xs font-medium', statusConfig.color)}>{statusConfig.label}</span>
+                    {agent.specialty && (
+                      <>
+                        <span className="text-muted-foreground/40">·</span>
+                        <span className="text-xs text-muted-foreground truncate">{agent.specialty}</span>
+                      </>
+                    )}
+                    <span className="text-muted-foreground/40">·</span>
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-xs text-muted-foreground/60 flex items-center gap-1 cursor-default">
+                            <Timer className="size-2.5" />
+                            {lastActiveDisplay}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="text-xs">
+                          Last active: {new Date(agent.lastActive || agent.updatedAt).toLocaleString()}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                View agent details, current task assignment, and recent activity.
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Stats row */}
+            <div className="grid grid-cols-4 gap-2 mt-4">
+              <StatCard label="Tasks Done" value={agent.tasksCompleted} icon={<CheckCircle2 className="size-4 text-emerald-500" />} color="bg-emerald-500/10" />
+              <StatCard label="Success Rate" value={`${successRatePct}%`} icon={<Target className="size-4 text-violet-500" />} color="bg-violet-500/10" />
+              <StatCard label="Tokens Used" value={agent.tokensUsed >= 1000 ? `${(agent.tokensUsed / 1000).toFixed(1)}K` : String(agent.tokensUsed)} icon={<Zap className="size-4 text-amber-500" />} color="bg-amber-500/10" />
+              <StatCard label="Assigned" value={totalAssignedTasks} icon={<Activity className="size-4 text-blue-500" />} color="bg-blue-500/10" />
+            </div>
+
+            {/* Success rate progress */}
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-[11px] mb-1.5">
+                <span className="text-muted-foreground">Success Rate</span>
+                <span className="font-semibold text-foreground tabular-nums">{successRatePct}%</span>
+              </div>
+              <Progress value={successRatePct} className="h-1.5" />
+            </div>
+
+            {/* Specialty */}
+            {agent.specialty && (
+              <div className="mt-3 p-2.5 rounded-lg bg-muted/20 border border-border/40">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground mb-1.5">
+                  <Sparkles className="size-3 text-amber-500" />
+                  Specialty
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{agent.specialty}</p>
+              </div>
+            )}
+
+            {/* Capabilities */}
+            <div className="mt-2 p-2.5 rounded-lg bg-muted/15 border border-border/30">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground mb-1.5">
+                <Wrench className="size-3 text-blue-500" />
+                Capabilities
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {getCapabilitiesForRole(agent.role).map((cap) => (
+                  <Badge key={cap} variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal">
+                    {cap}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="px-6 py-4 space-y-5">
             {/* Current Task */}
             <section>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2">
@@ -424,7 +386,7 @@ export function AgentDetailDialog() {
               </section>
             )}
 
-            {/* Assign Task inline */}
+            {/* Assign Task */}
             <section>
               <AnimatePresence mode="wait">
                 {showAssignTask ? (
@@ -454,39 +416,19 @@ export function AgentDetailDialog() {
                           }}
                           autoFocus
                         />
-                        <Button
-                          size="sm"
-                          onClick={handleAssignTask}
-                          disabled={!assignTaskTitle.trim() || isAssigning}
-                          className="gap-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                        >
+                        <Button size="sm" onClick={handleAssignTask} disabled={!assignTaskTitle.trim() || isAssigning} className="gap-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
                           {isAssigning ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
                           Assign
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => { setShowAssignTask(false); setAssignTaskTitle('') }}
-                          className="h-8 w-8 p-0"
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => { setShowAssignTask(false); setAssignTaskTitle('') }} className="h-8 w-8 p-0">
                           <X className="size-3.5" />
                         </Button>
                       </div>
                     </div>
                   </motion.div>
                 ) : (
-                  <motion.div
-                    key="assign-button"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full gap-1.5 h-8 text-xs border-dashed"
-                      onClick={() => setShowAssignTask(true)}
-                    >
+                  <motion.div key="assign-button" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <Button size="sm" variant="outline" className="w-full gap-1.5 h-8 text-xs border-dashed" onClick={() => setShowAssignTask(true)}>
                       <Plus className="size-3" />
                       Assign New Task
                     </Button>
@@ -509,7 +451,7 @@ export function AgentDetailDialog() {
                 )}
               </div>
               {recentActivities.length > 0 ? (
-                <div className="space-y-1 max-h-52 overflow-y-auto thin-scrollbar">
+                <div className="space-y-1 max-h-40 overflow-y-auto thin-scrollbar">
                   {recentActivities.map((activity) => (
                     <div key={activity.id} className="flex items-start gap-2.5 p-2 rounded-md text-xs hover:bg-muted/20 transition-colors">
                       <span className={cn('size-1.5 rounded-full mt-1.5 shrink-0', isActive ? 'bg-emerald-500/60' : 'bg-muted-foreground/40')} />
@@ -531,7 +473,7 @@ export function AgentDetailDialog() {
               )}
             </section>
 
-            {/* Recently Modified Files */}
+            {/* Modified Files */}
             <section>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
@@ -543,7 +485,7 @@ export function AgentDetailDialog() {
                 )}
               </div>
               {recentFiles.length > 0 ? (
-                <div className="space-y-1">
+                <div className="space-y-1 max-h-40 overflow-y-auto thin-scrollbar">
                   {recentFiles.map((file) => (
                     <button
                       key={file.id}
@@ -572,36 +514,30 @@ export function AgentDetailDialog() {
           </div>
         </ScrollArea>
 
-        <Separator />
-
-        {/* Footer actions */}
-        <div className="px-6 py-3 flex items-center gap-2 shrink-0 bg-muted/10">
-          {/* Chat with Agent button */}
+        {/* Footer — always visible at bottom */}
+        <div className="px-6 py-3 flex items-center gap-2 shrink-0 bg-background border-t border-border/60">
+          {/* Chat with Agent — prominent primary button */}
           <Button
             size="sm"
-            variant="outline"
-            className="gap-1.5 h-8 text-xs border-emerald-500/30 text-emerald-600 hover:text-emerald-500 hover:bg-emerald-500/10"
+            className="gap-1.5 h-9 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-shadow"
             onClick={() => {
               setSelectedAgentId(null)
-              // Open chat panel and pre-fill a message
               useAppStore.getState().setRightPanelOpen(true)
-              // Set the chat input via a custom event so chat panel can pick it up
               window.dispatchEvent(new CustomEvent('teamforge-chat-prefill', { detail: `@${agent?.name || 'Agent'} ` }))
+              setTimeout(() => {
+                const chatInput = document.querySelector<HTMLTextAreaElement>('[data-chat-input]')
+                chatInput?.focus()
+              }, 150)
             }}
           >
-            <MessageSquare className="size-3" />
+            <MessageSquare className="size-3.5" />
             Chat with Agent
           </Button>
 
-          {/* Set Status dropdown - uses DropdownMenu with portal so it won't be clipped */}
+          {/* Set Status dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 h-8 text-xs"
-                disabled={isSettingStatus}
-              >
+              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" disabled={isSettingStatus}>
                 {isSettingStatus ? <Loader2 className="size-3 animate-spin" /> : <ToggleLeft className="size-3" />}
                 Set Status
                 <ChevronDown className="size-2.5 ml-0.5" />
@@ -612,16 +548,11 @@ export function AgentDetailDialog() {
                 <DropdownMenuItem
                   key={key}
                   onClick={() => handleSetStatus(key as AgentStatus)}
-                  className={cn(
-                    'flex items-center gap-2 text-xs cursor-pointer',
-                    agent.status === key && 'font-medium',
-                  )}
+                  className={cn('flex items-center gap-2 text-xs cursor-pointer', agent.status === key && 'font-medium')}
                 >
                   <span className={cn('size-2 rounded-full shrink-0', cfg.dotColor)} />
                   <span className={cfg.color}>{cfg.label}</span>
-                  {agent.status === key && (
-                    <Check className="size-3 ml-auto text-muted-foreground" />
-                  )}
+                  {agent.status === key && <Check className="size-3 ml-auto text-muted-foreground" />}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -629,12 +560,7 @@ export function AgentDetailDialog() {
 
           <div className="flex-1" />
 
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 text-xs"
-            onClick={() => setSelectedAgentId(null)}
-          >
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSelectedAgentId(null)}>
             Close
           </Button>
         </div>

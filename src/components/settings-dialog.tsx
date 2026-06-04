@@ -93,7 +93,12 @@ function ProjectTab() {
 
   const [projectName, setProjectName] = useState(currentProject?.name || '')
   const [projectDescription, setProjectDescription] = useState(currentProject?.description || '')
-  const [techStack, setTechStack] = useState<string[]>(Array.isArray(currentProject?.techStack) ? currentProject.techStack : [])
+  const [techStack, setTechStack] = useState<string[]>(() => {
+    const raw = currentProject?.techStack
+    if (Array.isArray(raw)) return raw
+    if (typeof raw === 'string') { try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : [] } catch { return [] } }
+    return []
+  })
   const [status, setStatus] = useState(currentProject?.status || 'active')
   const [repoUrl, setRepoUrl] = useState(currentProject?.repoUrl || '')
   const [isSaving, setIsSaving] = useState(false)
@@ -104,7 +109,12 @@ function ProjectTab() {
     if (currentProject) {
       setProjectName(currentProject.name)
       setProjectDescription(currentProject.description)
-      setTechStack(Array.isArray(currentProject.techStack) ? currentProject.techStack : [])
+      setTechStack((() => {
+        const raw = currentProject.techStack
+        if (Array.isArray(raw)) return raw
+        if (typeof raw === 'string') { try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : [] } catch { return [] } }
+        return []
+      })())
       setStatus(currentProject.status)
       setRepoUrl(currentProject.repoUrl || '')
     }
