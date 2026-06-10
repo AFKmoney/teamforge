@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+@page {
+  size: 794px 1123px;
+  margin: 0;
+}
+html, body {
+  margin: 0; padding: 0;
+  width: 794px; height: 1123px;
+  background: #ffffff;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+}
+.cover {
+  position: relative;
+  width: 794px;
+  height: 1123px;
+  overflow: hidden;
+}
+/* Layer 1: Background grid */
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 1;
+}
+.bg-grid-line-h {
+  position: absolute;
+  left: 0; right: 0;
+  height: 0.5pt;
+  background: #23748f;
+  opacity: 0.03;
+}
+.bg-grid-line-v {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 0.5pt;
+  background: #23748f;
+  opacity: 0.03;
+}
+/* Layer 2: Structure */
+.anchor-line {
+  position: absolute;
+  left: 12%; top: 10%;
+  width: 6pt; height: 80%;
+  background: #23748f;
+  z-index: 2;
+  border-radius: 3pt;
+}
+.meta-separator {
+  position: absolute;
+  left: calc(12% + 30px);
+  bottom: 24%;
+  width: 40%;
+  height: 1pt;
+  background: #23748f;
+  opacity: 0.4;
+  z-index: 2;
+}
+/* Layer 3: Content */
+.kicker {
+  position: absolute;
+  left: calc(12% + 30px);
+  top: 15%;
+  font-size: 16pt;
+  font-weight: 400;
+  letter-spacing: 3pt;
+  color: #23748f;
+  opacity: 0.6;
+  text-transform: uppercase;
+  z-index: 3;
+}
+.hero-title {
+  position: absolute;
+  left: calc(12% + 30px);
+  top: 30%;
+  font-family: 'Playfair Display', serif;
+  font-size: 56pt;
+  font-weight: 900;
+  color: #23748f;
+  line-height: 1.15;
+  z-index: 3;
+}
+.summary {
+  position: absolute;
+  left: calc(12% + 30px);
+  top: 52%;
+  width: 55%;
+  font-size: 16pt;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #23748f;
+  opacity: 0.85;
+  z-index: 3;
+}
+.meta-block {
+  position: absolute;
+  left: calc(12% + 30px);
+  bottom: 12%;
+  font-size: 18pt;
+  font-weight: 400;
+  color: #23748f;
+  opacity: 0.75;
+  line-height: 1.8;
+  z-index: 3;
+}
+</style>
+</head>
+<body>
+<div class="cover">
+  <!-- Layer 1: Background grid -->
+  <div class="bg-grid">
+    <div class="bg-grid-line-h" style="top:50px"></div><div class="bg-grid-line-h" style="top:100px"></div><div class="bg-grid-line-h" style="top:150px"></div><div class="bg-grid-line-h" style="top:200px"></div><div class="bg-grid-line-h" style="top:250px"></div><div class="bg-grid-line-h" style="top:300px"></div><div class="bg-grid-line-h" style="top:350px"></div><div class="bg-grid-line-h" style="top:400px"></div><div class="bg-grid-line-h" style="top:450px"></div><div class="bg-grid-line-h" style="top:500px"></div><div class="bg-grid-line-h" style="top:550px"></div><div class="bg-grid-line-h" style="top:600px"></div><div class="bg-grid-line-h" style="top:650px"></div><div class="bg-grid-line-h" style="top:700px"></div><div class="bg-grid-line-h" style="top:750px"></div><div class="bg-grid-line-h" style="top:800px"></div><div class="bg-grid-line-h" style="top:850px"></div><div class="bg-grid-line-h" style="top:900px"></div><div class="bg-grid-line-h" style="top:950px"></div><div class="bg-grid-line-h" style="top:1000px"></div><div class="bg-grid-line-h" style="top:1050px"></div><div class="bg-grid-line-h" style="top:1100px"></div>
+    <div class="bg-grid-line-v" style="left:50px"></div><div class="bg-grid-line-v" style="left:100px"></div><div class="bg-grid-line-v" style="left:150px"></div><div class="bg-grid-line-v" style="left:200px"></div><div class="bg-grid-line-v" style="left:250px"></div><div class="bg-grid-line-v" style="left:300px"></div><div class="bg-grid-line-v" style="left:350px"></div><div class="bg-grid-line-v" style="left:400px"></div><div class="bg-grid-line-v" style="left:450px"></div><div class="bg-grid-line-v" style="left:500px"></div><div class="bg-grid-line-v" style="left:550px"></div><div class="bg-grid-line-v" style="left:600px"></div><div class="bg-grid-line-v" style="left:650px"></div><div class="bg-grid-line-v" style="left:700px"></div><div class="bg-grid-line-v" style="left:750px"></div>
+  </div>
+  <!-- Layer 2: Structure -->
+  <div class="anchor-line"></div>
+  <div class="meta-separator"></div>
+  <!-- Layer 3: Content -->
+  <div class="kicker">Instruction Manual</div>
+  <div class="hero-title">TeamForge<br>IDE</div>
+  <div class="summary">
+    A comprehensive guide to the autonomous agentic IDE featuring
+    multi-agent AI orchestration, context-aware chat, intelligent code editing,
+    and integrated project management for modern software development.
+  </div>
+  <div class="meta-block">
+    Version v1.0.0<br>
+    March 2026
+  </div>
+</div>
+</body>
+</html>
