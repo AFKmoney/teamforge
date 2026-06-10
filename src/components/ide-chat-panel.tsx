@@ -216,10 +216,12 @@ const ChatMessage = React.memo(function ChatMessage({ message }: { message: Mess
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        'px-3 py-2.5 rounded-xl mx-2 mb-1.5 transition-colors group relative',
+        'px-3 py-2.5 rounded-xl mx-2 mb-1.5 transition-all duration-150 group relative',
         typeConfig.bgColor,
-        !isSystem && 'hover:bg-muted/20',
-        isSystem && 'border border-border/40 bg-gradient-to-r from-muted/30 to-muted/10 system-message-accent',
+        !isSystem && !isCodeChange && 'hover:bg-[#313244]/50',
+        isCodeChange && 'border border-purple-500/10 bg-gradient-to-r from-purple-500/5 to-transparent',
+        isSystem && 'border border-border/40 bg-gradient-to-r from-[#313244]/40 to-[#313244]/20 system-message-accent',
+        message.type === 'chat' && !isSystem && 'border border-transparent hover:border-border/20',
       )}
       onMouseEnter={() => setShowReactions(true)}
       onMouseLeave={() => setShowReactions(false)}
@@ -595,7 +597,7 @@ function ChatAIStatusBar({ messages }: { messages: Message[] }) {
   if (!mounted) return null
 
   return (
-    <div className="flex items-center gap-2 px-3 h-6 border-b bg-muted/10 shrink-0 text-[9px]">
+    <div className="flex items-center gap-2 px-3 h-6 border-b bg-gradient-to-r from-[#1e1e2e]/50 to-[#242438]/50 shrink-0 text-[9px]">
       {/* Provider/Model badge */}
       <Badge variant="outline" className={cn('text-[8px] px-1.5 py-0 h-3.5 gap-0.5', providerInfo.color)}>
         {providerInfo.icon}

@@ -383,9 +383,16 @@ function AgentRow({ agent, onClick }: { agent: Agent; onClick: () => void }) {
           <div
             onClick={onClick}
             className={cn(
-              'flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors cursor-pointer',
-              'hover:bg-muted/50',
+              'flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-150 cursor-pointer border-l-2',
+              'hover:bg-muted/60 hover:shadow-sm',
               isActive && 'bg-muted/30',
+              isActive && roleConfig.color === 'text-violet-600 dark:text-violet-400' && 'border-l-violet-500',
+              isActive && roleConfig.color === 'text-emerald-600 dark:text-emerald-400' && 'border-l-emerald-500',
+              isActive && roleConfig.color === 'text-blue-600 dark:text-blue-400' && 'border-l-blue-500',
+              isActive && roleConfig.color === 'text-amber-600 dark:text-amber-400' && 'border-l-amber-500',
+              isActive && roleConfig.color === 'text-orange-600 dark:text-orange-400' && 'border-l-orange-500',
+              isActive && roleConfig.color === 'text-pink-600 dark:text-pink-400' && 'border-l-pink-500',
+              !isActive && 'border-l-transparent',
             )}
           >
             <span className="text-base">{agent.avatar}</span>
@@ -1087,7 +1094,7 @@ export function IDESidebar() {
 
   return (
     <div
-      className="flex flex-col w-60 border-r bg-gradient-to-b from-card/60 to-card/40 shrink-0 overflow-hidden relative"
+      className="flex flex-col w-60 border-r bg-gradient-to-b from-[#1e1e2e] to-[#242438] shrink-0 overflow-hidden relative"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}

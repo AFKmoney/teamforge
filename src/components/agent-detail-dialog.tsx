@@ -52,8 +52,8 @@ import { toast } from 'sonner'
 
 function StatCard({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) {
   return (
-    <div className="flex items-center gap-2.5 p-3 rounded-lg bg-muted/30 border border-border/50">
-      <div className={cn('size-9 rounded-lg flex items-center justify-center shrink-0', color)}>
+    <div className="flex items-center gap-2.5 p-3 rounded-lg bg-[#242438]/60 border border-purple-500/10">
+      <div className={cn('size-9 rounded-lg flex items-center justify-center shrink-0 shadow-sm', color)}>
         {icon}
       </div>
       <div className="min-w-0">
@@ -265,7 +265,7 @@ export function AgentDetailDialog() {
               <DialogTitle className="flex items-center gap-3 pr-8">
                 <div className={cn(
                   'size-12 rounded-xl flex items-center justify-center text-2xl shadow-sm shrink-0',
-                  isActive ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/5 ring-1 ring-emerald-500/20' : 'bg-muted/50',
+                  isActive ? 'bg-gradient-to-br from-purple-500/20 to-blue-500/10 ring-1 ring-purple-500/20' : 'bg-muted/50',
                 )}>
                   {agent.avatar}
                 </div>
@@ -391,7 +391,7 @@ export function AgentDetailDialog() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="gap-1.5 h-7 text-[11px] border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                    className="gap-1.5 h-7 text-[11px] border-purple-500/30 text-purple-600 hover:bg-purple-500/10 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
                     onClick={() => setShowAssignTask(true)}
                   >
                     <Plus className="size-3" />
@@ -434,9 +434,9 @@ export function AgentDetailDialog() {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                    <div className="p-3 rounded-lg border border-purple-500/20 bg-purple-500/5">
                       <div className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
-                        <Plus className="size-3 text-emerald-500" />
+                        <Plus className="size-3 text-purple-400" />
                         Assign New Task
                       </div>
                       <div className="flex gap-2">
@@ -445,14 +445,14 @@ export function AgentDetailDialog() {
                           value={assignTaskTitle}
                           onChange={(e) => setAssignTaskTitle(e.target.value)}
                           placeholder="Enter task title..."
-                          className="flex-1 h-8 rounded-md border bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-emerald-500/40 placeholder:text-muted-foreground/50"
+                          className="flex-1 h-8 rounded-md border bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-purple-500/40 placeholder:text-muted-foreground/50"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && assignTaskTitle.trim()) handleAssignTask()
                             if (e.key === 'Escape') { setShowAssignTask(false); setAssignTaskTitle('') }
                           }}
                           autoFocus
                         />
-                        <Button size="sm" onClick={handleAssignTask} disabled={!assignTaskTitle.trim() || isAssigning} className="gap-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+                        <Button size="sm" onClick={handleAssignTask} disabled={!assignTaskTitle.trim() || isAssigning} className="gap-1 h-8 text-xs bg-purple-600 hover:bg-purple-700 text-white">
                           {isAssigning ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
                           Assign
                         </Button>
@@ -558,7 +558,7 @@ export function AgentDetailDialog() {
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              className="gap-1.5 h-9 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-shadow"
+              className="gap-1.5 h-9 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-sm shadow-purple-500/20 hover:shadow-purple-500/30 transition-shadow"
               onClick={() => {
                 const agentName = agent?.name || 'Agent'
                 setSelectedAgentId(null)

@@ -745,14 +745,14 @@ export function IDETopBar() {
   }, [projectSelectorOpen])
 
   return (
-    <div className="flex items-center h-11 px-3 border-b bg-gradient-to-r from-card/95 via-card/90 to-card/95 backdrop-blur-md gap-2 shrink-0 z-20 shadow-sm shadow-black/5 topbar-border-gradient">
+    <div className="flex items-center h-11 px-3 border-b bg-gradient-to-r from-[#1e1e2e] via-[#242438] to-[#1e1e2e] backdrop-blur-md gap-2 shrink-0 z-20 shadow-sm shadow-black/10 topbar-border-gradient">
       {/* Project name */}
       <div className="flex items-center gap-2.5 min-w-0">
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center justify-center size-7 rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 ring-1 ring-emerald-500/20 shadow-sm shadow-emerald-500/10 cursor-default">
-                <Zap className="size-3.5 text-emerald-500" />
+              <div className="flex items-center justify-center size-7 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/10 ring-1 ring-purple-500/20 shadow-sm shadow-purple-500/10 cursor-default">
+                <Zap className="size-3.5 text-purple-400" />
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">TeamForge IDE v1.0.0</TooltipContent>
@@ -765,25 +765,25 @@ export function IDETopBar() {
           )}>
             {currentProject?.name || 'TeamForge IDE'}
           </span>
-          <span className="text-[9px] text-muted-foreground/60 leading-tight hidden lg:block">Autonomous AI Development</span>
+          <span className="text-[9px] text-muted-foreground/50 leading-tight hidden lg:block">Autonomous AI Development</span>
         </div>
         <button onClick={() => setProjectSelectorOpen(true)} className="cursor-pointer hover:text-foreground transition-colors">
-          <ChevronDown className="size-3 text-muted-foreground/60 shrink-0" />
+          <ChevronDown className="size-3 text-muted-foreground/50 shrink-0" />
         </button>
       </div>
 
-      <div className="h-4 w-px bg-border shrink-0" />
+      <div className="h-4 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent shrink-0" />
 
       {/* Running indicator */}
       {isRunning && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-600 dark:text-emerald-400 shadow-sm shadow-emerald-500/10"
+          className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-[10px] text-purple-400 shadow-sm shadow-purple-500/10"
         >
           <span className="relative flex size-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+            <span className="relative inline-flex rounded-full size-2 bg-purple-500" />
           </span>
           <span className="font-medium">Running</span>
         </motion.div>
@@ -799,6 +799,8 @@ export function IDETopBar() {
       </div>
 
       {/* Controls */}
+      <div className="h-4 w-px bg-gradient-to-b from-transparent via-border/40 to-transparent shrink-0" />
+
       <div className="flex items-center gap-1 shrink-0">
         <RunAllDropdown />
 
@@ -1017,16 +1019,16 @@ export function IDETopBar() {
                   size="sm"
                   variant="ghost"
                   className={cn(
-                    'h-7 gap-1 px-2 text-xs font-bold transition-all',
+                    'h-7 gap-1 px-2 text-xs font-bold rounded-md transition-all duration-200',
                     yoloMode
-                      ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 hover:bg-orange-500/25 shadow-sm shadow-orange-500/10'
-                      : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/50',
+                      ? 'bg-gradient-to-r from-orange-500/20 to-red-500/15 text-orange-400 border border-orange-500/40 hover:from-orange-500/30 hover:to-red-500/25 shadow-md shadow-orange-500/15 ring-1 ring-orange-500/20'
+                      : 'text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 border border-transparent',
                   )}
                   onClick={() => setYoloMode(!yoloMode)}
                   suppressHydrationWarning
                 >
                   {mounted && yoloMode ? (
-                    <ShieldAlert className="size-3.5" />
+                    <ShieldAlert className="size-3.5 animate-pulse" />
                   ) : (
                     <Shield className="size-3.5" />
                   )}
@@ -1049,7 +1051,7 @@ export function IDETopBar() {
             </Tooltip>
           </TooltipProvider>
         </div>
-        <div className="h-4 w-px bg-border mx-0.5" />
+        <div className="h-4 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent mx-0.5" />
         <NotificationBell />
         <TooltipProvider delayDuration={300}>
           <Tooltip>

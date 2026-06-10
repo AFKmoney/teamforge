@@ -404,11 +404,11 @@ function WelcomeScreen() {
   ]
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-900 via-zinc-900 dark:from-zinc-950 dark:via-zinc-950 to-emerald-950/20 dark:to-emerald-950/30 relative overflow-hidden">
+    <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-[#1e1e2e] via-[#1e1e2e] to-[#242438] relative overflow-hidden">
       {/* Subtle background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/4 -right-1/4 w-1/2 h-1/2 bg-emerald-500/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-1/4 -left-1/4 w-1/2 h-1/2 bg-emerald-500/3 rounded-full blur-3xl" />
+        <div className="absolute -top-1/4 -right-1/4 w-1/2 h-1/2 bg-purple-500/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-1/4 -left-1/4 w-1/2 h-1/2 bg-blue-500/3 rounded-full blur-3xl" />
       </div>
 
       <motion.div
@@ -418,7 +418,7 @@ function WelcomeScreen() {
         className="relative z-10 max-w-lg w-full mx-4"
       >
         {/* Glassmorphism welcome panel */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl shadow-black/20 p-8">
+        <div className="rounded-2xl border border-white/10 bg-[#1e1e2e]/80 backdrop-blur-xl shadow-2xl shadow-purple-500/5 p-8">
           {/* Logo */}
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -427,9 +427,9 @@ function WelcomeScreen() {
             className="flex items-center justify-center mb-6"
           >
             <div className="relative">
-              <div className="absolute inset-0 bg-emerald-500/20 rounded-2xl blur-xl" />
-              <div className="relative flex items-center justify-center size-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/20">
-                <Zap className="size-8 text-emerald-500" />
+              <div className="absolute inset-0 bg-purple-500/20 rounded-2xl blur-xl" />
+              <div className="relative flex items-center justify-center size-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/10 border border-purple-500/20">
+                <Zap className="size-8 text-purple-400" />
               </div>
             </div>
           </motion.div>
@@ -463,7 +463,7 @@ function WelcomeScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35 + i * 0.05 }}
                 onClick={action.action}
-                className="flex flex-col items-center gap-1.5 px-5 py-3 rounded-xl bg-white/5 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-400 text-xs transition-all border border-white/5 hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5"
+                className="flex flex-col items-center gap-1.5 px-5 py-3 rounded-xl bg-white/5 hover:bg-purple-500/10 text-muted-foreground hover:text-purple-400 text-xs transition-all border border-white/5 hover:border-purple-500/20 hover:shadow-lg hover:shadow-purple-500/5"
               >
                 {action.icon}
                 <span className="font-medium">{action.label}</span>
@@ -472,7 +472,7 @@ function WelcomeScreen() {
           </motion.div>
 
           {/* Divider */}
-          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-6" />
+          <div className="h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent mb-6" />
 
           {/* Two-column layout: Recent Files + Shortcuts */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

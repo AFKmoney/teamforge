@@ -79,37 +79,38 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Catppuccin Mocha Theme */
+  --background: #1e1e2e;     /* Base */
+  --foreground: #cdd6f4;     /* Text */
+  --card: #242438;           /* Surface + slight blue */
+  --card-foreground: #cdd6f4;
+  --popover: #242438;
+  --popover-foreground: #cdd6f4;
+  --primary: #cba6f7;        /* Purple accent */
+  --primary-foreground: #1e1e2e;
+  --secondary: #313244;      /* Surface */
+  --secondary-foreground: #cdd6f4;
+  --muted: #313244;          /* Surface */
+  --muted-foreground: #a6adc8; /* Subtext */
+  --accent: #45475a;         /* Overlay */
+  --accent-foreground: #cdd6f4;
+  --destructive: #f38ba8;    /* Red */
+  --border: rgba(205, 214, 244, 0.1);
+  --input: rgba(205, 214, 244, 0.12);
+  --ring: #cba6f7;           /* Purple */
+  --chart-1: #cba6f7;        /* Purple */
+  --chart-2: #a6e3a1;        /* Green */
+  --chart-3: #f9e2af;        /* Yellow */
+  --chart-4: #89b4fa;        /* Blue */
+  --chart-5: #fab387;        /* Orange */
+  --sidebar: #1e1e2e;
+  --sidebar-foreground: #cdd6f4;
+  --sidebar-primary: #cba6f7;
+  --sidebar-primary-foreground: #1e1e2e;
+  --sidebar-accent: #313244;
+  --sidebar-accent-foreground: #cdd6f4;
+  --sidebar-border: rgba(205, 214, 244, 0.08);
+  --sidebar-ring: #cba6f7;
 }
 
 @layer base {
@@ -245,9 +246,12 @@
   border: 1px solid hsl(var(--border) / 0.5);
 }
 
-/* Glow effect for active items */
+/* Glow effect for active items — Catppuccin purple */
+.glow-purple {
+  box-shadow: 0 0 8px rgba(203, 166, 247, 0.3), 0 0 2px rgba(203, 166, 247, 0.2);
+}
 .glow-emerald {
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3), 0 0 2px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 8px rgba(166, 227, 161, 0.3), 0 0 2px rgba(166, 227, 161, 0.2);
 }
 
 /* IDE-specific styles - refined scrollbar */
@@ -278,10 +282,10 @@
 .typing-dot:nth-child(2) { animation: typing-dot 1.4s ease-in-out 0.2s infinite; }
 .typing-dot:nth-child(3) { animation: typing-dot 1.4s ease-in-out 0.4s infinite; }
 
-/* Code line highlight */
+/* Code line highlight — Catppuccin purple accent */
 .code-line-active {
-  background: rgba(16, 185, 129, 0.08);
-  border-left: 2px solid rgba(16, 185, 129, 0.4);
+  background: rgba(203, 166, 247, 0.06);
+  border-left: 2px solid rgba(203, 166, 247, 0.4);
 }
 
 /* Smooth transitions for theme changes */
@@ -324,17 +328,17 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Gradient text effect */
+/* Gradient text effect — Catppuccin purple to blue */
 .gradient-text {
-  background: linear-gradient(135deg, #10b981 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #cba6f7 0%, #89b4fa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Focus ring enhancement */
+/* Focus ring enhancement — Catppuccin purple */
 .focus-ring:focus-visible {
-  outline: 2px solid rgba(16, 185, 129, 0.5);
+  outline: 2px solid rgba(203, 166, 247, 0.5);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -401,11 +405,11 @@
   animation: agent-glow 2.5s ease-in-out infinite;
 }
 
-/* Save button green flash */
+/* Save button purple flash */
 @keyframes save-flash {
-  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
-  50% { box-shadow: 0 0 12px 4px rgba(16, 185, 129, 0.4); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(203, 166, 247, 0.5); }
+  50% { box-shadow: 0 0 12px 4px rgba(203, 166, 247, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(203, 166, 247, 0); }
 }
 .save-flash {
   animation: save-flash 0.6s ease-out;
@@ -421,7 +425,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: rgba(16, 185, 129, 0.6);
+  background: rgba(203, 166, 247, 0.6);
 }
 .typing-bounce-dot:nth-child(1) { animation: typing-bounce 1.2s ease-in-out infinite; }
 .typing-bounce-dot:nth-child(2) { animation: typing-bounce 1.2s ease-in-out 0.15s infinite; }
@@ -436,10 +440,10 @@
   animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
-/* Textarea focus glow */
+/* Textarea focus glow — Catppuccin purple */
 @keyframes textarea-glow {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.15), 0 0 8px 0 rgba(16, 185, 129, 0.05); }
-  50% { box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25), 0 0 12px 2px rgba(16, 185, 129, 0.08); }
+  0%, 100% { box-shadow: 0 0 0 1px rgba(203, 166, 247, 0.15), 0 0 8px 0 rgba(203, 166, 247, 0.05); }
+  50% { box-shadow: 0 0 0 1px rgba(203, 166, 247, 0.25), 0 0 12px 2px rgba(203, 166, 247, 0.08); }
 }
 .textarea-focus-glow {
   animation: textarea-glow 2.5s ease-in-out infinite;
@@ -455,11 +459,11 @@
 .sparkline-bar {
   width: 2px;
   border-radius: 1px;
-  background: rgba(16, 185, 129, 0.5);
+  background: rgba(203, 166, 247, 0.5);
   transition: height 0.3s ease;
 }
 
-/* Emerald tab indicator glow */
+/* Emerald tab indicator glow — Catppuccin purple */
 .tab-glow-active {
   position: relative;
 }
@@ -470,7 +474,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.8), transparent);
+  background: linear-gradient(90deg, transparent, rgba(203, 166, 247, 0.8), transparent);
   filter: blur(1px);
 }
 
@@ -541,10 +545,10 @@
   background: linear-gradient(to bottom, rgba(9, 9, 11, 0.4), transparent);
 }
 
-/* Current line gradient highlight */
+/* Current line gradient highlight — Catppuccin purple accent */
 .current-line-gradient {
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.06) 0%, rgba(16, 185, 129, 0.03) 50%, transparent 100%) !important;
-  border-left: 2px solid rgba(16, 185, 129, 0.4) !important;
+  background: linear-gradient(90deg, rgba(203, 166, 247, 0.06) 0%, rgba(203, 166, 247, 0.03) 50%, transparent 100%) !important;
+  border-left: 2px solid rgba(203, 166, 247, 0.4) !important;
 }
 
 /* Quick prompt card gradient backgrounds */
@@ -560,10 +564,10 @@
   pointer-events: none;
   border-radius: inherit;
 }
-.quick-prompt-card:nth-child(1)::before { background: linear-gradient(135deg, #10b981, #059669); }
-.quick-prompt-card:nth-child(2)::before { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
-.quick-prompt-card:nth-child(3)::before { background: linear-gradient(135deg, #f59e0b, #d97706); }
-.quick-prompt-card:nth-child(4)::before { background: linear-gradient(135deg, #ec4899, #db2777); }
+.quick-prompt-card:nth-child(1)::before { background: linear-gradient(135deg, #a6e3a1, #94e2d5); }
+.quick-prompt-card:nth-child(2)::before { background: linear-gradient(135deg, #cba6f7, #89b4fa); }
+.quick-prompt-card:nth-child(3)::before { background: linear-gradient(135deg, #f9e2af, #fab387); }
+.quick-prompt-card:nth-child(4)::before { background: linear-gradient(135deg, #f5c2e7, #f38ba8); }
 .quick-prompt-card:hover::before {
   opacity: 0.12;
 }
@@ -584,13 +588,13 @@
   transition: outline-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Custom selection colors (emerald-tinted) */
+/* Custom selection colors — Catppuccin purple tinted */
 ::selection {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(203, 166, 247, 0.25);
   color: inherit;
 }
 ::-moz-selection {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(203, 166, 247, 0.25);
   color: inherit;
 }
 
@@ -622,9 +626,9 @@ button, a, [role="button"], input, select, textarea {
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(16, 185, 129, 0.04) 25%,
-    rgba(16, 185, 129, 0.08) 50%,
-    rgba(16, 185, 129, 0.04) 75%
+    rgba(203, 166, 247, 0.04) 25%,
+    rgba(203, 166, 247, 0.08) 50%,
+    rgba(203, 166, 247, 0.04) 75%
   );
   background-size: 200% 100%;
   animation: skeleton-shimmer 2s ease-in-out infinite;
@@ -645,15 +649,15 @@ button, a, [role="button"], input, select, textarea {
   height: 6px;
 }
 .code-scrollbar::-webkit-scrollbar-track {
-  background: rgba(16, 185, 129, 0.03);
+  background: rgba(203, 166, 247, 0.03);
   border-radius: 3px;
 }
 .code-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.12);
+  background: rgba(203, 166, 247, 0.12);
   border-radius: 3px;
 }
 .code-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.22);
+  background: rgba(203, 166, 247, 0.22);
 }
 .code-scrollbar::-webkit-scrollbar-corner {
   background: transparent;
@@ -671,7 +675,7 @@ button, a, [role="button"], input, select, textarea {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Top bar bottom border gradient */
+/* Top bar bottom border gradient — Catppuccin purple */
 .topbar-border-gradient {
   position: relative;
 }
@@ -682,7 +686,7 @@ button, a, [role="button"], input, select, textarea {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.2) 30%, rgba(16, 185, 129, 0.25) 50%, rgba(16, 185, 129, 0.2) 70%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(203, 166, 247, 0.2) 30%, rgba(203, 166, 247, 0.3) 50%, rgba(203, 166, 247, 0.2) 70%, transparent 100%);
   pointer-events: none;
 }
 
@@ -692,19 +696,19 @@ button, a, [role="button"], input, select, textarea {
   100% { background-position: 200% 0; }
 }
 .text-shimmer-active {
-  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.3) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(203, 166, 247, 0.3) 50%, transparent 100%);
   background-size: 200% 100%;
   background-clip: text;
   animation: text-shimmer 3s ease-in-out infinite;
 }
 
-/* Active file row left border glow */
+/* Active file row left border glow — Catppuccin purple */
 .active-file-glow {
-  box-shadow: inset 3px 0 6px -2px rgba(16, 185, 129, 0.3);
-  border-left: 2px solid rgba(16, 185, 129, 0.6) !important;
+  box-shadow: inset 3px 0 6px -2px rgba(203, 166, 247, 0.25);
+  border-left: 2px solid rgba(203, 166, 247, 0.6) !important;
 }
 
-/* Agent progress bar */
+/* Agent progress bar — Catppuccin purple */
 @keyframes progress-pulse {
   0%, 100% { opacity: 0.8; }
   50% { opacity: 1; }
@@ -712,21 +716,21 @@ button, a, [role="button"], input, select, textarea {
 .agent-progress-bar {
   height: 2px;
   border-radius: 1px;
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(203, 166, 247, 0.1);
   overflow: hidden;
   margin-top: 2px;
 }
 .agent-progress-bar-fill {
   height: 100%;
   border-radius: 1px;
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.5), rgba(16, 185, 129, 0.8));
+  background: linear-gradient(90deg, rgba(203, 166, 247, 0.4), rgba(203, 166, 247, 0.7));
   animation: progress-pulse 2s ease-in-out infinite;
   transition: width 0.5s ease;
 }
 
-/* Chat system message left border accent */
+/* Chat system message left border accent — Catppuccin purple */
 .system-message-accent {
-  border-left: 2px solid rgba(16, 185, 129, 0.3);
+  border-left: 2px solid rgba(203, 166, 247, 0.3);
 }
 
 /* Chat scroll-to-bottom floating button */
@@ -748,13 +752,13 @@ button, a, [role="button"], input, select, textarea {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: rgba(16, 185, 129, 0.7);
+  background: rgba(203, 166, 247, 0.7);
 }
 .typing-wave-dot:nth-child(1) { animation: typing-wave 1.4s ease-in-out infinite; }
 .typing-wave-dot:nth-child(2) { animation: typing-wave 1.4s ease-in-out 0.15s infinite; }
 .typing-wave-dot:nth-child(3) { animation: typing-wave 1.4s ease-in-out 0.3s infinite; }
 
-/* Animated gradient border around logo */
+/* Animated gradient border around logo — Catppuccin colors */
 @keyframes gradient-rotate {
   0% { --gradient-angle: 0deg; }
   100% { --gradient-angle: 360deg; }
@@ -773,7 +777,7 @@ button, a, [role="button"], input, select, textarea {
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  background: conic-gradient(from var(--gradient-angle), #10b981, #8b5cf6, #f59e0b, #10b981);
+  background: conic-gradient(from var(--gradient-angle), #cba6f7, #89b4fa, #a6e3a1, #cba6f7);
   animation: gradient-rotate 3s linear infinite;
   z-index: -1;
   opacity: 0.6;
@@ -806,7 +810,7 @@ button, a, [role="button"], input, select, textarea {
   white-space: nowrap;
 }
 
-/* Bottom panel top border gradient */
+/* Bottom panel top border gradient — Catppuccin purple */
 .bottom-panel-gradient {
   position: relative;
 }
@@ -817,14 +821,14 @@ button, a, [role="button"], input, select, textarea {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.15) 30%, rgba(16, 185, 129, 0.2) 50%, rgba(16, 185, 129, 0.15) 70%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(203, 166, 247, 0.15) 30%, rgba(203, 166, 247, 0.2) 50%, rgba(203, 166, 247, 0.15) 70%, transparent 100%);
   pointer-events: none;
   z-index: 5;
 }
 
-/* Dotted resize handle */
+/* Dotted resize handle — Catppuccin purple */
 .resize-handle-dotted {
-  background-image: radial-gradient(circle, rgba(16, 185, 129, 0.3) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(203, 166, 247, 0.3) 1px, transparent 1px);
   background-size: 8px 4px;
   background-position: center;
   background-repeat: repeat-x;
@@ -867,7 +871,7 @@ button, a, [role="button"], input, select, textarea {
   position: absolute;
   inset: -8px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(203, 166, 247, 0.06) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -889,7 +893,7 @@ button, a, [role="button"], input, select, textarea {
   content: '';
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  background: linear-gradient(90deg, transparent, rgba(203, 166, 247, 0.12), transparent);
 }
 
 /* ===== Responsive Design ===== */

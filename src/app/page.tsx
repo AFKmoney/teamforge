@@ -382,7 +382,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.3 }}
-        className="flex items-center h-7 px-3 border-t bg-gradient-to-r from-card/95 via-card/90 to-card/95 backdrop-blur-md shrink-0 text-[10px] text-muted-foreground gap-2.5 animate-page-load animate-page-load-delay-4"
+        className="flex items-center h-7 px-3 border-t bg-gradient-to-r from-[#1e1e2e] via-[#242438] to-[#1e1e2e] backdrop-blur-md shrink-0 text-[10px] text-muted-foreground gap-2.5 animate-page-load animate-page-load-delay-4"
       >
         {/* Left side - Connection with pulsing */}
         <TooltipProvider delayDuration={300}>
@@ -396,7 +396,7 @@ export default function Home() {
                       <span className="relative inline-flex rounded-full size-2 bg-emerald-500 shadow-sm shadow-emerald-500/50" />
                     </span>
                     <Wifi className="size-3 text-emerald-500" />
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold status-pulse">Live</span>
+                    <span className="text-emerald-400 font-semibold status-pulse">Live</span>
                   </>
                 ) : (
                   <>
@@ -415,7 +415,7 @@ export default function Home() {
           </Tooltip>
         </TooltipProvider>
 
-        <div className="h-3 w-px bg-border/60" />
+        <div className="h-3 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent" />
 
         {/* Agents */}
         <TooltipProvider delayDuration={300}>
@@ -433,14 +433,14 @@ export default function Home() {
           </Tooltip>
         </TooltipProvider>
 
-        <div className="h-3 w-px bg-border/60" />
+        <div className="h-3 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent" />
 
         {/* Tasks progress with mini bar */}
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center gap-1.5 hover:text-foreground/80 transition-colors cursor-default">
-                <Activity className="size-3 text-emerald-500" />
+                <Activity className="size-3 text-purple-400" />
                 <span className="font-medium">{completedTasks}</span>
                 <span className="text-muted-foreground/60">/ {totalTasks}</span>
                 {/* Mini progress bar */}
@@ -449,10 +449,10 @@ export default function Home() {
                     initial={{ width: 0 }}
                     animate={{ width: `${taskCompletionPct}%` }}
                     transition={{ duration: 1, ease: 'easeOut', delay: 0.8 }}
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                    className="h-full rounded-full bg-gradient-to-r from-purple-500 to-blue-400"
                   />
                 </div>
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">{taskCompletionPct}%</span>
+                <span className="text-purple-400 dark:text-purple-300 font-medium tabular-nums">{taskCompletionPct}%</span>
               </div>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
@@ -461,7 +461,7 @@ export default function Home() {
           </Tooltip>
         </TooltipProvider>
 
-        <div className="h-3 w-px bg-border/60" />
+        <div className="h-3 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent" />
 
         {/* Tokens with sparkline */}
         <TooltipProvider delayDuration={300}>
@@ -497,7 +497,7 @@ export default function Home() {
           </Tooltip>
         </TooltipProvider>
 
-        <div className="h-3 w-px bg-border/60" />
+        <div className="h-3 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent" />
 
         {/* Uptime */}
         <TooltipProvider delayDuration={300}>
@@ -514,7 +514,7 @@ export default function Home() {
           </Tooltip>
         </TooltipProvider>
 
-        <div className="h-3 w-px bg-border/60" />
+        <div className="h-3 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent" />
 
         {/* AI Model Indicator */}
         <TooltipProvider delayDuration={300}>
@@ -531,7 +531,7 @@ export default function Home() {
           </Tooltip>
         </TooltipProvider>
 
-        <div className="h-3 w-px bg-border/60" />
+        <div className="h-3 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent" />
 
         {/* Branch */}
         <TooltipProvider delayDuration={300}>
@@ -572,9 +572,9 @@ export default function Home() {
         {/* Right side */}
         <div className="flex items-center gap-2 ml-auto">
           <span className="font-semibold text-foreground/60 tracking-tight">TeamForge IDE</span>
-          <div className="h-3 w-px bg-border/60" />
+          <div className="h-3 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent" />
           <span className="text-muted-foreground/60">v1.0.0</span>
-          <div className="h-3 w-px bg-border/60" />
+          <div className="h-3 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent" />
           <span className="flex items-center gap-0.5">
             Made with <Heart className="size-2.5 text-red-500 fill-red-500" />
           </span>

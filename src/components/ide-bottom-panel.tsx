@@ -454,7 +454,7 @@ function TerminalView() {
   return (
     <div className="flex flex-col h-full" onClick={focusInput}>
       {/* Terminal toolbar */}
-      <div className="flex items-center gap-1 px-3 py-1 border-b border-border/30 bg-muted/10 shrink-0">
+      <div className="flex items-center gap-1 px-3 py-1 border-b border-border/30 bg-gradient-to-r from-[#1e1e2e]/50 to-[#242438]/50 shrink-0">
         <Button
           size="icon"
           variant="ghost"
@@ -495,21 +495,21 @@ function TerminalView() {
             <div className="flex items-center gap-2 mt-1">
               <button
                 onClick={() => handleCommand('bun run lint')}
-                className="text-emerald-500 hover:text-emerald-400 text-[11px] underline underline-offset-2 transition-colors"
+                className="text-purple-400 hover:text-purple-300 text-[11px] underline underline-offset-2 transition-colors"
               >
                 Run Lint
               </button>
               <span className="text-muted-foreground/30">·</span>
               <button
                 onClick={() => handleCommand('bun run build')}
-                className="text-emerald-500 hover:text-emerald-400 text-[11px] underline underline-offset-2 transition-colors"
+                className="text-purple-400 hover:text-purple-300 text-[11px] underline underline-offset-2 transition-colors"
               >
                 Run Build
               </button>
               <span className="text-muted-foreground/30">·</span>
               <button
                 onClick={() => handleCommand('help')}
-                className="text-sky-500 hover:text-sky-400 text-[11px] underline underline-offset-2 transition-colors"
+                className="text-sky-400 hover:text-sky-300 text-[11px] underline underline-offset-2 transition-colors"
               >
                 Help
               </button>
@@ -519,7 +519,7 @@ function TerminalView() {
           lines.map((line) => (
             <div key={line.id}>
               {line.type === 'input' && (
-                <div className="text-emerald-500 whitespace-pre-wrap font-semibold">{line.content}</div>
+                <div className="text-purple-400 whitespace-pre-wrap font-semibold">{line.content}</div>
               )}
               {line.type === 'output' && (
                 <pre className="whitespace-pre-wrap">{renderColoredOutput(line.content)}</pre>
@@ -557,8 +557,8 @@ function TerminalView() {
       </div>
 
       {/* Command input */}
-      <div className="flex items-center gap-2 px-3 py-2 border-t border-border/40 bg-muted/10 relative">
-        <span className="text-emerald-500 font-mono text-xs shrink-0 select-none font-bold">{cwd} ❯</span>
+      <div className="flex items-center gap-2 px-3 py-2 border-t border-border/40 bg-[#1e1e2e]/60 relative">
+        <span className="text-purple-400 font-mono text-xs shrink-0 select-none font-bold">{cwd} <span className="text-amber-400">❯</span></span>
         <div className="flex-1 relative">
           <input
             ref={inputRef}
@@ -582,7 +582,7 @@ function TerminalView() {
           )}
         </div>
         {isExecuting && (
-          <Loader2 className="size-3.5 text-emerald-500 animate-spin shrink-0" />
+          <Loader2 className="size-3.5 text-purple-400 animate-spin shrink-0" />
         )}
       </div>
     </div>
