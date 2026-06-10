@@ -60,6 +60,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
 import { cn, formatRelativeTime } from '@/lib/utils'
 import { AnalyticsDashboard } from '@/components/analytics-dashboard'
+import { BenchmarksDashboard } from '@/components/benchmarks-dashboard'
 
 const BOTTOM_TABS: { id: IDEBottomTab; label: string; icon: React.ReactNode }[] = [
   { id: 'terminal', label: 'Terminal', icon: <Terminal className="size-3.5" /> },
@@ -69,6 +70,7 @@ const BOTTOM_TABS: { id: IDEBottomTab; label: string; icon: React.ReactNode }[] 
   { id: 'git', label: 'Git', icon: <GitBranch className="size-3.5" /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="size-3.5" /> },
   { id: 'activities', label: 'Activities', icon: <Activity className="size-3.5" /> },
+  { id: 'benchmarks', label: 'Benchmarks', icon: <BarChart3 className="size-3.5" /> },
 ]
 
 function BuildStatusBadge({ buildLogs }: { buildLogs: BuildLog[] }) {
@@ -1578,6 +1580,8 @@ export function IDEBottomPanel({ isMobile = false }: { isMobile?: boolean }) {
         return <AnalyticsDashboard />
       case 'activities':
         return <ActivitiesView />
+      case 'benchmarks':
+        return <BenchmarksDashboard />
       default:
         return <TerminalView />
     }

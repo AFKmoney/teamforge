@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Agent, Task, Message, ChatSession, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus, AIProviderType } from '@/lib/types'
+import type { Agent, Task, Message, ChatSession, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus, AIProviderType, BenchmarkSnapshot } from '@/lib/types'
 import { AI_SETTINGS_KEY, DEFAULT_AI_SETTINGS, type AISettings } from '@/lib/ai-providers'
 
 /**
@@ -275,7 +275,12 @@ interface AppState {
   fetchFiles: () => Promise<void>
   fetchBuildLogs: () => Promise<void>
   fetchActivities: () => Promise<void>
+  fetchBenchmarks: () => Promise<void>
   fetchAll: (projectId?: string) => Promise<void>
+
+  // Benchmark state
+  benchmarkSnapshots: BenchmarkSnapshot[]
+  setBenchmarkSnapshots: (snapshots: BenchmarkSnapshot[]) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -313,6 +318,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   files: [],
   buildLogs: [],
   activities: [],
+  benchmarkSnapshots: [],
 
   // IDE state
   activePanel: 'chat',
@@ -529,6 +535,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFiles: (files) => set({ files: deduplicateById(files) }),
   setBuildLogs: (logs) => set({ buildLogs: deduplicateById(logs) }),
   setActivities: (activities) => set({ activities: deduplicateById(activities) }),
+  setBenchmarkSnapshots: (snapshots) => set({ benchmarkSnapshots: snapshots }),
 
   // Add message
   addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
@@ -648,6 +655,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (res?.ok) {
       const data = await res.json()
       set({ activities: deduplicateById(data) })
+    }
+  },
+  fetchBenchmarks: async () => {
+    const projectId = get().currentProject?.id
+    if (!projectId) return
+    const res = await fetchWithRetry(`/api/benchmarks?projectId=${projectId}&range=all`)
+    if (res?.ok) {
+      const data = await res.json()
+      if (data.snapshots) {
+        set({ benchmarkSnapshots: data.snapshots })
+      }
     }
   },
   fetchAll: async (projectId) => {

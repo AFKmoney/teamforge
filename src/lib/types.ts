@@ -10,7 +10,7 @@ export type BuildStatus = 'running' | 'success' | 'failed' | 'warning'
 export type BuildType = 'build' | 'test' | 'lint' | 'deploy'
 export type ProjectStatus = 'active' | 'paused' | 'completed' | 'archived'
 export type IDEPanel = 'agents' | 'chat' | 'tasks' | 'terminal' | 'files'
-export type IDEBottomTab = 'terminal' | 'tasks' | 'build' | 'problems' | 'analytics' | 'activities' | 'git'
+export type IDEBottomTab = 'terminal' | 'tasks' | 'build' | 'problems' | 'analytics' | 'activities' | 'git' | 'benchmarks'
 export type GitFileStatus = 'modified' | 'untracked' | 'deleted' | 'staged'
 export interface GitCommit {
   id: string
@@ -149,6 +149,43 @@ export interface AgentActivity {
 }
 
 // Agent role config
+export interface BenchmarkSnapshot {
+  id: string
+  projectId: string
+  timestamp: string
+  totalTasksCreated: number
+  totalTasksCompleted: number
+  totalTasksFailed: number
+  meanResolutionTime: number
+  p50ResolutionTime: number
+  p95ResolutionTime: number
+  p99ResolutionTime: number
+  firstPassRate: number
+  avgPostReviewFixes: number
+  autonomyRate: number
+  avgHumanInterventions: number
+  tasksPerHour: number
+  linesPerHour: number
+  uptimeHours: number
+  errorRate: number
+  totalTokensUsed: number
+  tokensPerTask: number
+  tokensPerLine: number
+}
+
+export interface AgentMetricBreakdown {
+  id: string
+  name: string
+  role: string
+  tasksAssigned: number
+  tasksCompleted: number
+  tasksFailed: number
+  avgResolutionTime: number
+  firstPassRate: number
+  autonomyRate: number
+  tokensUsed: number
+}
+
 export const AGENT_ROLE_CONFIG: Record<AgentRole, { label: string; color: string; bgColor: string; darkBgColor: string; icon: string; description: string }> = {
   architect: { label: 'Architect', color: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-500/10', darkBgColor: 'dark:bg-violet-500/20', icon: '🏗️', description: 'System design & architecture' },
   developer: { label: 'Developer', color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10', darkBgColor: 'dark:bg-emerald-500/20', icon: '💻', description: 'Code implementation' },

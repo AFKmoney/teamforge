@@ -5,7 +5,7 @@ const globalForPrisma = globalThis as unknown as {
   _prismaSchemaVersion?: string
 }
 
-const SCHEMA_VERSION = 'v5-chat-sessions'
+const SCHEMA_VERSION = 'v6-benchmarks'
 
 // Force recreation if schema version changed (ensures fresh client after schema migration)
 if (globalForPrisma._prismaSchemaVersion !== SCHEMA_VERSION) {

@@ -22,6 +22,7 @@ model Project {
   chatSessions ChatSession[]
   files       ProjectFile[]
   buildLogs   BuildLog[]
+  benchmarkSnapshots BenchmarkSnapshot[]
 }
 
 model Agent {
@@ -41,6 +42,7 @@ model Agent {
 
   messages      Message[]
   activities    AgentActivity[]
+  metrics       AgentMetric[]
   assignedTasks Task[]
 }
 
@@ -126,4 +128,73 @@ model AgentActivity {
   createdAt   DateTime @default(now())
 
   agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model AgentMetric {
+  id          String   @id @default(cuid())
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  timestamp   DateTime @default(now())
+  
+  // Task metrics
+  tasksAssigned    Int      @default(0)
+  tasksCompleted   Int      @default(0)
+  tasksFailed      Int      @default(0)
+  
+  // Time metrics (in seconds)
+  avgResolutionTime    Float @default(0)
+  medianResolutionTime Float @default(0)
+  
+  // Quality metrics
+  reviewPassRate       Float @default(0)  // % of tasks that pass review on first attempt
+  postReviewCorrections Int  @default(0)  // number of corrections needed after review
+  
+  // Autonomy metrics
+  autonomousActions    Int   @default(0)  // actions taken without human intervention
+  humanInterventions   Int   @default(0)  // times human had to step in
+  
+  // Token usage
+  tokensUsed           Int   @default(0)
+  
+  // Session info
+  sessionId            String?  // link to a work session for time-series analysis
+}
+
+model BenchmarkSnapshot {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  timestamp   DateTime @default(now())
+  
+  // Aggregate system metrics
+  totalTasksCreated      Int     @default(0)
+  totalTasksCompleted    Int     @default(0)
+  totalTasksFailed       Int     @default(0)
+  
+  // Time metrics
+  meanResolutionTime     Float   @default(0)  // avg time from task creation to completion
+  p50ResolutionTime      Float   @default(0)  // median
+  p95ResolutionTime      Float   @default(0)  // 95th percentile
+  p99ResolutionTime      Float   @default(0)  // 99th percentile
+  
+  // Quality
+  firstPassRate          Float   @default(0)  // % tasks passing review on first try
+  avgPostReviewFixes     Float   @default(0)  // avg corrections per task
+  
+  // Autonomy
+  autonomyRate           Float   @default(0)  // % of actions without human intervention
+  avgHumanInterventions  Float   @default(0)  // avg interventions per task
+  
+  // Throughput
+  tasksPerHour           Float   @default(0)  // tasks completed per hour
+  linesPerHour           Float   @default(0)  // lines of code changed per hour
+  
+  // Stability
+  uptimeHours            Float   @default(0)  // hours since last agent crash/reset
+  errorRate              Float   @default(0)  // % of agent actions that resulted in errors
+  
+  // Token efficiency
+  totalTokensUsed        Int     @default(0)
+  tokensPerTask          Float   @default(0)  // avg tokens per completed task
+  tokensPerLine          Float   @default(0)  // avg tokens per line of code changed
 }
