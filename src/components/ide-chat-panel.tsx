@@ -378,7 +378,7 @@ function ModelSelector() {
     if (aiSettings.provider === 'openai-compatible') {
       return aiSettings.openaiCompatibleModelId === 'custom' ? 'Custom' : aiSettings.openaiCompatibleModelId
     }
-    return 'GLM-4'
+    return 'GLM-5.1'
   }, [aiSettings, currentModels])
 
   // Provider icon
@@ -411,7 +411,7 @@ function ModelSelector() {
         )}
       >
         {mounted ? providerIcon : <Bot className="size-3 text-emerald-500" />}
-        <span className="max-w-[60px] truncate">{mounted ? displayLabel : 'GLM-4'}</span>
+        <span className="max-w-[60px] truncate">{mounted ? displayLabel : 'GLM-5.1'}</span>
         <ChevronDown className={cn('size-2.5 transition-transform', isOpen && 'rotate-180')} />
         {mounted && !hasRequiredKey && (
           <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -442,7 +442,7 @@ function ModelSelector() {
                   <button
                     key={p.type}
                     onClick={() => {
-                      const defaultModel = getModelsForProvider(p.type)[0]?.id || 'glm-4'
+                      const defaultModel = getModelsForProvider(p.type)[0]?.id || 'glm-5.1'
                       updateAISettings({ provider: p.type, model: defaultModel })
                     }}
                     className={cn(
@@ -536,7 +536,7 @@ function ChatAIStatusBar({ messages }: { messages: Message[] }) {
 
   // Determine provider display info
   const providerInfo = useMemo(() => {
-    if (!mounted) return { label: 'GLM-4', icon: <Bot className="size-2.5 text-emerald-500" />, color: 'text-emerald-500' }
+    if (!mounted) return { label: 'GLM-5.1', icon: <Bot className="size-2.5 text-emerald-500" />, color: 'text-emerald-500' }
     switch (aiSettings.provider) {
       case 'nvidia': {
         const models = getModelsForProvider('nvidia')
@@ -555,7 +555,7 @@ function ChatAIStatusBar({ messages }: { messages: Message[] }) {
         }
       default:
         return {
-          label: 'GLM-4',
+          label: 'GLM-5.1',
           icon: <Bot className="size-2.5 text-emerald-500" />,
           color: 'text-emerald-500',
         }

@@ -57,7 +57,7 @@ const DEFAULT_SETTINGS = {
   pollingInterval: 30,
   // AI Provider settings
   aiProvider: 'zai' as AIProviderType,
-  aiModel: 'glm-4',
+  aiModel: 'glm-5.1',
   nvidiaApiKey: '',
   openaiCompatibleBaseUrl: '',
   openaiCompatibleApiKey: '',

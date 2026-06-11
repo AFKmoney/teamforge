@@ -39,16 +39,34 @@ export const AI_PROVIDERS: AIProviderConfig[] = [
     requiresApiKey: false,
     models: [
       {
+        id: 'glm-5.1',
+        name: 'GLM-5.1',
+        provider: 'zai',
+        description: 'Zhipu AI latest flagship — most powerful GLM model',
+      },
+      {
         id: 'glm-4',
         name: 'GLM-4',
         provider: 'zai',
-        description: 'Zhipu AI flagship model — powerful and versatile',
+        description: 'Zhipu AI proven model — powerful and versatile',
       },
       {
         id: 'glm-4-flash',
         name: 'GLM-4 Flash',
         provider: 'zai',
         description: 'Fast GLM-4 variant — quick responses',
+      },
+      {
+        id: 'glm-4-air',
+        name: 'GLM-4 Air',
+        provider: 'zai',
+        description: 'Lightweight GLM-4 — efficient and fast',
+      },
+      {
+        id: 'glm-4-long',
+        name: 'GLM-4 Long',
+        provider: 'zai',
+        description: 'Extended context GLM-4 — for long documents',
       },
     ],
   },
@@ -364,7 +382,7 @@ export interface AISettings {
 
 export const DEFAULT_AI_SETTINGS: AISettings = {
   provider: 'zai',
-  model: 'glm-4',
+  model: 'glm-5.1',
   nvidiaApiKey: '',
   openaiCompatibleBaseUrl: '',
   openaiCompatibleApiKey: '',

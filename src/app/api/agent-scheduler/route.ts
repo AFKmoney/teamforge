@@ -562,7 +562,7 @@ async function executeTask(taskId: string, agentId: string) {
     // Call LLM with timeout
     const zai = await ZAI.create()
     const response = await zai.chat.completions.create({
-      model: 'glm-4',
+      model: 'glm-5.1',
       messages: [
         { role: 'assistant', content: systemPrompt },
         { role: 'user', content: `Current project files:\n${fileContext}\n\nPlease work on this task and respond with your actions in the required JSON format.` },

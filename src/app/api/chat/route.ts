@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       agentId,
       chatSessionId,
       provider = 'zai',
-      model = 'glm-4',
+      model = 'glm-5.1',
       nvidiaApiKey,
       openaiCompatibleBaseUrl,
       openaiCompatibleApiKey,
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
       try {
         aiContent = await callZaiAPI(
           [{ role: 'system', content: systemPrompt }, { role: 'user', content: message }],
-          'glm-4',
+          'glm-5.1',
         )
       } catch {
         const errMsg = providerError instanceof Error ? providerError.message : 'Unknown error'
@@ -261,7 +261,7 @@ async function callZaiAPI(
 ): Promise<string> {
   const zai = await ZAI.create()
   const response = await zai.chat.completions.create({
-    model: model || 'glm-4',
+    model: model || 'glm-5.1',
     messages: messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
     thinking: { type: 'disabled' },
   })
@@ -318,7 +318,7 @@ async function handleCommand(
   projectId: string,
   agentId: string | null,
   provider: AIProviderType = 'zai',
-  model: string = 'glm-4',
+  model: string = 'glm-5.1',
 ) {
   const parts = message.trim().split(/\s+/)
   const command = parts[0].toLowerCase()

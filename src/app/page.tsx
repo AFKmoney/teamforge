@@ -52,8 +52,8 @@ export default function Home() {
 
   // AI Model display label
   const aiModelLabel = useMemo(() => {
-    if (!mounted) return 'GLM-4'
-    if (aiSettings.provider === 'zai') return 'GLM-4'
+    if (!mounted) return 'GLM-5.1'
+    if (aiSettings.provider === 'zai') return 'GLM-5.1'
     if (aiSettings.provider === 'nvidia') {
       const modelName = aiSettings.model.split('/').pop() || aiSettings.model
       return `NVIDIA ${modelName}`
