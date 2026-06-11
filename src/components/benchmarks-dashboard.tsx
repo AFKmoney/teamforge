@@ -130,7 +130,7 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
 ]
 
 const ROLE_COLORS: Record<string, string> = {
-  architect: '#8b5cf6',
+  architect: '#22c55e',
   developer: '#10b981',
   reviewer: '#3b82f6',
   tester: '#f59e0b',
@@ -324,7 +324,7 @@ export function BenchmarksDashboard() {
               <KPICard
                 title="First Pass Rate"
                 value={formatPercent(latest.firstPassRate)}
-                icon={<Shield className="size-3.5 text-violet-500" />}
+                icon={<Shield className="size-3.5 text-emerald-500" />}
                 trend={previous ? { current: latest.firstPassRate, previous: previous.firstPassRate } : undefined}
                 subtitle="% tasks passing review first try"
               />
@@ -404,8 +404,8 @@ export function BenchmarksDashboard() {
                         <Area
                           type="monotone"
                           dataKey="firstPassRate"
-                          stroke="#8b5cf6"
-                          fill="#8b5cf6"
+                          stroke="#22c55e"
+                          fill="#22c55e"
                           fillOpacity={0.1}
                           strokeWidth={2}
                           name="First Pass %"

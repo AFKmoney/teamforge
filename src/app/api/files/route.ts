@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { writeFile, mkdir } from 'fs/promises'
+import { existsSync } from 'fs'
+import path from 'path'
 
 export async function GET(req: NextRequest) {
   try {
@@ -48,6 +51,18 @@ export async function POST(req: NextRequest) {
         isDirectory: isDirectory ?? false,
       },
     })
+
+    // Sync to real filesystem
+    if (!isDirectory && content) {
+      try {
+        const realPath = path.join(process.cwd(), 'vfs-root', path)
+        const dir = path.dirname(realPath)
+        if (!existsSync(dir)) await mkdir(dir, { recursive: true })
+        await writeFile(realPath, content, 'utf-8')
+      } catch (fsErr) {
+        console.warn('VFS sync write failed:', fsErr)
+      }
+    }
 
     return NextResponse.json(file, { status: 201 })
   } catch (error) {

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { writeFile } from 'fs/promises'
+import path from 'path'
 
 export async function GET(
   _req: NextRequest,
@@ -44,6 +46,16 @@ export async function PATCH(
       where: { id },
       data,
     })
+
+    // Sync to real filesystem
+    if (body.content !== undefined && !existing.isDirectory) {
+      try {
+        const realPath = path.join(process.cwd(), 'vfs-root', existing.path)
+        await writeFile(realPath, body.content, 'utf-8')
+      } catch (fsErr) {
+        console.warn('VFS sync write failed:', fsErr)
+      }
+    }
 
     return NextResponse.json(file)
   } catch (error) {

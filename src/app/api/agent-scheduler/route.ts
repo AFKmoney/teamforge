@@ -3,6 +3,20 @@ import { db } from '@/lib/db'
 import ZAI from 'z-ai-web-dev-sdk'
 import { broadcastEvent } from '@/lib/ws-broadcast'
 
+// YOLO mode rate limiter — max 10 task executions per 5-minute window
+const yoloExecutionLog: number[] = []
+const YOLO_MAX_EXECUTIONS_PER_5MIN = 10
+
+function checkYoloRateLimit(): boolean {
+  const now = Date.now()
+  const fiveMinAgo = now - 5 * 60 * 1000
+  // Clean old entries
+  while (yoloExecutionLog.length > 0 && yoloExecutionLog[0] < fiveMinAgo) {
+    yoloExecutionLog.shift()
+  }
+  return yoloExecutionLog.length < YOLO_MAX_EXECUTIONS_PER_5MIN
+}
+
 // Role → task type compatibility map for auto-assignment
 const ROLE_TASK_COMPAT: Record<string, string[]> = {
   architect: ['feature'],
@@ -28,6 +42,18 @@ export async function GET() {
       ],
     })
 
+    // Also include unassigned todo tasks
+    const unassignedTodoTasks = await db.task.findMany({
+      where: {
+        status: 'todo',
+        assigneeId: null,
+      },
+      orderBy: [
+        { priority: 'desc' },
+        { createdAt: 'asc' },
+      ],
+    })
+
     const freeAgents = await db.agent.findMany({
       where: { status: 'idle' },
     })
@@ -42,11 +68,13 @@ export async function GET() {
 
     return NextResponse.json({
       pendingTasks,
+      unassignedTodoTasks,
       freeAgents,
       busyAgents,
       sleepingAgents,
       summary: {
         pendingCount: pendingTasks.length,
+        unassignedTodoCount: unassignedTodoTasks.length,
         freeAgentCount: freeAgents.length,
         busyAgentCount: busyAgents.length,
         sleepingAgentCount: sleepingAgents.length,
@@ -124,7 +152,13 @@ async function handlePlay(projectId?: string, yoloMode: boolean = false) {
     if (yoloMode && assignResult.assignments.length > 0) {
       const executionResults: unknown[] = []
       for (const assignment of assignResult.assignments) {
+        // Check YOLO rate limit before each execution
+        if (!checkYoloRateLimit()) {
+          broadcastEvent('system:warning', { message: 'YOLO rate limit reached: max 10 task executions per 5 minutes. Scheduler paused.' })
+          break
+        }
         try {
+          yoloExecutionLog.push(Date.now())
           const result = await executeTask(assignment.taskId, assignment.agentId)
           const data = await result.json()
           executionResults.push(data)
@@ -132,13 +166,15 @@ async function handlePlay(projectId?: string, yoloMode: boolean = false) {
           console.error('YOLO mode auto-execution error:', e)
         }
       }
+      const rateLimited = executionResults.length < assignResult.assignments.length
       return NextResponse.json({
-        message: `Started ${agents.length} agents in YOLO mode`,
+        message: `Started ${agents.length} agents in YOLO mode${rateLimited ? ' (rate limited)' : ''}`,
         started: agents.length,
         assigned: assignResult.assigned,
         assignments: assignResult.assignments,
         yoloMode: true,
         executed: executionResults.length,
+        rateLimited,
       })
     }
 
@@ -163,9 +199,27 @@ async function handleStop(projectId?: string) {
     if (projectId) taskFilter.projectId = projectId
 
     // Find all busy agents (not idle and not sleeping)
-    const busyAgents = await db.agent.findMany({
+    // If projectId is specified, only stop agents working on tasks in that project
+    let busyAgents = await db.agent.findMany({
       where: { status: { notIn: ['idle', 'sleeping'] } },
     })
+
+    if (projectId) {
+      // Filter agents by their current task's project
+      const agentIdsToKeep = new Set<string>()
+      for (const agent of busyAgents) {
+        if (agent.currentTaskId) {
+          const agentTask = await db.task.findUnique({ where: { id: agent.currentTaskId } })
+          if (agentTask && agentTask.projectId === projectId) {
+            agentIdsToKeep.add(agent.id)
+          }
+        } else {
+          // Agents without a current task are not project-scoped, include them
+          agentIdsToKeep.add(agent.id)
+        }
+      }
+      busyAgents = busyAgents.filter(a => agentIdsToKeep.has(a.id))
+    }
 
     // Reset all busy agents to idle
     for (const agent of busyAgents) {
@@ -223,7 +277,7 @@ async function handlePause(projectId?: string) {
     for (const agent of activeAgents) {
       await db.agent.update({
         where: { id: agent.id },
-        data: { status: 'sleeping', lastActive: new Date() },
+        data: { status: 'sleeping', currentTaskId: null, lastActive: new Date() },
       })
       broadcastEvent('agent:update', { id: agent.id, status: 'sleeping', lastActive: new Date().toISOString() })
 
@@ -267,6 +321,17 @@ async function handleTick(projectId?: string, specificAgentId?: string, yoloMode
 
     // In YOLO mode, process all pending tasks (not just one)
     if (yoloMode) {
+      // Check YOLO rate limit before batch processing
+      if (!checkYoloRateLimit()) {
+        broadcastEvent('system:warning', { message: 'YOLO rate limit reached: max 10 task executions per 5 minutes. Scheduler paused.' })
+        return NextResponse.json({
+          message: 'YOLO rate limit reached: max 10 task executions per 5 minutes',
+          executed: 0,
+          yoloMode: true,
+          rateLimited: true,
+        })
+      }
+
       const allTodoFilter: Record<string, unknown> = {
         status: 'todo',
         assigneeId: { not: null },
@@ -285,9 +350,15 @@ async function handleTick(projectId?: string, specificAgentId?: string, yoloMode
       const executionResults: unknown[] = []
       for (const pendingTask of allPendingTasks) {
         if (pendingTask.assigneeId) {
+          // Check YOLO rate limit before each execution
+          if (!checkYoloRateLimit()) {
+            broadcastEvent('system:warning', { message: 'YOLO rate limit reached: max 10 task executions per 5 minutes. Scheduler paused.' })
+            break
+          }
           const agent = await db.agent.findUnique({ where: { id: pendingTask.assigneeId } })
           if (agent && agent.status === 'idle') {
             try {
+              yoloExecutionLog.push(Date.now())
               const result = await executeTask(pendingTask.id, agent.id)
               const data = await result.json()
               executionResults.push(data)
@@ -459,6 +530,27 @@ async function autoAssignTasks(projectId?: string, yoloMode: boolean = false): P
     }
   }
 
+  // Also assign in_review tasks to reviewers
+  const reviewTaskFilter: Record<string, unknown> = {
+    status: 'in_review',
+    assigneeId: null,
+  }
+  if (projectId) reviewTaskFilter.projectId = projectId
+
+  const reviewTasks = await db.task.findMany({
+    where: reviewTaskFilter,
+    orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
+  })
+  for (const task of reviewTasks) {
+    const bestAgent = findBestAgent(task.type, 'in_review', idleAgents, assignedAgentIds)
+    if (bestAgent) {
+      await db.task.update({ where: { id: task.id }, data: { assigneeId: bestAgent.id } })
+      broadcastEvent('task:update', { id: task.id, assigneeId: bestAgent.id })
+      assignedAgentIds.add(bestAgent.id)
+      assignments.push({ taskId: task.id, taskTitle: task.title, agentId: bestAgent.id, agentName: bestAgent.name })
+    }
+  }
+
   return { assigned: assignments.length, assignments }
 }
 
@@ -564,7 +656,7 @@ async function executeTask(taskId: string, agentId: string) {
     const response = await zai.chat.completions.create({
       model: 'glm-5.1',
       messages: [
-        { role: 'assistant', content: systemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: `Current project files:\n${fileContext}\n\nPlease work on this task and respond with your actions in the required JSON format.` },
       ],
       thinking: { type: 'disabled' },
@@ -729,6 +821,13 @@ async function executeTask(taskId: string, agentId: string) {
       data: { status: 'idle', currentTaskId: null },
     }).catch(() => {})
     broadcastEvent('agent:update', { id: agent.id, status: 'idle', currentTaskId: null })
+
+    // Roll back task status so it can be re-assigned
+    await db.task.update({
+      where: { id: task.id },
+      data: { status: 'todo', assigneeId: null },
+    }).catch(() => {})
+    broadcastEvent('task:update', { id: task.id, status: 'todo', assigneeId: null })
 
     // Log error activity
     await db.agentActivity.create({

@@ -49,6 +49,7 @@ export default function Home() {
   const aiSettings = useAppStore((s) => s.aiSettings)
   const yoloMode = useAppStore((s) => s.yoloMode)
   const mounted = useHydrated()
+  const [yoloActionsCount, setYoloActionsCount] = useState(0)
 
   // AI Model display label
   const aiModelLabel = useMemo(() => {
@@ -186,6 +187,24 @@ export default function Home() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [setFileSearchOpen, setSettingsOpen, saveAllFiles, setFindReplaceOpen, setGoToLineOpen, setGlobalSearchOpen, activeFileId, files, unsavedFileIds, markFileSaved, setBottomPanelOpen, setActiveBottomTab, bottomPanelOpen, currentProject])
+
+  // Track YOLO actions count — increment when slash commands are sent in YOLO mode
+  useEffect(() => {
+    const handleYoloAction = () => {
+      if (yoloMode) {
+        setYoloActionsCount((c) => c + 1)
+      }
+    }
+    window.addEventListener('teamforge-yolo-action', handleYoloAction)
+    return () => window.removeEventListener('teamforge-yolo-action', handleYoloAction)
+  }, [yoloMode])
+
+  // Reset YOLO actions count when YOLO mode is disabled
+  useEffect(() => {
+    if (!yoloMode) {
+      setYoloActionsCount(0)
+    }
+  }, [yoloMode])
 
   // Track uptime
   const startTime = useRef(Date.now())
@@ -556,6 +575,9 @@ export default function Home() {
                 <div className="flex items-center gap-1 text-orange-600 dark:text-orange-400 cursor-default">
                   <ShieldAlert className="size-3" />
                   <span className="font-bold tracking-wider">YOLO</span>
+                  {yoloActionsCount > 0 && (
+                    <span className="text-orange-500/80 font-medium">• {yoloActionsCount} action{yoloActionsCount !== 1 ? 's' : ''}</span>
+                  )}
                   <span className="relative flex size-1.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
                     <span className="relative inline-flex rounded-full size-1.5 bg-orange-500" />
@@ -563,7 +585,7 @@ export default function Home() {
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs">
-                YOLO Mode Active — Agents auto-approve and execute tasks without confirmation
+                YOLO Mode Active — {yoloActionsCount} autonomous action{yoloActionsCount !== 1 ? 's' : ''} taken this session
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

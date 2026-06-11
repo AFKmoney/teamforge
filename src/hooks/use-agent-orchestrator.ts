@@ -19,7 +19,7 @@ import { useAppStore } from '@/lib/store'
  * scheduler API so it can auto-approve and execute tasks without
  * requiring confirmation.
  */
-export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
+export function useAgentOrchestrator(options?: { pollingInterval?: number; wsConnected?: boolean }) {
   const currentProject = useAppStore((s) => s.currentProject)
   const fetchAll = useAppStore((s) => s.fetchAll)
   const fetchAgents = useAppStore((s) => s.fetchAgents)
@@ -31,7 +31,8 @@ export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
   const agents = useAppStore((s) => s.agents)
   const yoloMode = useAppStore((s) => s.yoloMode)
 
-  const pollingInterval = options?.pollingInterval ?? 30000
+  // Use longer polling when WS is connected (real-time updates reduce need for polling)
+  const pollingInterval = options?.pollingInterval ?? (options?.wsConnected ? 60000 : 30000)
   const schedulerTickRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Check if any agents are actively working (not idle or sleeping)
@@ -76,14 +77,7 @@ export function useAgentOrchestrator(options?: { pollingInterval?: number }) {
     if (!projectId) return
 
     try {
-      // Auto-assign tasks first (pass yoloMode for auto-accept behavior)
-      await fetch('/api/agent-scheduler', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'assign', projectId, yoloMode }),
-      })
-
-      // Then tick to execute tasks (pass yoloMode for batch execution)
+      // Tick already calls autoAssignTasks internally, so no separate assign call needed
       await fetch('/api/agent-scheduler', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

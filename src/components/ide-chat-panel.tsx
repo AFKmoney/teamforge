@@ -883,7 +883,7 @@ export function IDEChatPanel() {
     const priorityCommands: string[] = []
 
     if (lastBuildFailed) {
-      // If build just failed, suggest /run bun run lint first
+      // If build just failed, suggest /run /fix /explain first
       priorityCommands.push('/run', '/fix', '/explain')
     }
 
@@ -1259,7 +1259,7 @@ export function IDEChatPanel() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               projectId: currentProject?.id || '',
-              output: '$ bun run lint',
+              output: '$ bun test',
               status: 'running',
               type: 'test',
             }),
@@ -1268,14 +1268,14 @@ export function IDEChatPanel() {
             const log = await res.json()
             addBuildLog(log)
           }
-          // Actually run lint to get real results
-          const lintRes = await fetch('/api/exec', {
+          // Actually run bun test to get real results
+          const testRes = await fetch('/api/exec', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command: 'bun run lint', projectId: currentProject?.id }),
+            body: JSON.stringify({ command: 'bun test', projectId: currentProject?.id }),
           })
-          const lintData = lintRes.ok ? await lintRes.json() : null
-          const finalOutput = lintData?.output || 'Lint command completed.'
+          const testData = testRes.ok ? await testRes.json() : null
+          const finalOutput = testData?.output || testData?.stdout || 'Test command completed.'
           // Update the build log with real output
           try {
             const updateRes = await fetch('/api/build-logs', {
@@ -1283,8 +1283,8 @@ export function IDEChatPanel() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 projectId: currentProject?.id || '',
-                output: `$ bun run lint\n${finalOutput}`,
-                status: lintData?.exitCode === 0 ? 'success' : 'warning',
+                output: `$ bun test\n${finalOutput}`,
+                status: testData?.exitCode === 0 ? 'success' : 'warning',
                 type: 'test',
               }),
             })

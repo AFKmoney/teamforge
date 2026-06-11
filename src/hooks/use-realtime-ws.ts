@@ -69,6 +69,8 @@ export function useRealtimeWS() {
     socket.on('connect', () => {
       setIsConnected(true)
       console.log('[WS] Connected to TeamForge real-time service')
+      const projectId = useAppStore.getState().currentProject?.id
+      if (projectId) socket.emit('subscribe', { projectId })
     })
 
     socket.on('disconnect', (reason) => {

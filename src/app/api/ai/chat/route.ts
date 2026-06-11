@@ -125,7 +125,9 @@ export async function POST(req: NextRequest) {
     // Build context-aware system prompt
     const systemPrompt = buildContextAwareSystemPrompt(files, tasks, agents, buildLogs, recentMessages, yoloMode, project, activeFile)
 
-    const conversationHistory = sessionMessages.map((m) => {
+    const conversationHistory = sessionMessages
+      .filter((m) => m.id !== userMessage.id) // Exclude the just-saved message to avoid duplicate
+      .map((m) => {
       try {
         const meta = typeof m.metadata === 'string' ? JSON.parse(m.metadata) : m.metadata
         return {
@@ -168,13 +170,18 @@ export async function POST(req: NextRequest) {
           break
       }
     } catch (providerError) {
-      // Fallback to z-ai on provider failure
-      console.warn(`Provider ${provider} failed, falling back to zai:`, providerError)
-      try {
-        aiContent = await callZaiAPI(messages, 'glm-5.1')
-      } catch {
+      console.warn(`Provider ${provider} failed:`, providerError)
+      if (provider === 'zai') {
+        // Already tried ZAI, don't retry
         const errMsg = providerError instanceof Error ? providerError.message : 'Unknown error'
-        aiContent = `I apologize, I could not generate a response. Provider "${provider}" error: ${errMsg}. Please check your AI provider settings and API key.`
+        aiContent = `I apologize, I could not generate a response. Error: ${errMsg}. Please try again later.`
+      } else {
+        try {
+          aiContent = await callZaiAPI(messages, 'glm-5.1')
+        } catch {
+          const errMsg = providerError instanceof Error ? providerError.message : 'Unknown error'
+          aiContent = `I apologize, I could not generate a response. Provider "${provider}" error: ${errMsg}. Please check your AI provider settings.`
+        }
       }
     }
 
@@ -370,7 +377,19 @@ YOLO mode is enabled. You have FULL AUTONOMY to execute tasks without asking for
 - When asked to do something, DO IT immediately rather than explaining what you would do
 - Take initiative: if you see issues, fix them without waiting for approval
 - Be bold with refactoring and improvements — you have the authority to make changes
-- Only ask for clarification if the request is truly ambiguous` : ''}`
+- Only ask for clarification if the request is truly ambiguous
+
+### 🛡️ YOLO Safety Guardrails (MANDATORY — never bypass):
+- **NEVER** delete files ending in \`.env\`, \`.env.local\`, \`.env.production\` — these contain secrets
+- **NEVER** execute \`rm -rf /\` or any recursive delete of root directories
+- **NEVER** modify \`package.json\` to add suspicious or unverified packages
+- **NEVER** run \`curl | bash\` or \`wget | sh\` patterns — no piped remote execution
+- **NEVER** expose API keys, tokens, or credentials in file content or console output
+- **NEVER** commit sensitive data (API keys, passwords, private keys) to version control
+- **ALWAYS** create backups of files before major refactors (save original as \`filename.backup\`)
+- **ALWAYS** validate JSON/TypeScript syntax before writing to files
+- **ALWAYS** run lint check after making code changes
+- If a command fails, STOP and report the error instead of trying destructive alternatives` : ''}`
 }
 
 /** Handle slash commands within the AI chat endpoint */
@@ -591,8 +610,9 @@ ${file.content.length > 4000 ? file.content.slice(0, 4000) + '\n... (truncated)'
     }
 
     case '/create_file': {
-      const filePath = parts[1]
-      const content = parts.slice(2).join(' ') || ''
+      const firstSpace = message.indexOf(' ', '/create_file '.length)
+      const filePath = firstSpace > -1 ? message.substring('/create_file '.length, firstSpace) : parts[1]
+      const content = firstSpace > -1 ? message.substring(firstSpace + 1) : ''
 
       if (!filePath) {
         return NextResponse.json({ error: 'Usage: /create_file <path> [content]' }, { status: 400 })

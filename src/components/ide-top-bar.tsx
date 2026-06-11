@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -466,6 +467,7 @@ export function IDETopBar() {
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [isSavingProject, setIsSavingProject] = useState(false)
+  const [yoloConfirmOpen, setYoloConfirmOpen] = useState(false)
   const mounted = useHydrated()
 
   // Export project as ZIP
@@ -846,7 +848,18 @@ export function IDETopBar() {
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                useAppStore.getState().setFileSearchOpen(true)
+                const folderName = `new-folder-${Date.now()}`
+                fetch('/api/files', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    projectId: currentProject?.id || '',
+                    path: folderName,
+                    content: '',
+                    language: '',
+                    isDirectory: true,
+                  }),
+                }).then(() => { fetchFiles(); toast.success('Folder created') })
               }}
               className="gap-2 text-xs cursor-pointer"
             >
@@ -1024,7 +1037,13 @@ export function IDETopBar() {
                       ? 'bg-gradient-to-r from-orange-500/20 to-red-500/15 text-orange-400 border border-orange-500/40 hover:from-orange-500/30 hover:to-red-500/25 shadow-md shadow-orange-500/15 ring-1 ring-orange-500/20'
                       : 'text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 border border-transparent',
                   )}
-                  onClick={() => setYoloMode(!yoloMode)}
+                  onClick={() => {
+                    if (!yoloMode) {
+                      setYoloConfirmOpen(true)
+                    } else {
+                      setYoloMode(false)
+                    }
+                  }}
                   suppressHydrationWarning
                 >
                   {mounted && yoloMode ? (
@@ -1050,6 +1069,30 @@ export function IDETopBar() {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {/* YOLO Mode Confirmation Dialog */}
+          <AlertDialog open={yoloConfirmOpen} onOpenChange={setYoloConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <ShieldAlert className="size-5 text-orange-500" />
+                  Enable YOLO Mode?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  YOLO Mode gives AI agents full autonomy to execute tasks without confirmation. This includes creating, modifying, and deleting files, and running commands. Enable with caution.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                  onClick={() => setYoloMode(true)}
+                >
+                  Enable
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
         <div className="h-4 w-px bg-gradient-to-b from-transparent via-green-500/20 to-transparent mx-0.5" />
         <NotificationBell />

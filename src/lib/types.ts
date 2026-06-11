@@ -187,7 +187,7 @@ export interface AgentMetricBreakdown {
 }
 
 export const AGENT_ROLE_CONFIG: Record<AgentRole, { label: string; color: string; bgColor: string; darkBgColor: string; icon: string; description: string }> = {
-  architect: { label: 'Architect', color: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-500/10', darkBgColor: 'dark:bg-violet-500/20', icon: '🏗️', description: 'System design & architecture' },
+  architect: { label: 'Architect', color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10', darkBgColor: 'dark:bg-emerald-500/20', icon: '🏗️', description: 'System design & architecture' },
   developer: { label: 'Developer', color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10', darkBgColor: 'dark:bg-emerald-500/20', icon: '💻', description: 'Code implementation' },
   reviewer: { label: 'Reviewer', color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-500/10', darkBgColor: 'dark:bg-blue-500/20', icon: '🔍', description: 'Code review & quality' },
   tester: { label: 'Tester', color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/10', darkBgColor: 'dark:bg-amber-500/20', icon: '🧪', description: 'Testing & validation' },
@@ -197,7 +197,7 @@ export const AGENT_ROLE_CONFIG: Record<AgentRole, { label: string; color: string
 
 export const AGENT_STATUS_CONFIG: Record<AgentStatus, { label: string; color: string; dotColor: string }> = {
   idle: { label: 'Idle', color: 'text-muted-foreground', dotColor: 'bg-muted-foreground' },
-  thinking: { label: 'Thinking', color: 'text-violet-500', dotColor: 'bg-violet-500' },
+  thinking: { label: 'Thinking', color: 'text-emerald-500', dotColor: 'bg-emerald-500' },
   coding: { label: 'Coding', color: 'text-emerald-500', dotColor: 'bg-emerald-500' },
   reviewing: { label: 'Reviewing', color: 'text-blue-500', dotColor: 'bg-blue-500' },
   testing: { label: 'Testing', color: 'text-amber-500', dotColor: 'bg-amber-500' },
@@ -209,7 +209,7 @@ export const TASK_STATUS_CONFIG: Record<TaskStatus, { label: string; color: stri
   backlog: { label: 'Backlog', color: 'text-muted-foreground', bgColor: 'bg-muted' },
   todo: { label: 'To Do', color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-500/10' },
   in_progress: { label: 'In Progress', color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/10' },
-  in_review: { label: 'In Review', color: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-500/10' },
+  in_review: { label: 'In Review', color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10' },
   done: { label: 'Done', color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10' },
   blocked: { label: 'Blocked', color: 'text-red-600 dark:text-red-400', bgColor: 'bg-red-500/10' },
 }

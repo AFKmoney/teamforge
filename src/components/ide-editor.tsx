@@ -344,7 +344,7 @@ function Minimap({ lines, scrollHeight, clientHeight, scrollTop }: {
                   backgroundColor: line.trimStart().startsWith('//') || line.trimStart().startsWith('#')
                     ? 'rgb(113 113 122)'
                     : line.trimStart().startsWith('import') || line.trimStart().startsWith('export') || line.trimStart().startsWith('const') || line.trimStart().startsWith('function')
-                      ? 'rgb(167 139 250)'
+                      ? 'rgb(34 197 94)'
                       : 'rgb(161 161 170)',
                 }}
               />

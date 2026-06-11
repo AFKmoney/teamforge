@@ -22,7 +22,7 @@ const STATUS_BORDER: Record<string, string> = {
   backlog: 'border-l-muted-foreground/40',
   todo: 'border-l-blue-500',
   in_progress: 'border-l-amber-500',
-  in_review: 'border-l-violet-500',
+  in_review: 'border-l-emerald-500',
   done: 'border-l-emerald-500',
   blocked: 'border-l-red-500',
 }

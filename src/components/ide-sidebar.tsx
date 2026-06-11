@@ -386,7 +386,7 @@ function AgentRow({ agent, onClick }: { agent: Agent; onClick: () => void }) {
               'flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-150 cursor-pointer border-l-2',
               'hover:bg-muted/60 hover:shadow-sm',
               isActive && 'bg-muted/30',
-              isActive && roleConfig.color === 'text-violet-600 dark:text-violet-400' && 'border-l-green-500',
+              isActive && agent.role === 'architect' && 'border-l-green-500',
               isActive && roleConfig.color === 'text-emerald-600 dark:text-emerald-400' && 'border-l-emerald-500',
               isActive && roleConfig.color === 'text-blue-600 dark:text-blue-400' && 'border-l-blue-500',
               isActive && roleConfig.color === 'text-amber-600 dark:text-amber-400' && 'border-l-amber-500',

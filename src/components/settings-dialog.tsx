@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Settings, FileCode2, Palette, Cpu, Type, WrapText, Map, Hash, Save, Timer, FolderKanban, Link, ChevronDown, Eye, EyeOff, CheckCircle2, XCircle, Loader2, Zap, Globe, Key, Bot, Search, RotateCcw } from 'lucide-react'
+import { Settings, FileCode2, Palette, Cpu, Type, WrapText, Map, Hash, Save, Timer, FolderKanban, Link, ChevronDown, Eye, EyeOff, CheckCircle2, XCircle, Loader2, Zap, Globe, Key, Bot, Search, RotateCcw, PanelLeft, MessageSquare, LayoutDashboard, Columns } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
@@ -512,7 +512,7 @@ function AppearanceTab() {
   return (
     <div className="space-y-1">
       <SettingRow
-        icon={<Cpu className="size-4" />}
+        icon={<PanelLeft className="size-4" />}
         label="Sidebar Visible"
         description="Toggle file explorer sidebar"
       >
@@ -525,7 +525,7 @@ function AppearanceTab() {
       <div className="h-px bg-border/50" />
 
       <SettingRow
-        icon={<Cpu className="size-4" />}
+        icon={<MessageSquare className="size-4" />}
         label="Chat Panel Visible"
         description="Toggle the AI chat panel"
       >
@@ -538,7 +538,7 @@ function AppearanceTab() {
       <div className="h-px bg-border/50" />
 
       <SettingRow
-        icon={<Cpu className="size-4" />}
+        icon={<LayoutDashboard className="size-4" />}
         label="Sidebar Position"
         description="Sidebar is positioned on the left"
       >
@@ -548,7 +548,7 @@ function AppearanceTab() {
       <div className="h-px bg-border/50" />
 
       <SettingRow
-        icon={<Cpu className="size-4" />}
+        icon={<Columns className="size-4" />}
         label="Chat Panel Position"
         description="Chat panel is positioned on the right"
       >

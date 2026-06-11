@@ -104,13 +104,13 @@ const NOTIFICATION_TYPE_CONFIG: Record<NotificationType, { borderColor: string; 
 const NOTIFICATION_CATEGORY_CONFIG: Record<NotificationCategory, { icon: React.ElementType; label: string; color: string }> = {
   task: { icon: Check, label: 'Task', color: 'text-emerald-500' },
   build: { icon: Hammer, label: 'Build', color: 'text-orange-500' },
-  agent: { icon: Bot, label: 'Agent', color: 'text-violet-500' },
+  agent: { icon: Bot, label: 'Agent', color: 'text-emerald-500' },
   system: { icon: Settings, label: 'System', color: 'text-zinc-500' },
   chat: { icon: MessageSquare, label: 'Chat', color: 'text-pink-500' },
   task_completed: { icon: CheckCircle2, label: 'Task Done', color: 'text-emerald-500' },
   agent_status: { icon: Activity, label: 'Agent Status', color: 'text-sky-500' },
   build_result: { icon: Hammer, label: 'Build Result', color: 'text-orange-500' },
-  code_change: { icon: FileCode2, label: 'Code Change', color: 'text-violet-500' },
+  code_change: { icon: FileCode2, label: 'Code Change', color: 'text-emerald-500' },
 }
 
 // Web Audio API notification sound

@@ -197,7 +197,7 @@ export function CommandPalette() {
     {
       id: 'toggle-theme',
       label: 'Toggle Theme',
-      icon: theme === 'dark' ? <Sun className="size-4 text-yellow-400" /> : <Moon className="size-4 text-violet-400" />,
+      icon: theme === 'dark' ? <Sun className="size-4 text-yellow-400" /> : <Moon className="size-4 text-emerald-400" />,
       action: () => {
         setTheme(theme === 'dark' ? 'light' : 'dark')
         handleClose()
@@ -238,7 +238,7 @@ export function CommandPalette() {
     {
       id: 'new-task',
       label: 'New Task',
-      icon: <PlusCircle className="size-4 text-violet-400" />,
+      icon: <PlusCircle className="size-4 text-emerald-400" />,
       action: () => {
         setActiveBottomTab('tasks')
         setBottomPanelOpen(true)
