@@ -161,7 +161,7 @@ const ROLE_LUCIDE_ICON: Record<AgentRole, typeof Search> = {
 }
 
 const ROLE_GRADIENT: Record<AgentRole, string> = {
-  architect: 'from-violet-500 to-violet-600',
+  architect: 'from-green-500 to-green-600',
   developer: 'from-emerald-500 to-emerald-600',
   reviewer: 'from-blue-500 to-blue-600',
   tester: 'from-amber-500 to-amber-600',
@@ -170,7 +170,7 @@ const ROLE_GRADIENT: Record<AgentRole, string> = {
 }
 
 const ROLE_BADGE_BG: Record<AgentRole, string> = {
-  architect: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
+  architect: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
   developer: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
   reviewer: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
   tester: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
@@ -181,7 +181,7 @@ const ROLE_BADGE_BG: Record<AgentRole, string> = {
 // Extended status config with UI properties (supplements AGENT_STATUS_CONFIG)
 const STATUS_UI_CONFIG: Record<AgentStatus, { pulse: boolean; labelBg: string }> = {
   idle: { pulse: false, labelBg: 'bg-muted text-muted-foreground' },
-  thinking: { pulse: true, labelBg: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
+  thinking: { pulse: true, labelBg: 'bg-green-500/10 text-green-600 dark:text-green-400' },
   coding: { pulse: true, labelBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
   reviewing: { pulse: true, labelBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
   testing: { pulse: true, labelBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
@@ -192,7 +192,7 @@ const STATUS_UI_CONFIG: Record<AgentStatus, { pulse: boolean; labelBg: string }>
 // Status summary mini-card config with icons
 const STATUS_SUMMARY_CONFIG: Record<AgentStatus, { icon: typeof CheckCircle2; iconColor: string; bgColor: string }> = {
   idle: { icon: Moon, iconColor: 'text-muted-foreground', bgColor: 'bg-muted/50 border-border' },
-  thinking: { icon: Activity, iconColor: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-500/10 dark:bg-violet-500/15 border-violet-500/20' },
+  thinking: { icon: Activity, iconColor: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-500/10 dark:bg-green-500/15 border-green-500/20' },
   coding: { icon: Code, iconColor: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/20' },
   reviewing: { icon: Eye, iconColor: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-500/10 dark:bg-blue-500/15 border-blue-500/20' },
   testing: { icon: TestTube, iconColor: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/10 dark:bg-amber-500/15 border-amber-500/20' },
@@ -350,7 +350,7 @@ function JsonViewer({ data }: { data: Record<string, unknown> }) {
         return (
           <>
             <span className="text-muted-foreground">{indent}</span>
-            <span className="text-purple-600 dark:text-purple-400">&quot;{key}&quot;</span>
+            <span className="text-green-600 dark:text-green-400">&quot;{key}&quot;</span>
             <span className="text-muted-foreground">: </span>
             <span className={valueClass}>{displayValue}</span>
             {comma && <span className="text-muted-foreground">{comma}</span>}
@@ -993,7 +993,7 @@ export function AgentsPanel() {
       {/* Header */}
       <PageHeader
         icon={Users}
-        iconColor="purple"
+        iconColor="green"
         title="Agent Management"
         badge={<Badge variant="secondary" className="text-sm">{agents.length}</Badge>}
         actions={

@@ -1541,3 +1541,47 @@ Stage Summary:
 - Chat panel improved with developer-focused quick prompts and fixed token counter
 - Cron job created for ongoing QA (every 15 minutes)
 - Lint: 0 errors, all APIs returning 200
+
+## Task 2: Update Purple to Green Theme (Noir & Vert)
+
+**Date:** 2025-03-04
+**Status:** ✅ Completed
+
+### Summary
+Updated all hardcoded purple/Catppuccin color references to green across 16 IDE component files to implement the "Noir & Vert" (Black & Green) theme.
+
+### Color Mapping Applied
+| Old Color | New Color | Usage |
+|-----------|-----------|-------|
+| `#cba6f7` (purple) | `#00e676` (green) | Accent hex codes |
+| `#89b4fa` (blue accent) | `#69f0ae` (light green) | Secondary accent hex codes |
+| `#1e1e2e` (Catppuccin base) | `#0d0d0d` (deep black) | Background hex codes |
+| `#313244` (Catppuccin surface) | `#1a1a1a` (dark surface) | Surface hex codes |
+| `#242438` (Catppuccin card) | `#141414` (near-black card) | Card hex codes |
+| `purple-*` / `violet-*` | `green-*` / `emerald-*` | Tailwind classes |
+| `rgba(139, 92, 246, 0.4)` | `rgba(34, 197, 94, 0.4)` | Inline RGBA colors |
+| `#a855f7` (purple) | `#22c55e` (green) | Chart/visualization colors |
+| `#8b5cf6` (violet fill) | `#22c55e` (green fill) | SVG fill colors |
+
+### Files Updated (16/16)
+1. `ide-top-bar.tsx` - Top bar gradient, logo, running indicator, command icons
+2. `ide-sidebar.tsx` - Sidebar gradient, activity feed badges, file language colors, filter buttons
+3. `ide-editor.tsx` - Welcome screen gradient/logo, syntax highlighting (violet→green), background decorations
+4. `ide-chat-panel.tsx` - Message type badges, slash command icons, provider icons, status bar gradient
+5. `ide-bottom-panel.tsx` - Terminal toolbar/input gradients, lint type badge, kanban columns, activity types
+6. `agent-detail-dialog.tsx` - Stat cards, avatar gradient, assign task form, chat button
+7. `analytics-dashboard.tsx` - Pie chart colors (in_review), role colors array
+8. `topology-panel.tsx` - Agent node colors, control connection color
+9. `memory-panel.tsx` - Episodic type config badge, page header icon color
+10. `settings-panel.tsx` - Agent management CPU icon color
+11. `activity-panel.tsx` - Agent category colors, avg response time card
+12. `system-log-panel.tsx` - Agent log type badge, JSON syntax highlighting
+13. `agents-panel.tsx` - Architect role gradient/badge, thinking status colors, JSON key colors
+14. `evolution-panel.tsx` - Architecture type badge
+15. `instruction-manual.tsx` - Catppuccin accent map (mauve→green, blue→lightgreen)
+16. `page-header.tsx` - Violet→green mapping in ICON_BG_MAP, ICON_TEXT_MAP, gradient
+
+### Verification
+- `bun run lint` passed with zero errors
+- Remaining `violet` reference in ide-sidebar.tsx is a string comparison against types.ts (not in scope) — correctly outputs green border
+- Other files (notification-panel, dashboard-overview, etc.) not in the 16-file scope retain their original colors

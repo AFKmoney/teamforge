@@ -109,7 +109,7 @@ const SOURCE_CONFIG: Record<SystemLogSource, {
   agent: {
     label: 'Agent',
     icon: Users,
-    badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+    badgeClass: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
   },
   evolution: {
     label: 'Evolution',
@@ -194,7 +194,7 @@ function JsonView({ data }: { data: Record<string, unknown> }) {
 
   // Simple syntax highlighting
   const highlighted = formatted
-    .replace(/"([^"]+)":/g, '<span class="text-purple-600 dark:text-purple-400">"$1"</span>:')
+    .replace(/"([^"]+)":/g, '<span class="text-green-600 dark:text-green-400">"$1"</span>:')
     .replace(/: "([^"]*)"/g, ': <span class="text-emerald-600 dark:text-emerald-400">"$1"</span>')
     .replace(/: (\d+\.?\d*)/g, ': <span class="text-amber-600 dark:text-amber-400">$1</span>')
     .replace(/: (true|false)/g, ': <span class="text-sky-600 dark:text-sky-400">$1</span>')

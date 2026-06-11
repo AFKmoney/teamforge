@@ -90,7 +90,7 @@ const MESSAGE_TYPE_CONFIG: Record<MessageType, { icon: React.ReactNode; color: s
   system: { icon: <Info className="size-3" />, color: 'text-muted-foreground', bgColor: 'bg-muted/30', label: 'System' },
   action: { icon: <AlertCircle className="size-3" />, color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/5', label: 'Action' },
   code_change: { icon: <FileCode2 className="size-3" />, color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/5', label: 'Code Change' },
-  review_comment: { icon: <GitPullRequest className="size-3" />, color: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-500/5', label: 'Review' },
+  review_comment: { icon: <GitPullRequest className="size-3" />, color: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-500/5', label: 'Review' },
   test_result: { icon: <TestTube2 className="size-3" />, color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-500/5', label: 'Test' },
   deploy_log: { icon: <Rocket className="size-3" />, color: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-500/5', label: 'Deploy' },
 }
@@ -107,7 +107,7 @@ interface SlashCommand {
 const SLASH_COMMANDS: SlashCommand[] = [
   { command: '/help', label: 'Help', description: 'Show available commands', icon: <HelpCircle className="size-3 text-blue-500" />, action: 'help' },
   { command: '/run', label: 'Run Command', description: 'Execute a whitelisted shell command', icon: <Terminal className="size-3 text-emerald-500" />, action: 'run' },
-  { command: '/edit', label: 'Edit File', description: 'AI-assisted file editing', icon: <FileEdit className="size-3 text-violet-500" />, action: 'edit' },
+  { command: '/edit', label: 'Edit File', description: 'AI-assisted file editing', icon: <FileEdit className="size-3 text-green-500" />, action: 'edit' },
   { command: '/explain', label: 'Explain File', description: 'Get AI explanation of a file', icon: <BookOpen className="size-3 text-blue-500" />, action: 'explain' },
   { command: '/fix', label: 'Fix File', description: 'AI analyzes and fixes bugs/issues', icon: <Wrench className="size-3 text-red-500" />, action: 'fix' },
   { command: '/refactor', label: 'Refactor File', description: 'AI refactors for better code quality', icon: <RefreshCw className="size-3 text-teal-500" />, action: 'refactor' },
@@ -115,7 +115,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { command: '/search', label: 'Search Code', description: 'Search project files for code', icon: <Search className="size-3 text-sky-500" />, action: 'search' },
   { command: '/commit', label: 'Commit Message', description: 'Generate a commit message', icon: <GitCommitHorizontal className="size-3 text-orange-500" />, action: 'commit' },
   { command: '/status', label: 'Status', description: 'Get current project status', icon: <BarChart3 className="size-3 text-emerald-500" />, action: 'status' },
-  { command: '/create_file', label: 'Create File', description: 'Create a new file in the project', icon: <FilePlus className="size-3 text-violet-500" />, action: 'create_file' },
+  { command: '/create_file', label: 'Create File', description: 'Create a new file in the project', icon: <FilePlus className="size-3 text-green-500" />, action: 'create_file' },
   { command: '/run_tests', label: 'Run Tests', description: 'Run the test suite', icon: <TestTube className="size-3 text-amber-500" />, action: 'run_tests' },
   { command: '/deploy', label: 'Deploy', description: 'Deploy to production', icon: <RocketIcon className="size-3 text-orange-500" />, action: 'deploy' },
 ]
@@ -218,9 +218,9 @@ const ChatMessage = React.memo(function ChatMessage({ message }: { message: Mess
       className={cn(
         'px-3 py-2.5 rounded-xl mx-2 mb-1.5 transition-all duration-150 group relative',
         typeConfig.bgColor,
-        !isSystem && !isCodeChange && 'hover:bg-[#313244]/50',
-        isCodeChange && 'border border-purple-500/10 bg-gradient-to-r from-purple-500/5 to-transparent',
-        isSystem && 'border border-border/40 bg-gradient-to-r from-[#313244]/40 to-[#313244]/20 system-message-accent',
+        !isSystem && !isCodeChange && 'hover:bg-[#1a1a1a]/50',
+        isCodeChange && 'border border-green-500/10 bg-gradient-to-r from-green-500/5 to-transparent',
+        isSystem && 'border border-border/40 bg-gradient-to-r from-[#1a1a1a]/40 to-[#1a1a1a]/20 system-message-accent',
         message.type === 'chat' && !isSystem && 'border border-transparent hover:border-border/20',
       )}
       onMouseEnter={() => setShowReactions(true)}
@@ -385,7 +385,7 @@ function ModelSelector() {
   const providerIcon = useMemo(() => {
     switch (aiSettings.provider) {
       case 'nvidia': return <Zap className="size-3 text-green-500" />
-      case 'openai-compatible': return <Sparkles className="size-3 text-violet-500" />
+      case 'openai-compatible': return <Sparkles className="size-3 text-green-500" />
       default: return <Bot className="size-3 text-emerald-500" />
     }
   }, [aiSettings.provider])
@@ -454,7 +454,7 @@ function ModelSelector() {
                   >
                     {p.type === 'zai' && <Bot className="size-3 text-emerald-500" />}
                     {p.type === 'nvidia' && <Zap className="size-3 text-green-500" />}
-                    {p.type === 'openai-compatible' && <Sparkles className="size-3 text-violet-500" />}
+                    {p.type === 'openai-compatible' && <Sparkles className="size-3 text-green-500" />}
                     <div className="flex-1 text-left">
                       <span className="font-medium">{p.label}</span>
                     </div>
@@ -550,8 +550,8 @@ function ChatAIStatusBar({ messages }: { messages: Message[] }) {
       case 'openai-compatible':
         return {
           label: aiSettings.openaiCompatibleModelId === 'custom' ? 'OpenAI' : aiSettings.openaiCompatibleModelId,
-          icon: <Sparkles className="size-2.5 text-violet-500" />,
-          color: 'text-violet-500',
+          icon: <Sparkles className="size-2.5 text-green-500" />,
+          color: 'text-green-500',
         }
       default:
         return {
@@ -597,7 +597,7 @@ function ChatAIStatusBar({ messages }: { messages: Message[] }) {
   if (!mounted) return null
 
   return (
-    <div className="flex items-center gap-2 px-3 h-6 border-b bg-gradient-to-r from-[#1e1e2e]/50 to-[#242438]/50 shrink-0 text-[9px]">
+    <div className="flex items-center gap-2 px-3 h-6 border-b bg-gradient-to-r from-[#0d0d0d]/50 to-[#141414]/50 shrink-0 text-[9px]">
       {/* Provider/Model badge */}
       <Badge variant="outline" className={cn('text-[8px] px-1.5 py-0 h-3.5 gap-0.5', providerInfo.color)}>
         {providerInfo.icon}

@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 
 // Agent pill color mapping by role
 const ROLE_PILL_COLORS: Record<AgentRole, { bg: string; border: string; activeBg: string }> = {
-  architect: { bg: 'bg-violet-500/10 border-violet-500/30', border: 'border-violet-500/30', activeBg: 'bg-violet-500/20' },
+  architect: { bg: 'bg-green-500/10 border-green-500/30', border: 'border-green-500/30', activeBg: 'bg-green-500/20' },
   developer: { bg: 'bg-emerald-500/10 border-emerald-500/30', border: 'border-emerald-500/30', activeBg: 'bg-emerald-500/20' },
   reviewer: { bg: 'bg-blue-500/10 border-blue-500/30', border: 'border-blue-500/30', activeBg: 'bg-blue-500/20' },
   tester: { bg: 'bg-amber-500/10 border-amber-500/30', border: 'border-amber-500/30', activeBg: 'bg-amber-500/20' },
@@ -36,7 +36,7 @@ const AgentPill = memo(function AgentPill({ agent, currentTaskTitle }: { agent: 
 
   // Map role to a glow color
   const glowColorMap: Record<AgentRole, string> = {
-    architect: 'rgba(139, 92, 246, 0.4)',
+    architect: 'rgba(34, 197, 94, 0.4)',
     developer: 'rgba(16, 185, 129, 0.4)',
     reviewer: 'rgba(59, 130, 246, 0.4)',
     tester: 'rgba(245, 158, 11, 0.4)',
@@ -424,7 +424,7 @@ function RunAllDropdown() {
           <span className="text-muted-foreground ml-auto text-[10px]">Ctrl+Shift+T</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => runAction('lint')} className="gap-2 text-xs cursor-pointer">
-          <Sparkles className="size-3.5 text-violet-500" />
+          <Sparkles className="size-3.5 text-green-500" />
           <span>Lint</span>
           <span className="text-muted-foreground ml-auto text-[10px]">Ctrl+Shift+L</span>
         </DropdownMenuItem>
@@ -745,14 +745,14 @@ export function IDETopBar() {
   }, [projectSelectorOpen])
 
   return (
-    <div className="flex items-center h-11 px-3 border-b bg-gradient-to-r from-[#1e1e2e] via-[#242438] to-[#1e1e2e] backdrop-blur-md gap-2 shrink-0 z-20 shadow-sm shadow-black/10 topbar-border-gradient">
+    <div className="flex items-center h-11 px-3 border-b bg-gradient-to-r from-[#0d0d0d] via-[#141414] to-[#0d0d0d] backdrop-blur-md gap-2 shrink-0 z-20 shadow-sm shadow-black/10 topbar-border-gradient">
       {/* Project name */}
       <div className="flex items-center gap-2.5 min-w-0">
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center justify-center size-7 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/10 ring-1 ring-purple-500/20 shadow-sm shadow-purple-500/10 cursor-default">
-                <Zap className="size-3.5 text-purple-400" />
+              <div className="flex items-center justify-center size-7 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 ring-1 ring-green-500/20 shadow-sm shadow-green-500/10 cursor-default">
+                <Zap className="size-3.5 text-green-400" />
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">TeamForge IDE v1.0.0</TooltipContent>
@@ -772,18 +772,18 @@ export function IDETopBar() {
         </button>
       </div>
 
-      <div className="h-4 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent shrink-0" />
+      <div className="h-4 w-px bg-gradient-to-b from-transparent via-green-500/20 to-transparent shrink-0" />
 
       {/* Running indicator */}
       {isRunning && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-[10px] text-purple-400 shadow-sm shadow-purple-500/10"
+          className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-500/10 border border-green-500/30 text-[10px] text-green-400 shadow-sm shadow-green-500/10"
         >
           <span className="relative flex size-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
-            <span className="relative inline-flex rounded-full size-2 bg-purple-500" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full size-2 bg-green-500" />
           </span>
           <span className="font-medium">Running</span>
         </motion.div>
@@ -808,7 +808,7 @@ export function IDETopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs px-2.5">
-              <Command className="size-3 text-violet-500" />
+              <Command className="size-3 text-green-500" />
               <span className="hidden lg:inline">Actions</span>
               <ChevronDown className="size-2.5" />
             </Button>
@@ -865,7 +865,7 @@ export function IDETopBar() {
               onClick={() => runAction('lint')}
               className="gap-2 text-xs cursor-pointer"
             >
-              <Sparkles className="size-3.5 text-violet-500" />
+              <Sparkles className="size-3.5 text-green-500" />
               <span>Run Lint</span>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -935,9 +935,9 @@ export function IDETopBar() {
                 disabled={isImporting || !currentProject}
               >
                 {isImporting ? (
-                  <Loader2 className="size-3 animate-spin text-violet-500" />
+                  <Loader2 className="size-3 animate-spin text-green-500" />
                 ) : (
-                  <Upload className="size-3 text-violet-500" />
+                  <Upload className="size-3 text-green-500" />
                 )}
                 <span className="hidden lg:inline">Import</span>
               </Button>
@@ -1051,7 +1051,7 @@ export function IDETopBar() {
             </Tooltip>
           </TooltipProvider>
         </div>
-        <div className="h-4 w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent mx-0.5" />
+        <div className="h-4 w-px bg-gradient-to-b from-transparent via-green-500/20 to-transparent mx-0.5" />
         <NotificationBell />
         <TooltipProvider delayDuration={300}>
           <Tooltip>

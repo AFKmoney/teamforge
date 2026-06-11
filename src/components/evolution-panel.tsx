@@ -89,7 +89,7 @@ function safeJsonParse<T>(value: string | T[] | Record<string, unknown> | undefi
 const TYPE_BADGE: Record<EvolutionType, { bg: string; label: string }> = {
   prompt: { bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', label: 'Prompt' },
   workflow: { bg: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20', label: 'Workflow' },
-  architecture: { bg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20', label: 'Architecture' },
+  architecture: { bg: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20', label: 'Architecture' },
   tool: { bg: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20', label: 'Tool' },
 }
 

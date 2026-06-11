@@ -338,7 +338,7 @@ export function SettingsPanel() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Cpu className="size-4 text-purple-500" />
+              <Cpu className="size-4 text-green-500" />
               <CardTitle className="text-base">Agent Management</CardTitle>
             </div>
             <CardDescription>Configure agent behavior and resource limits</CardDescription>

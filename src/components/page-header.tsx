@@ -9,19 +9,19 @@ import { cn } from '@/lib/utils'
 
 const ICON_BG_MAP: Record<string, string> = {
   emerald: 'bg-emerald-500/10 dark:bg-emerald-500/20',
-  violet: 'bg-violet-500/10 dark:bg-violet-500/20',
+  violet: 'bg-green-500/10 dark:bg-green-500/20',
   amber: 'bg-amber-500/10 dark:bg-amber-500/20',
   teal: 'bg-teal-500/10 dark:bg-teal-500/20',
   rose: 'bg-rose-500/10 dark:bg-rose-500/20',
   slate: 'bg-slate-500/10 dark:bg-slate-500/20',
   muted: 'bg-muted',
   primary: 'bg-primary/10',
-  gradient: 'bg-gradient-to-br from-emerald-500/20 to-purple-500/20',
+  gradient: 'bg-gradient-to-br from-emerald-500/20 to-green-500/20',
 }
 
 const ICON_TEXT_MAP: Record<string, string> = {
   emerald: 'text-emerald-600 dark:text-emerald-400',
-  violet: 'text-violet-600 dark:text-violet-400',
+  violet: 'text-green-600 dark:text-green-400',
   amber: 'text-amber-600 dark:text-amber-400',
   teal: 'text-teal-600 dark:text-teal-400',
   rose: 'text-rose-600 dark:text-rose-400',

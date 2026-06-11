@@ -25,7 +25,7 @@ const STATUS_COLORS: Record<string, string> = {
   backlog: '#71717a',     // zinc
   todo: '#06b6d4',        // cyan
   in_progress: '#f59e0b', // amber
-  in_review: '#a855f7',   // purple
+  in_review: '#22c55e',   // green
   done: '#10b981',        // emerald
   blocked: '#ef4444',     // red
 }
@@ -44,7 +44,7 @@ const ROLE_COLORS = [
   '#10b981', // emerald
   '#f59e0b', // amber
   '#06b6d4', // cyan
-  '#a855f7', // purple
+  '#22c55e', // green
   '#ef4444', // red
   '#ec4899', // pink
   '#f97316', // orange

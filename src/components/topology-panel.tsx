@@ -84,12 +84,12 @@ const TYPE_COLORS: Record<NodeType, { fill: string; stroke: string; text: string
     darkBg: 'dark:bg-emerald-500/20',
   },
   agent: {
-    fill: '#8b5cf6',
-    stroke: '#7c3aed',
-    text: 'text-purple-600',
-    bg: 'bg-purple-500/10',
-    darkText: 'dark:text-purple-400',
-    darkBg: 'dark:bg-purple-500/20',
+    fill: '#22c55e',
+    stroke: '#16a34a',
+    text: 'text-green-600',
+    bg: 'bg-green-500/10',
+    darkText: 'dark:text-green-400',
+    darkBg: 'dark:bg-green-500/20',
   },
   memory: {
     fill: '#06b6d4',
@@ -135,7 +135,7 @@ const TYPE_COLORS: Record<NodeType, { fill: string; stroke: string; text: string
 
 const CONNECTION_COLORS: Record<ConnectionType, string> = {
   data: '#06b6d4',
-  control: '#8b5cf6',
+  control: '#22c55e',
   feedback: '#f59e0b',
 }
 

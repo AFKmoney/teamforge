@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 // ── Catppuccin Mocha Accents ──────────────────────────────────────
 const C = {
   emerald: '#a6e3a1',
-  mauve: '#cba6f7',
+  green: '#00e676',
   sky: '#89dceb',
   peach: '#fab387',
   teal: '#94e2d5',
@@ -29,7 +29,7 @@ const C = {
   maroon: '#eba0ac',
   yellow: '#f9e2af',
   green: '#a6e3a1',
-  blue: '#89b4fa',
+  lightgreen: '#69f0ae',
   lavender: '#b4befe',
 }
 

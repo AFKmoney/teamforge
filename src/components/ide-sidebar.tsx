@@ -343,14 +343,14 @@ const ACTIVITY_TYPE_CONFIG: Record<string, { icon: React.ReactNode; borderColor:
   task_assigned: { icon: <UserCheck className="size-3 text-sky-500" />, borderColor: 'border-l-sky-500', label: 'Task Assigned' },
   task_completed: { icon: <CheckCircle className="size-3 text-green-500" />, borderColor: 'border-l-green-500', label: 'Task Completed' },
   code_written: { icon: <FileCode2 className="size-3 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'Code Written' },
-  review_completed: { icon: <CheckCircle2 className="size-3 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Review' },
+  review_completed: { icon: <CheckCircle2 className="size-3 text-green-500" />, borderColor: 'border-l-green-500', label: 'Review' },
   test_run: { icon: <TestTube2 className="size-3 text-amber-500" />, borderColor: 'border-l-amber-500', label: 'Test' },
   deploy_triggered: { icon: <Rocket className="size-3 text-orange-500" />, borderColor: 'border-l-orange-500', label: 'Deploy' },
   message_sent: { icon: <MessageSquare className="size-3 text-pink-500" />, borderColor: 'border-l-pink-500', label: 'Message' },
   status_change: { icon: <ArrowRightLeft className="size-3 text-teal-500" />, borderColor: 'border-l-teal-500', label: 'Status Change' },
   file_created: { icon: <FilePlus className="size-3 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'File Created' },
   file_updated: { icon: <FileCode2 className="size-3 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'File Updated' },
-  code_change: { icon: <FileCode2 className="size-3 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Code Change' },
+  code_change: { icon: <FileCode2 className="size-3 text-green-500" />, borderColor: 'border-l-green-500', label: 'Code Change' },
 }
 
 // Format relative timestamp
@@ -386,7 +386,7 @@ function AgentRow({ agent, onClick }: { agent: Agent; onClick: () => void }) {
               'flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-150 cursor-pointer border-l-2',
               'hover:bg-muted/60 hover:shadow-sm',
               isActive && 'bg-muted/30',
-              isActive && roleConfig.color === 'text-violet-600 dark:text-violet-400' && 'border-l-violet-500',
+              isActive && roleConfig.color === 'text-violet-600 dark:text-violet-400' && 'border-l-green-500',
               isActive && roleConfig.color === 'text-emerald-600 dark:text-emerald-400' && 'border-l-emerald-500',
               isActive && roleConfig.color === 'text-blue-600 dark:text-blue-400' && 'border-l-blue-500',
               isActive && roleConfig.color === 'text-amber-600 dark:text-amber-400' && 'border-l-amber-500',
@@ -471,7 +471,7 @@ function ActivityFeedSection() {
           Activity Feed
         </span>
         {recentActivities.length > 0 && (
-          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 ml-auto bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20">
+          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 ml-auto bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
             {recentActivities.length}
           </Badge>
         )}
@@ -483,7 +483,7 @@ function ActivityFeedSection() {
               className={cn(
                 'size-4 flex items-center justify-center rounded-sm transition-colors',
                 activityFilter !== 'all'
-                  ? 'text-violet-500 bg-violet-500/10'
+                  ? 'text-green-500 bg-green-500/10'
                   : 'text-muted-foreground/40 hover:text-muted-foreground/70 hover:bg-muted/40',
               )}
               title="Filter activity type"
@@ -542,7 +542,7 @@ function ActivityFeedSection() {
         <div className="px-3 mt-0.5">
           <button
             onClick={() => setActivityFilter('all')}
-            className="text-[9px] text-violet-500 hover:text-violet-400 transition-colors"
+            className="text-[9px] text-green-500 hover:text-green-400 transition-colors"
           >
             ← Clear filter
           </button>
@@ -692,7 +692,7 @@ const EXT_COLOR_MAP: Record<string, string> = {
   html: 'text-orange-500', yaml: 'text-red-400',
   yml: 'text-red-400', py: 'text-green-500',
   go: 'text-cyan-500', rs: 'text-orange-600',
-  sql: 'text-violet-500', sh: 'text-emerald-400',
+  sql: 'text-green-500', sh: 'text-emerald-400',
   bash: 'text-emerald-400',
 }
 
@@ -1094,7 +1094,7 @@ export function IDESidebar() {
 
   return (
     <div
-      className="flex flex-col w-60 border-r bg-gradient-to-b from-[#1e1e2e] to-[#242438] shrink-0 overflow-hidden relative"
+      className="flex flex-col w-60 border-r bg-gradient-to-b from-[#0d0d0d] to-[#141414] shrink-0 overflow-hidden relative"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}

@@ -141,8 +141,8 @@ const TYPE_CONFIG: Record<
 > = {
   agent: {
     label: 'Agent',
-    color: 'text-purple-600 dark:text-purple-400',
-    bg: 'bg-purple-500/10 dark:bg-purple-500/20',
+    color: 'text-green-600 dark:text-green-400',
+    bg: 'bg-green-500/10 dark:bg-green-500/20',
   },
   evolution: {
     label: 'Evolution',
@@ -902,15 +902,15 @@ export function ActivityPanel() {
         </motion.div>
 
         <motion.div variants={cardVariants}>
-          <Card className="border-l-4 border-l-purple-500">
+          <Card className="border-l-4 border-l-green-500">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-medium text-muted-foreground">Avg Response Time</p>
                   <p className="text-2xl font-bold text-foreground mt-1">{summaryMetrics.avgResponseTime}ms</p>
                 </div>
-                <div className="size-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Timer className="size-4 text-purple-600 dark:text-purple-400" />
+                <div className="size-9 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <Timer className="size-4 text-green-600 dark:text-green-400" />
                 </div>
               </div>
             </CardContent>

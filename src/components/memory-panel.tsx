@@ -69,7 +69,7 @@ import { PageHeader } from '@/components/page-header'
 
 const TYPE_CONFIG: Record<MemoryType, { label: string; badgeClass: string; borderTop: string }> = {
   working: { label: 'Working', badgeClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20', borderTop: 'border-t-sky-500' },
-  episodic: { label: 'Episodic', badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20', borderTop: 'border-t-purple-500' },
+  episodic: { label: 'Episodic', badgeClass: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20', borderTop: 'border-t-green-500' },
   semantic: { label: 'Semantic', badgeClass: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20', borderTop: 'border-t-green-500' },
   procedural: { label: 'Procedural', badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', borderTop: 'border-t-amber-500' },
   evolution: { label: 'Evolution', badgeClass: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20', borderTop: 'border-t-red-500' },
@@ -495,7 +495,7 @@ export function MemoryPanel() {
       {/* Header */}
       <PageHeader
         icon={Database}
-        iconColor="violet"
+        iconColor="green"
         title="Memory System"
         badge={<Badge variant="secondary" className="ml-1">{typeCounts.all}</Badge>}
         actions={

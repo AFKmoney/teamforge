@@ -110,7 +110,7 @@ function BuildTypeBadge({ type }: { type: string }) {
   const config: Record<string, { label: string; color: string }> = {
     build: { label: 'Build', color: 'text-blue-600 dark:text-blue-400' },
     test: { label: 'Test', color: 'text-amber-600 dark:text-amber-400' },
-    lint: { label: 'Lint', color: 'text-violet-600 dark:text-violet-400' },
+    lint: { label: 'Lint', color: 'text-green-600 dark:text-green-400' },
     deploy: { label: 'Deploy', color: 'text-orange-600 dark:text-orange-400' },
   }
   const c = config[type] || { label: type, color: 'text-muted-foreground' }
@@ -454,7 +454,7 @@ function TerminalView() {
   return (
     <div className="flex flex-col h-full" onClick={focusInput}>
       {/* Terminal toolbar */}
-      <div className="flex items-center gap-1 px-3 py-1 border-b border-border/30 bg-gradient-to-r from-[#1e1e2e]/50 to-[#242438]/50 shrink-0">
+      <div className="flex items-center gap-1 px-3 py-1 border-b border-border/30 bg-gradient-to-r from-[#0d0d0d]/50 to-[#141414]/50 shrink-0">
         <Button
           size="icon"
           variant="ghost"
@@ -495,14 +495,14 @@ function TerminalView() {
             <div className="flex items-center gap-2 mt-1">
               <button
                 onClick={() => handleCommand('bun run lint')}
-                className="text-purple-400 hover:text-purple-300 text-[11px] underline underline-offset-2 transition-colors"
+                className="text-green-400 hover:text-green-300 text-[11px] underline underline-offset-2 transition-colors"
               >
                 Run Lint
               </button>
               <span className="text-muted-foreground/30">·</span>
               <button
                 onClick={() => handleCommand('bun run build')}
-                className="text-purple-400 hover:text-purple-300 text-[11px] underline underline-offset-2 transition-colors"
+                className="text-green-400 hover:text-green-300 text-[11px] underline underline-offset-2 transition-colors"
               >
                 Run Build
               </button>
@@ -519,7 +519,7 @@ function TerminalView() {
           lines.map((line) => (
             <div key={line.id}>
               {line.type === 'input' && (
-                <div className="text-purple-400 whitespace-pre-wrap font-semibold">{line.content}</div>
+                <div className="text-green-400 whitespace-pre-wrap font-semibold">{line.content}</div>
               )}
               {line.type === 'output' && (
                 <pre className="whitespace-pre-wrap">{renderColoredOutput(line.content)}</pre>
@@ -557,8 +557,8 @@ function TerminalView() {
       </div>
 
       {/* Command input */}
-      <div className="flex items-center gap-2 px-3 py-2 border-t border-border/40 bg-[#1e1e2e]/60 relative">
-        <span className="text-purple-400 font-mono text-xs shrink-0 select-none font-bold">{cwd} <span className="text-amber-400">❯</span></span>
+      <div className="flex items-center gap-2 px-3 py-2 border-t border-border/40 bg-[#0d0d0d]/60 relative">
+        <span className="text-green-400 font-mono text-xs shrink-0 select-none font-bold">{cwd} <span className="text-amber-400">❯</span></span>
         <div className="flex-1 relative">
           <input
             ref={inputRef}
@@ -582,7 +582,7 @@ function TerminalView() {
           )}
         </div>
         {isExecuting && (
-          <Loader2 className="size-3.5 text-purple-400 animate-spin shrink-0" />
+          <Loader2 className="size-3.5 text-green-400 animate-spin shrink-0" />
         )}
       </div>
     </div>
@@ -593,7 +593,7 @@ const KANBAN_COLUMNS: { status: TaskStatus; label: string; color: string }[] = [
   { status: 'backlog', label: 'Backlog', color: 'border-t-muted-foreground/40' },
   { status: 'todo', label: 'To Do', color: 'border-t-blue-500' },
   { status: 'in_progress', label: 'In Progress', color: 'border-t-amber-500' },
-  { status: 'in_review', label: 'In Review', color: 'border-t-violet-500' },
+  { status: 'in_review', label: 'In Review', color: 'border-t-green-500' },
   { status: 'done', label: 'Done', color: 'border-t-emerald-500' },
 ]
 
@@ -607,7 +607,7 @@ function TaskDragOverlay({ task, agents }: { task: Task; agents: import('@/lib/t
     backlog: 'border-l-muted-foreground/40',
     todo: 'border-l-blue-500',
     in_progress: 'border-l-amber-500',
-    in_review: 'border-l-violet-500',
+    in_review: 'border-l-green-500',
     done: 'border-l-emerald-500',
     blocked: 'border-l-red-500',
   }
@@ -1276,14 +1276,14 @@ const ACTIVITY_TYPE_CONFIG_FULL: Record<string, { icon: React.ReactNode; borderC
   task_assigned: { icon: <UserCheck className="size-4 text-sky-500" />, borderColor: 'border-l-sky-500', label: 'Task Assigned', bgColor: 'bg-sky-500/5' },
   task_completed: { icon: <CheckCircle className="size-4 text-green-500" />, borderColor: 'border-l-green-500', label: 'Task Completed', bgColor: 'bg-green-500/5' },
   code_written: { icon: <FileCode2 className="size-4 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'Code Written', bgColor: 'bg-blue-500/5' },
-  review_completed: { icon: <CheckCircle2 className="size-4 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Review Completed', bgColor: 'bg-violet-500/5' },
+  review_completed: { icon: <CheckCircle2 className="size-4 text-green-500" />, borderColor: 'border-l-green-500', label: 'Review Completed', bgColor: 'bg-green-500/5' },
   test_run: { icon: <TestTube2 className="size-4 text-amber-500" />, borderColor: 'border-l-amber-500', label: 'Test Run', bgColor: 'bg-amber-500/5' },
   deploy_triggered: { icon: <Rocket className="size-4 text-orange-500" />, borderColor: 'border-l-orange-500', label: 'Deploy Triggered', bgColor: 'bg-orange-500/5' },
   message_sent: { icon: <MessageSquare className="size-4 text-pink-500" />, borderColor: 'border-l-pink-500', label: 'Message Sent', bgColor: 'bg-pink-500/5' },
   status_change: { icon: <ArrowRightLeft className="size-4 text-teal-500" />, borderColor: 'border-l-teal-500', label: 'Status Change', bgColor: 'bg-teal-500/5' },
   file_created: { icon: <FileCode2 className="size-4 text-emerald-500" />, borderColor: 'border-l-emerald-500', label: 'File Created', bgColor: 'bg-emerald-500/5' },
   file_updated: { icon: <FileCode2 className="size-4 text-blue-500" />, borderColor: 'border-l-blue-500', label: 'File Updated', bgColor: 'bg-blue-500/5' },
-  code_change: { icon: <FileCode2 className="size-4 text-violet-500" />, borderColor: 'border-l-violet-500', label: 'Code Change', bgColor: 'bg-violet-500/5' },
+  code_change: { icon: <FileCode2 className="size-4 text-green-500" />, borderColor: 'border-l-green-500', label: 'Code Change', bgColor: 'bg-green-500/5' },
 }
 
 function ActivitiesView() {

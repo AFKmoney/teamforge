@@ -79,38 +79,38 @@
 }
 
 .dark {
-  /* Catppuccin Mocha Theme */
-  --background: #1e1e2e;     /* Base */
-  --foreground: #cdd6f4;     /* Text */
-  --card: #242438;           /* Surface + slight blue */
-  --card-foreground: #cdd6f4;
-  --popover: #242438;
-  --popover-foreground: #cdd6f4;
-  --primary: #cba6f7;        /* Purple accent */
-  --primary-foreground: #1e1e2e;
-  --secondary: #313244;      /* Surface */
-  --secondary-foreground: #cdd6f4;
-  --muted: #313244;          /* Surface */
-  --muted-foreground: #a6adc8; /* Subtext */
-  --accent: #45475a;         /* Overlay */
-  --accent-foreground: #cdd6f4;
-  --destructive: #f38ba8;    /* Red */
-  --border: rgba(205, 214, 244, 0.1);
-  --input: rgba(205, 214, 244, 0.12);
-  --ring: #cba6f7;           /* Purple */
-  --chart-1: #cba6f7;        /* Purple */
-  --chart-2: #a6e3a1;        /* Green */
-  --chart-3: #f9e2af;        /* Yellow */
-  --chart-4: #89b4fa;        /* Blue */
-  --chart-5: #fab387;        /* Orange */
-  --sidebar: #1e1e2e;
-  --sidebar-foreground: #cdd6f4;
-  --sidebar-primary: #cba6f7;
-  --sidebar-primary-foreground: #1e1e2e;
-  --sidebar-accent: #313244;
-  --sidebar-accent-foreground: #cdd6f4;
-  --sidebar-border: rgba(205, 214, 244, 0.08);
-  --sidebar-ring: #cba6f7;
+  /* TeamForge Dark — Noir & Vert */
+  --background: #0d0d0d;        /* Deep black */
+  --foreground: #e0e0e0;        /* Bright text */
+  --card: #141414;              /* Near-black card */
+  --card-foreground: #e0e0e0;
+  --popover: #141414;
+  --popover-foreground: #e0e0e0;
+  --primary: #00e676;           /* Vivid green accent */
+  --primary-foreground: #0d0d0d;
+  --secondary: #1a1a1a;         /* Dark surface */
+  --secondary-foreground: #e0e0e0;
+  --muted: #1a1a1a;             /* Dark surface */
+  --muted-foreground: #888888;  /* Muted text */
+  --accent: #1f3a1f;            /* Dark green overlay */
+  --accent-foreground: #e0e0e0;
+  --destructive: #ff5252;       /* Red */
+  --border: rgba(0, 230, 118, 0.1);
+  --input: rgba(0, 230, 118, 0.08);
+  --ring: #00e676;              /* Green */
+  --chart-1: #00e676;           /* Green */
+  --chart-2: #69f0ae;           /* Light green */
+  --chart-3: #b9f6ca;           /* Pale green */
+  --chart-4: #00c853;           /* Dark green */
+  --chart-5: #76ff03;           /* Lime */
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #e0e0e0;
+  --sidebar-primary: #00e676;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #e0e0e0;
+  --sidebar-border: rgba(0, 230, 118, 0.06);
+  --sidebar-ring: #00e676;
 }
 
 @layer base {
@@ -246,12 +246,12 @@
   border: 1px solid hsl(var(--border) / 0.5);
 }
 
-/* Glow effect for active items — Catppuccin purple */
-.glow-purple {
-  box-shadow: 0 0 8px rgba(203, 166, 247, 0.3), 0 0 2px rgba(203, 166, 247, 0.2);
+/* Glow effect for active items — Green accent */
+.glow-green {
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.3), 0 0 2px rgba(0, 230, 118, 0.2);
 }
 .glow-emerald {
-  box-shadow: 0 0 8px rgba(166, 227, 161, 0.3), 0 0 2px rgba(166, 227, 161, 0.2);
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.3), 0 0 2px rgba(0, 230, 118, 0.2);
 }
 
 /* IDE-specific styles - refined scrollbar */
@@ -284,8 +284,8 @@
 
 /* Code line highlight — Catppuccin purple accent */
 .code-line-active {
-  background: rgba(203, 166, 247, 0.06);
-  border-left: 2px solid rgba(203, 166, 247, 0.4);
+  background: rgba(0, 230, 118, 0.06);
+  border-left: 2px solid rgba(0, 230, 118, 0.4);
 }
 
 /* Smooth transitions for theme changes */
@@ -328,9 +328,9 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Gradient text effect — Catppuccin purple to blue */
+/* Gradient text effect — Green gradient */
 .gradient-text {
-  background: linear-gradient(135deg, #cba6f7 0%, #89b4fa 100%);
+  background: linear-gradient(135deg, #00e676 0%, #69f0ae 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -338,7 +338,7 @@
 
 /* Focus ring enhancement — Catppuccin purple */
 .focus-ring:focus-visible {
-  outline: 2px solid rgba(203, 166, 247, 0.5);
+  outline: 2px solid rgba(0, 230, 118, 0.5);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -407,9 +407,9 @@
 
 /* Save button purple flash */
 @keyframes save-flash {
-  0% { box-shadow: 0 0 0 0 rgba(203, 166, 247, 0.5); }
-  50% { box-shadow: 0 0 12px 4px rgba(203, 166, 247, 0.4); }
-  100% { box-shadow: 0 0 0 0 rgba(203, 166, 247, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.5); }
+  50% { box-shadow: 0 0 12px 4px rgba(0, 230, 118, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
 }
 .save-flash {
   animation: save-flash 0.6s ease-out;
@@ -425,7 +425,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: rgba(203, 166, 247, 0.6);
+  background: rgba(0, 230, 118, 0.6);
 }
 .typing-bounce-dot:nth-child(1) { animation: typing-bounce 1.2s ease-in-out infinite; }
 .typing-bounce-dot:nth-child(2) { animation: typing-bounce 1.2s ease-in-out 0.15s infinite; }
@@ -442,8 +442,8 @@
 
 /* Textarea focus glow — Catppuccin purple */
 @keyframes textarea-glow {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(203, 166, 247, 0.15), 0 0 8px 0 rgba(203, 166, 247, 0.05); }
-  50% { box-shadow: 0 0 0 1px rgba(203, 166, 247, 0.25), 0 0 12px 2px rgba(203, 166, 247, 0.08); }
+  0%, 100% { box-shadow: 0 0 0 1px rgba(0, 230, 118, 0.15), 0 0 8px 0 rgba(0, 230, 118, 0.05); }
+  50% { box-shadow: 0 0 0 1px rgba(0, 230, 118, 0.25), 0 0 12px 2px rgba(0, 230, 118, 0.08); }
 }
 .textarea-focus-glow {
   animation: textarea-glow 2.5s ease-in-out infinite;
@@ -459,7 +459,7 @@
 .sparkline-bar {
   width: 2px;
   border-radius: 1px;
-  background: rgba(203, 166, 247, 0.5);
+  background: rgba(0, 230, 118, 0.5);
   transition: height 0.3s ease;
 }
 
@@ -474,7 +474,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(203, 166, 247, 0.8), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0, 230, 118, 0.8), transparent);
   filter: blur(1px);
 }
 
@@ -547,8 +547,8 @@
 
 /* Current line gradient highlight — Catppuccin purple accent */
 .current-line-gradient {
-  background: linear-gradient(90deg, rgba(203, 166, 247, 0.06) 0%, rgba(203, 166, 247, 0.03) 50%, transparent 100%) !important;
-  border-left: 2px solid rgba(203, 166, 247, 0.4) !important;
+  background: linear-gradient(90deg, rgba(0, 230, 118, 0.06) 0%, rgba(0, 230, 118, 0.03) 50%, transparent 100%) !important;
+  border-left: 2px solid rgba(0, 230, 118, 0.4) !important;
 }
 
 /* Quick prompt card gradient backgrounds */
@@ -564,10 +564,10 @@
   pointer-events: none;
   border-radius: inherit;
 }
-.quick-prompt-card:nth-child(1)::before { background: linear-gradient(135deg, #a6e3a1, #94e2d5); }
-.quick-prompt-card:nth-child(2)::before { background: linear-gradient(135deg, #cba6f7, #89b4fa); }
-.quick-prompt-card:nth-child(3)::before { background: linear-gradient(135deg, #f9e2af, #fab387); }
-.quick-prompt-card:nth-child(4)::before { background: linear-gradient(135deg, #f5c2e7, #f38ba8); }
+.quick-prompt-card:nth-child(1)::before { background: linear-gradient(135deg, #00e676, #69f0ae); }
+.quick-prompt-card:nth-child(2)::before { background: linear-gradient(135deg, #00e676, #69f0ae); }
+.quick-prompt-card:nth-child(3)::before { background: linear-gradient(135deg, #00c853, #76ff03); }
+.quick-prompt-card:nth-child(4)::before { background: linear-gradient(135deg, #b9f6ca, #00e676); }
 .quick-prompt-card:hover::before {
   opacity: 0.12;
 }
@@ -590,11 +590,11 @@
 
 /* Custom selection colors — Catppuccin purple tinted */
 ::selection {
-  background: rgba(203, 166, 247, 0.25);
+  background: rgba(0, 230, 118, 0.25);
   color: inherit;
 }
 ::-moz-selection {
-  background: rgba(203, 166, 247, 0.25);
+  background: rgba(0, 230, 118, 0.25);
   color: inherit;
 }
 
@@ -626,9 +626,9 @@ button, a, [role="button"], input, select, textarea {
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(203, 166, 247, 0.04) 25%,
-    rgba(203, 166, 247, 0.08) 50%,
-    rgba(203, 166, 247, 0.04) 75%
+    rgba(0, 230, 118, 0.04) 25%,
+    rgba(0, 230, 118, 0.08) 50%,
+    rgba(0, 230, 118, 0.04) 75%
   );
   background-size: 200% 100%;
   animation: skeleton-shimmer 2s ease-in-out infinite;
@@ -649,15 +649,15 @@ button, a, [role="button"], input, select, textarea {
   height: 6px;
 }
 .code-scrollbar::-webkit-scrollbar-track {
-  background: rgba(203, 166, 247, 0.03);
+  background: rgba(0, 230, 118, 0.03);
   border-radius: 3px;
 }
 .code-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(203, 166, 247, 0.12);
+  background: rgba(0, 230, 118, 0.12);
   border-radius: 3px;
 }
 .code-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(203, 166, 247, 0.22);
+  background: rgba(0, 230, 118, 0.22);
 }
 .code-scrollbar::-webkit-scrollbar-corner {
   background: transparent;
@@ -686,7 +686,7 @@ button, a, [role="button"], input, select, textarea {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(203, 166, 247, 0.2) 30%, rgba(203, 166, 247, 0.3) 50%, rgba(203, 166, 247, 0.2) 70%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 230, 118, 0.2) 30%, rgba(0, 230, 118, 0.3) 50%, rgba(0, 230, 118, 0.2) 70%, transparent 100%);
   pointer-events: none;
 }
 
@@ -696,7 +696,7 @@ button, a, [role="button"], input, select, textarea {
   100% { background-position: 200% 0; }
 }
 .text-shimmer-active {
-  background: linear-gradient(90deg, transparent 0%, rgba(203, 166, 247, 0.3) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 230, 118, 0.3) 50%, transparent 100%);
   background-size: 200% 100%;
   background-clip: text;
   animation: text-shimmer 3s ease-in-out infinite;
@@ -704,8 +704,8 @@ button, a, [role="button"], input, select, textarea {
 
 /* Active file row left border glow — Catppuccin purple */
 .active-file-glow {
-  box-shadow: inset 3px 0 6px -2px rgba(203, 166, 247, 0.25);
-  border-left: 2px solid rgba(203, 166, 247, 0.6) !important;
+  box-shadow: inset 3px 0 6px -2px rgba(0, 230, 118, 0.25);
+  border-left: 2px solid rgba(0, 230, 118, 0.6) !important;
 }
 
 /* Agent progress bar — Catppuccin purple */
@@ -716,21 +716,21 @@ button, a, [role="button"], input, select, textarea {
 .agent-progress-bar {
   height: 2px;
   border-radius: 1px;
-  background: rgba(203, 166, 247, 0.1);
+  background: rgba(0, 230, 118, 0.1);
   overflow: hidden;
   margin-top: 2px;
 }
 .agent-progress-bar-fill {
   height: 100%;
   border-radius: 1px;
-  background: linear-gradient(90deg, rgba(203, 166, 247, 0.4), rgba(203, 166, 247, 0.7));
+  background: linear-gradient(90deg, rgba(0, 230, 118, 0.4), rgba(0, 230, 118, 0.7));
   animation: progress-pulse 2s ease-in-out infinite;
   transition: width 0.5s ease;
 }
 
 /* Chat system message left border accent — Catppuccin purple */
 .system-message-accent {
-  border-left: 2px solid rgba(203, 166, 247, 0.3);
+  border-left: 2px solid rgba(0, 230, 118, 0.3);
 }
 
 /* Chat scroll-to-bottom floating button */
@@ -752,7 +752,7 @@ button, a, [role="button"], input, select, textarea {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: rgba(203, 166, 247, 0.7);
+  background: rgba(0, 230, 118, 0.7);
 }
 .typing-wave-dot:nth-child(1) { animation: typing-wave 1.4s ease-in-out infinite; }
 .typing-wave-dot:nth-child(2) { animation: typing-wave 1.4s ease-in-out 0.15s infinite; }
@@ -777,7 +777,7 @@ button, a, [role="button"], input, select, textarea {
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  background: conic-gradient(from var(--gradient-angle), #cba6f7, #89b4fa, #a6e3a1, #cba6f7);
+  background: conic-gradient(from var(--gradient-angle), #00e676, #69f0ae, #00c853, #00e676);
   animation: gradient-rotate 3s linear infinite;
   z-index: -1;
   opacity: 0.6;
@@ -821,14 +821,14 @@ button, a, [role="button"], input, select, textarea {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(203, 166, 247, 0.15) 30%, rgba(203, 166, 247, 0.2) 50%, rgba(203, 166, 247, 0.15) 70%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 230, 118, 0.15) 30%, rgba(0, 230, 118, 0.2) 50%, rgba(0, 230, 118, 0.15) 70%, transparent 100%);
   pointer-events: none;
   z-index: 5;
 }
 
 /* Dotted resize handle — Catppuccin purple */
 .resize-handle-dotted {
-  background-image: radial-gradient(circle, rgba(203, 166, 247, 0.3) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(0, 230, 118, 0.3) 1px, transparent 1px);
   background-size: 8px 4px;
   background-position: center;
   background-repeat: repeat-x;
@@ -871,7 +871,7 @@ button, a, [role="button"], input, select, textarea {
   position: absolute;
   inset: -8px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(203, 166, 247, 0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(0, 230, 118, 0.06) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -893,7 +893,7 @@ button, a, [role="button"], input, select, textarea {
   content: '';
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(203, 166, 247, 0.12), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0, 230, 118, 0.12), transparent);
 }
 
 /* ===== Responsive Design ===== */
