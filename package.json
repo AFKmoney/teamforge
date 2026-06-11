@@ -1,7 +1,16 @@
 {
-  "name": "nextjs_tailwind_shadcn_ts",
+  "name": "teamforge-ide",
   "version": "1.0.0",
+  "description": "TeamForge IDE — Autonomous AI Development Platform. An IDE where AI agents collaborate to build software 24/7.",
+  "author": "TeamForge",
+  "license": "MIT",
   "private": true,
+  "homepage": "https://github.com/AFKmoney/teamforge",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AFKmoney/teamforge.git"
+  },
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
@@ -10,7 +19,140 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "electron:dev": "electron .",
+    "electron:build": "next build && electron-builder",
+    "electron:build:win": "next build && electron-builder --win",
+    "electron:build:mac": "next build && electron-builder --mac",
+    "electron:build:linux": "next build && electron-builder --linux",
+    "installer:win": "next build && electron-builder --win --config.win",
+    "installer:mac": "next build && electron-builder --mac --config.mac",
+    "installer:linux": "next build && electron-builder --linux --config.linux"
+  },
+  "build": {
+    "appId": "com.teamforge.ide",
+    "productName": "TeamForge IDE",
+    "copyright": "Copyright © 2025 TeamForge. All rights reserved.",
+    "artifactName": "TeamForge-IDE-${version}-Setup.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "electron/assets"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "public/**/*",
+      "prisma/**/*",
+      "db/**/*",
+      "mini-services/**/*",
+      "package.json",
+      "bun.lock",
+      "next.config.ts",
+      "tsconfig.json",
+      "postcss.config.mjs",
+      "tailwind.config.ts",
+      "!.next",
+      "!dist",
+      "!node_modules/.cache"
+    ],
+    "extraResources": [
+      {
+        "from": ".next",
+        "to": "app/.next",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "public",
+        "to": "app/public",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "prisma",
+        "to": "app/prisma",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "db",
+        "to": "app/db",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "icon": "electron/assets/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "TeamForge-IDE-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "electron/assets/icon.png",
+      "uninstallerIcon": "electron/assets/icon.png",
+      "installerHeaderIcon": "electron/assets/icon.png",
+      "installerHeader": "electron/assets/installer-header.bmp",
+      "installerSidebar": "electron/assets/installer-sidebar.bmp",
+      "license": "LICENSE",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TeamForge IDE",
+      "perMachine": false,
+      "allowElevation": true,
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "unicode": true,
+      "language": "1033",
+      "differentialPackage": true
+    },
+    "mac": {
+      "icon": "electron/assets/icon.png",
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "artifactName": "TeamForge-IDE-${version}.${ext}"
+    },
+    "dmg": {
+      "title": "TeamForge IDE ${version}",
+      "icon": "electron/assets/icon.png",
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    },
+    "linux": {
+      "icon": "electron/assets/icon.png",
+      "category": "Development",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "TeamForge-IDE-${version}.${ext}"
+    },
+    "appImage": {
+      "license": "LICENSE"
+    },
+    "deb": {
+      "depends": ["libgtk-3-0", "libnotify4", "libnss3", "libxss1", "libxtst6", "xdg-utils"]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "AFKmoney",
+      "repo": "teamforge",
+      "releaseType": "release"
+    }
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -88,6 +230,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "bun-types": "^1.3.4",
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.2",
     "eslint": "^9",
     "eslint-config-next": "^16.1.1",
     "tailwindcss": "^4",

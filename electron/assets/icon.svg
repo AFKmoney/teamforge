@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="#0d0d0d"/>
+  
+  <!-- Outer glow ring -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#00e676" stroke-width="4" opacity="0.3"/>
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#00e676" stroke-width="2" opacity="0.15"/>
+  
+  <!-- Inner hexagon shape (forge/anvil) -->
+  <polygon points="256,80 400,168 400,344 256,432 112,344 112,168" 
+           fill="#141414" stroke="#00e676" stroke-width="3" opacity="0.9"/>
+  
+  <!-- TF Letters -->
+  <text x="256" y="240" font-family="Arial, Helvetica, sans-serif" font-size="120" font-weight="900"
+        fill="#00e676" text-anchor="middle" letter-spacing="-4">TF</text>
+  
+  <!-- Subtitle -->
+  <text x="256" y="310" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="600"
+        fill="#888888" text-anchor="middle" letter-spacing="8">IDE</text>
+  
+  <!-- Bottom accent line -->
+  <line x1="176" y1="340" x2="336" y2="340" stroke="#00e676" stroke-width="2" opacity="0.6"/>
+  
+  <!-- Small dots decoration -->
+  <circle cx="176" cy="380" r="4" fill="#00e676" opacity="0.5"/>
+  <circle cx="216" cy="380" r="4" fill="#69f0ae" opacity="0.4"/>
+  <circle cx="256" cy="380" r="4" fill="#00e676" opacity="0.6"/>
+  <circle cx="296" cy="380" r="4" fill="#69f0ae" opacity="0.4"/>
+  <circle cx="336" cy="380" r="4" fill="#00e676" opacity="0.5"/>
+</svg>

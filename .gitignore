@@ -60,6 +60,7 @@ server.log
 *.gif
 *.webp
 !public/**
+!electron/assets/**
 
 # Agent context (temp task files)
 /agent-ctx/
@@ -85,3 +86,6 @@ db/*.db-journal
 
 # Runtime logs
 dev.log
+
+# Electron build output
+/dist/
