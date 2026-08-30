@@ -45,7 +45,6 @@ import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
 import { toastSuccess } from '@/lib/toast-utils'
 import { useAppStore } from '@/lib/store'
-import type { Benchmark } from '@/lib/types'
 import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
@@ -171,7 +170,8 @@ const statVariants = {
 // ---------------------------------------------------------------------------
 
 export function BenchmarksPanel() {
-  const { benchmarks: rawBenchmarks, setBenchmarks } = useAppStore()
+  const { setBenchmarks } = useAppStore()
+  const [benchmarks, setBenchmarksState] = useState<unknown[]>([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('All')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -184,7 +184,7 @@ export function BenchmarksPanel() {
       try {
         const r = await fetch('/api/benchmarks')
         const data = await r.json()
-        if (!cancelled) setBenchmarks(Array.isArray(data) ? data : [])
+        if (!cancelled) setBenchmarksState(Array.isArray(data) ? data : [])
       } catch {
         // silent
       } finally {
@@ -196,42 +196,42 @@ export function BenchmarksPanel() {
   }, [setBenchmarks])
 
   // ------- parse JSON string fields -------
-  const benchmarks: Benchmark[] = useMemo(
+  const parsedBenchmarks = useMemo(
     () =>
-      rawBenchmarks.map((b) => ({
+      benchmarks.map((b) => ({
         ...b,
         details:
-          typeof b.details === 'string'
-            ? (JSON.parse(b.details as string) as Record<string, unknown>)
-            : b.details,
+          typeof (b as Record<string, unknown>).details === 'string'
+            ? (JSON.parse((b as Record<string, unknown>).details as string) as Record<string, unknown>)
+            : (b as Record<string, unknown>).details,
       })),
-    [rawBenchmarks]
+    [benchmarks]
   )
 
   // ------- filter by category -------
   const filtered = useMemo(() => {
-    if (category === 'All') return benchmarks
+    if (category === 'All') return parsedBenchmarks
     const key = CATEGORY_KEYS[category] ?? category.toLowerCase()
-    return benchmarks.filter((b) => b.category === key)
-  }, [benchmarks, category])
+    return parsedBenchmarks.filter((b) => (b as Record<string, unknown>).category === key)
+  }, [parsedBenchmarks, category])
 
   // ------- avg score -------
   const avgScore = useMemo(() => {
     if (filtered.length === 0) return 0
     return Math.round(
-      filtered.reduce((sum, b) => sum + (b.score / b.maxScore) * 100, 0) /
+      filtered.reduce((sum, b) => sum + ((b as Record<string, unknown>).score as number / (b as Record<string, unknown>).maxScore as number) * 100, 0) /
         filtered.length
     )
   }, [filtered])
 
   // ------- best category -------
   const bestCategory = useMemo(() => {
-    if (benchmarks.length === 0) return { name: 'N/A', score: 0 }
+    if (parsedBenchmarks.length === 0) return { name: 'N/A', score: 0 }
     const catScores: Record<string, { total: number; count: number }> = {}
-    for (const b of benchmarks) {
-      const cat = b.category
+    for (const b of parsedBenchmarks) {
+      const cat = (b as Record<string, unknown>).category as string
       if (!catScores[cat]) catScores[cat] = { total: 0, count: 0 }
-      catScores[cat].total += (b.score / b.maxScore) * 100
+      catScores[cat].total += ((b as Record<string, unknown>).score as number / (b as Record<string, unknown>).maxScore as number) * 100
       catScores[cat].count++
     }
     let best = { name: 'N/A', score: 0 }
@@ -240,19 +240,19 @@ export function BenchmarksPanel() {
       if (avg > best.score) best = { name: CATEGORY_LABELS[cat] ?? cat, score: avg }
     }
     return best
-  }, [benchmarks])
+  }, [parsedBenchmarks])
 
   // ------- chart data -------
   const chartData = useMemo(
     () =>
       filtered.map((b) => ({
-        name: b.name.length > 18 ? b.name.slice(0, 16) + '...' : b.name,
-        score: Math.round((b.score / b.maxScore) * 100),
+        name: (b as Record<string, unknown>).name as string,
+        score: Math.round(((b as Record<string, unknown>).score as number / (b as Record<string, unknown>).maxScore as number) * 100),
         previousScore:
-          b.previousScore !== null
-            ? Math.round((b.previousScore / b.maxScore) * 100)
+          (b as Record<string, unknown>).previousScore !== null
+            ? Math.round(((b as Record<string, unknown>).previousScore as number / (b as Record<string, unknown>).maxScore as number) * 100)
             : 0,
-        fill: scoreColor((b.score / b.maxScore) * 100),
+        fill: scoreColor(((b as Record<string, unknown>).score as number / (b as Record<string, unknown>).maxScore as number) * 100),
       })),
     [filtered]
   )
@@ -290,14 +290,14 @@ export function BenchmarksPanel() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => {
                 const data = filtered.map((b) => ({
-                  Name: b.name,
-                  Category: b.category,
-                  Version: b.version,
-                  Score: b.score,
-                  'Max Score': b.maxScore,
-                  'Score %': Math.round((b.score / b.maxScore) * 100),
-                  'Previous Score': b.previousScore ?? '',
-                  'Created At': b.createdAt,
+                  Name: (b as Record<string, unknown>).name as string,
+                  Category: (b as Record<string, unknown>).category as string,
+                  Version: (b as Record<string, unknown>).version as string,
+                  Score: (b as Record<string, unknown>).score as number,
+                  'Max Score': (b as Record<string, unknown>).maxScore as number,
+                  'Score %': Math.round(((b as Record<string, unknown>).score as number / (b as Record<string, unknown>).maxScore as number) * 100),
+                  'Previous Score': (b as Record<string, unknown>).previousScore !== undefined ? (b as Record<string, unknown>).previousScore as number : null,
+                  'Created At': (b as Record<string, unknown>).createdAt as string,
                 }))
                 exportToCSV(data, 'benchmarks')
                 toastSuccess('Export complete', 'Benchmarks exported as CSV.')
@@ -307,15 +307,15 @@ export function BenchmarksPanel() {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
                 const data = filtered.map((b) => ({
-                  id: b.id,
-                  name: b.name,
-                  category: b.category,
-                  version: b.version,
-                  score: b.score,
-                  maxScore: b.maxScore,
-                  previousScore: b.previousScore,
-                  details: b.details,
-                  createdAt: b.createdAt,
+                  id: (b as Record<string, unknown>).id as string,
+                  name: (b as Record<string, unknown>).name as string,
+                  category: (b as Record<string, unknown>).category as string,
+                  version: (b as Record<string, unknown>).version as string,
+                  score: (b as Record<string, unknown>).score as number,
+                  maxScore: (b as Record<string, unknown>).maxScore as number,
+                  previousScore: (b as Record<string, unknown>).previousScore as number,
+                  details: (b as Record<string, unknown>).details,
+                  createdAt: (b as Record<string, unknown>).createdAt as string,
                 }))
                 exportToJSON(data, 'benchmarks')
                 toastSuccess('Export complete', 'Benchmarks exported as JSON.')
@@ -463,20 +463,23 @@ export function BenchmarksPanel() {
         )}
         <AnimatePresence>
           {filtered.map((bench) => {
-            const pct = Math.round((bench.score / bench.maxScore) * 100)
+            const score = (bench as Record<string, unknown>).score as number
+            const maxScore = (bench as Record<string, unknown>).maxScore as number
+            const pct = Math.round((score / maxScore) * 100)
+            const previousScore = (bench as Record<string, unknown>).previousScore as number | null
             const delta =
-              bench.previousScore !== null
+              previousScore !== null
                 ? Math.round(
-                    ((bench.score - bench.previousScore) / bench.maxScore) * 100
+                    ((score - previousScore) / maxScore) * 100
                   )
                 : null
-            const isExpanded = expandedId === bench.id
+            const isExpanded = expandedId === (bench as Record<string, unknown>).id
             const hasDetails =
-              bench.details && Object.keys(bench.details).length > 0
+              (bench as Record<string, unknown>).details && Object.keys((bench as Record<string, unknown>).details as Record<string, unknown>).length > 0
 
             return (
               <motion.div
-                key={bench.id}
+                key={(bench as Record<string, unknown>).id as string}
                 variants={cardVariants}
                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
               >
@@ -486,16 +489,16 @@ export function BenchmarksPanel() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-medium text-foreground">
-                            {bench.name}
+                            {(bench as Record<string, unknown>).name as string}
                           </h3>
                           <Badge variant="outline" className="text-[10px]">
-                            {bench.category}
+                            {(bench as Record<string, unknown>).category as string}
                           </Badge>
                           <Badge
                             variant="secondary"
                             className="text-[10px] px-1.5"
                           >
-                            v{bench.version}
+                            v{(bench as Record<string, unknown>).version as string}
                           </Badge>
                         </div>
                         <div className="mt-2 flex items-center gap-3">

@@ -229,3 +229,51 @@ export const TASK_TYPE_CONFIG: Record<TaskType, { label: string; color: string }
   docs: { label: 'Docs', color: 'text-muted-foreground' },
   infra: { label: 'Infra', color: 'text-orange-600 dark:text-orange-400' },
 }
+
+// Additional types for various components
+export interface ChatMessage {
+  id: string
+  content: string
+  sender: 'user' | 'ai' | 'system'
+  timestamp: string
+  sessionId?: string
+  metadata?: Record<string, unknown>
+}
+
+export interface ChatConversation {
+  id: string
+  title: string
+  messages: ChatMessage[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface EvolutionEvent {
+  id: string
+  type: string
+  data: Record<string, unknown>
+  timestamp: string
+}
+
+export interface SystemMetric {
+  id: string
+  name: string
+  value: number
+  timestamp: string
+}
+
+export interface ActivityLog {
+  id: string
+  action: string
+  details: string
+  timestamp: string
+}
+
+export interface Benchmark {
+  id: string
+  name: string
+  value: number
+  timestamp: string
+  trend?: number
+  trendDiff?: number
+}

@@ -67,7 +67,6 @@ import {
 import { Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useAppStore } from '@/lib/store'
 import { useSimulation } from '@/hooks/use-simulation'
-import type { EvolutionEvent, SystemMetric, ActivityLog } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
 // Animation variants

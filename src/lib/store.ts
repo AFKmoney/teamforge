@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Agent, Task, Message, ChatSession, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus, AIProviderType, BenchmarkSnapshot } from '@/lib/types'
+import type { Agent, Task, Message, ChatSession, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus, AIProviderType, BenchmarkSnapshot, ChatMessage, ChatConversation, EvolutionEvent, SystemMetric, ActivityLog, Benchmark } from '@/lib/types'
 import { AI_SETTINGS_KEY, DEFAULT_AI_SETTINGS, type AISettings } from '@/lib/ai-providers'
 
 /**
@@ -136,6 +136,36 @@ interface AppState {
   files: ProjectFile[]
   buildLogs: BuildLog[]
   activities: AgentActivity[]
+
+  // Chat state
+  chatMessages: ChatMessage[]
+  chatConversations: ChatConversation[]
+  currentConversationId: string | null
+  setCurrentConversationId: (id: string | null) => void
+  createNewConversation: (conversation: ChatConversation) => void
+  switchConversation: (id: string) => void
+  deleteConversation: (id: string) => void
+  updateMessageReaction: (messageId: string, reaction: string) => void
+  clearChatHistory: () => void
+  addChatMessage: (message: ChatMessage) => void
+
+  // Dashboard state
+  dashboardData: Record<string, unknown>
+  setDashboardData: (data: Record<string, unknown>) => void
+  evolutionEvents: EvolutionEvent[]
+  setEvolutionEvents: (events: EvolutionEvent[]) => void
+  safetyEvents: SystemMetric[]
+  setSafetyEvents: (events: SystemMetric[]) => void
+  currentPage: string
+  setCurrentPage: (page: string) => void
+  isLoading: boolean
+  setIsLoading: (loading: boolean) => void
+  simulationSpeed: number
+  setSimulationSpeed: (speed: number) => void
+
+  // Benchmarks state
+  benchmarks: Benchmark[]
+  setBenchmarks: (benchmarks: Benchmark[]) => void
 
   // IDE state
   activePanel: IDEPanel
@@ -281,6 +311,36 @@ interface AppState {
   // Benchmark state
   benchmarkSnapshots: BenchmarkSnapshot[]
   setBenchmarkSnapshots: (snapshots: BenchmarkSnapshot[]) => void
+
+  // Benchmarks state
+  benchmarks: []
+  setBenchmarks: (benchmarks: Benchmark[]) => void
+
+  // Dashboard state
+  dashboardData: {}
+  setDashboardData: (data: Record<string, unknown>) => void
+  evolutionEvents: []
+  setEvolutionEvents: (events: EvolutionEvent[]) => void
+  safetyEvents: []
+  setSafetyEvents: (events: SystemMetric[]) => void
+  currentPage: 'overview'
+  setCurrentPage: (page: string) => void
+  isLoading: false
+  setIsLoading: (loading: boolean) => void
+  simulationSpeed: 1
+  setSimulationSpeed: (speed: number) => void
+
+  // Chat state
+  chatMessages: []
+  chatConversations: []
+  currentConversationId: null
+  setCurrentConversationId: (id: string | null) => void
+  createNewConversation: (conversation: ChatConversation) => void
+  switchConversation: (id: string) => void
+  deleteConversation: (id: string) => void
+  updateMessageReaction: (messageId: string, reaction: string) => void
+  clearChatHistory: () => void
+  addChatMessage: (message: ChatMessage) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -319,6 +379,38 @@ export const useAppStore = create<AppState>((set, get) => ({
   buildLogs: [],
   activities: [],
   benchmarkSnapshots: [],
+
+  // Chat state
+  chatMessages: [],
+  chatConversations: [],
+  currentConversationId: null,
+  setCurrentConversationId: (id) => set({ currentConversationId: id }),
+  createNewConversation: (conversation) => set((s) => ({ chatConversations: [conversation, ...s.chatConversations] })),
+  switchConversation: (id) => set({ currentConversationId: id }),
+  deleteConversation: (id) => set((s) => ({ chatConversations: s.chatConversations.filter((c) => c.id !== id) })),
+  updateMessageReaction: (messageId, reaction) => set((s) => ({
+    chatMessages: s.chatMessages.map((m) => (m.id === messageId ? { ...m, metadata: { ...m.metadata, reaction } } : m)),
+  })),
+  clearChatHistory: () => set({ chatMessages: [], chatConversations: [] }),
+  addChatMessage: (message) => set((s) => ({ chatMessages: [...s.chatMessages, message] })),
+
+  // Dashboard state
+  dashboardData: {},
+  setDashboardData: (data) => set({ dashboardData: data }),
+  evolutionEvents: [],
+  setEvolutionEvents: (events) => set({ evolutionEvents: events }),
+  safetyEvents: [],
+  setSafetyEvents: (events) => set({ safetyEvents: events }),
+  currentPage: 'overview',
+  setCurrentPage: (page) => set({ currentPage: page }),
+  isLoading: false,
+  setIsLoading: (loading) => set({ isLoading: loading }),
+  simulationSpeed: 1,
+  setSimulationSpeed: (speed) => set({ simulationSpeed: speed }),
+
+  // Benchmarks state
+  benchmarks: [],
+  setBenchmarks: (benchmarks) => set({ benchmarks: benchmarks }),
 
   // IDE state
   activePanel: 'chat',

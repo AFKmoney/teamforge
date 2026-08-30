@@ -55,7 +55,6 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
 import { toastSuccess } from '@/lib/toast-utils'
-import type { ChatMessage, ChatConversation } from '@/lib/types'
 import { PageHeader } from '@/components/page-header'
 
 // ---------------------------------------------------------------------------
