@@ -67,6 +67,7 @@ import {
 import { Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useAppStore } from '@/lib/store'
 import { useSimulation } from '@/hooks/use-simulation'
+import type { ActivityLog, EvolutionEvent, SystemMetric } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -354,58 +355,74 @@ function generateActivityItems(agentCount: number, activeAgentCount: number): Ac
     {
       id: 'act-1',
       type: 'agent',
+      action: 'completed',
       message: `Research Agent completed task #47`,
+      details: '',
       timestamp: new Date(Date.now() - 120000).toISOString(),
-      severity: 'success',
+      severity: 'info' as const,
     },
     {
       id: 'act-2',
       type: 'evolution',
+      action: 'proposed',
       message: 'New prompt evolution proposed for coding agent',
+      details: '',
       timestamp: new Date(Date.now() - 300000).toISOString(),
-      severity: 'info',
+      severity: 'info' as const,
     },
     {
       id: 'act-3',
       type: 'safety',
+      action: 'validated',
       message: 'Safety validation passed for change #12',
+      details: '',
       timestamp: new Date(Date.now() - 480000).toISOString(),
-      severity: 'success',
+      severity: 'info' as const,
     },
     {
       id: 'act-4',
       type: 'memory',
+      action: 'archived',
       message: 'Episodic memory archived (30 days old)',
+      details: '',
       timestamp: new Date(Date.now() - 720000).toISOString(),
-      severity: 'info',
+      severity: 'info' as const,
     },
     {
       id: 'act-5',
       type: 'system',
+      action: 'completed',
       message: 'System health check completed',
+      details: '',
       timestamp: new Date(Date.now() - 900000).toISOString(),
-      severity: 'info',
+      severity: 'info' as const,
     },
     {
       id: 'act-6',
       type: 'benchmark',
+      action: 'improved',
       message: 'Reasoning benchmark improved by 3.2%',
+      details: '',
       timestamp: new Date(Date.now() - 1200000).toISOString(),
-      severity: 'success',
+      severity: 'info' as const,
     },
     {
       id: 'act-7',
       type: 'safety',
+      action: 'warning',
       message: `Warning: Agent CPU usage above threshold (${activeAgentCount}/${agentCount} active)`,
+      details: '',
       timestamp: new Date(Date.now() - 1500000).toISOString(),
-      severity: 'warning',
+      severity: 'medium' as const,
     },
     {
       id: 'act-8',
       type: 'evolution',
+      action: 'deployed',
       message: 'Architecture evolution deployed to production',
+      details: '',
       timestamp: new Date(Date.now() - 2100000).toISOString(),
-      severity: 'success',
+      severity: 'info' as const,
     },
   ]
   return items
@@ -830,22 +847,22 @@ export function DashboardOverview() {
   }, [fetchData])
 
   // Derived data
-  const data = dashboardData
-  const safetyScore = data
-    ? data.unresolvedSafetyCount === 0 && (data.agentCount ?? 0) > 0
-      ? 100
-      : data.unresolvedSafetyCount > 0
-        ? Math.max(
-            0,
-            Math.round(
-              (1 - data.unresolvedSafetyCount / Math.max(data.unresolvedSafetyCount + 10, 1)) * 100
-            )
+  const data = dashboardData as Record<string, unknown>
+  const unresolvedSafetyCount = (data.unresolvedSafetyCount as number) || 0
+  const agentCount = (data.agentCount as number) || 0
+  const safetyScore = unresolvedSafetyCount === 0 && agentCount > 0
+    ? 100
+    : unresolvedSafetyCount > 0
+      ? Math.max(
+          0,
+          Math.round(
+            (1 - unresolvedSafetyCount / Math.max(unresolvedSafetyCount + 10, 1)) * 100
           )
-        : 100
-    : 0
+        )
+      : 100
 
-  const statusBreakdown = data?.evolutionStatusBreakdown ?? {}
-  const totalEvolutionEvents = Object.values(statusBreakdown).reduce((a, b) => a + (b as number), 0) as number
+  const statusBreakdown = (data.evolutionStatusBreakdown as Record<string, number>) ?? {}
+  const totalEvolutionEvents = Object.values(statusBreakdown).reduce((a, b) => a + b, 0)
 
   // Use simulation-driven gauge values when simulating, fallback to static
   const gaugeValues = useMemo(() => {
@@ -853,14 +870,14 @@ export function DashboardOverview() {
       return sim.gaugeValues
     }
     // Static fallback
-    const seed = data?.agentCount ?? 1
+    const seed = (data?.agentCount as number) || 1
     const pseudoRandom = (base: number, min: number, max: number) => {
       const x = Math.sin(base * 9301 + 49297) * 233280
       return min + Math.floor(((x - Math.floor(x)) * (max - min + 1)))
     }
-    const agentLoad = data
-      ? Math.round(((data.activeAgentCount ?? 0) / Math.max(data.agentCount ?? 1, 1)) * 100)
-      : 0
+    const activeAgentCount = (data.activeAgentCount as number) || 0
+    const totalAgentCount = (data.agentCount as number) || 1
+    const agentLoad = Math.round((activeAgentCount / Math.max(totalAgentCount, 1)) * 100)
     return {
       cpu: pseudoRandom(seed + 7, 40, 80),
       memory: pseudoRandom(seed + 13, 30, 70),
@@ -871,7 +888,7 @@ export function DashboardOverview() {
 
   // Merge static activity items with simulation items
   const staticActivityItems = useMemo(
-    () => generateActivityItems(data?.agentCount ?? 0, data?.activeAgentCount ?? 0),
+    () => generateActivityItems((data?.agentCount as number) || 0, (data?.activeAgentCount as number) || 0),
     [data?.agentCount, data?.activeAgentCount]
   )
 
@@ -889,17 +906,17 @@ export function DashboardOverview() {
       return sim.sparklineData
     }
     return {
-      agents: [3, 4, 5, 4, 6, 5, 7, data?.activeAgentCount ?? 0],
-      memories: [120, 135, 128, 142, 150, 148, 155, data?.memoryCount ?? 0],
-      evolution: [1, 2, 3, 2, 4, 5, 3, data?.evolutionEventCount ?? 0],
+      agents: [3, 4, 5, 4, 6, 5, 7, (data?.activeAgentCount as number) || 0],
+      memories: [120, 135, 128, 142, 150, 148, 155, (data?.memoryCount as number) || 0],
+      evolution: [1, 2, 3, 2, 4, 5, 3, (data?.evolutionEventCount as number) || 0],
       safety: [98, 95, 97, 92, 94, 96, 98, safetyScore],
     }
   }, [sim.isSimulating, sim.sparklineData, data?.activeAgentCount, data?.memoryCount, data?.evolutionEventCount, safetyScore])
 
   // Simulation-adjusted metric values
-  const simAdjustedActiveAgents = (data?.activeAgentCount ?? 0) + (sim.isSimulating ? sim.metricDeltas.activeAgentDelta : 0)
-  const simAdjustedMemories = (data?.memoryCount ?? 0) + (sim.isSimulating ? sim.metricDeltas.memoryDelta : 0)
-  const simAdjustedEvolution = (data?.evolutionEventCount ?? 0) + (sim.isSimulating ? sim.metricDeltas.evolutionDelta : 0)
+  const simAdjustedActiveAgents = ((data?.activeAgentCount as number) || 0) + (sim.isSimulating ? sim.metricDeltas.activeAgentDelta : 0)
+  const simAdjustedMemories = ((data?.memoryCount as number) || 0) + (sim.isSimulating ? sim.metricDeltas.memoryDelta : 0)
+  const simAdjustedEvolution = ((data?.evolutionEventCount as number) || 0) + (sim.isSimulating ? sim.metricDeltas.evolutionDelta : 0)
   const simAdjustedSafety = Math.max(0, Math.min(100, safetyScore + (sim.isSimulating ? sim.metricDeltas.safetyDelta : 0)))
 
   return (
@@ -998,12 +1015,12 @@ export function DashboardOverview() {
                       <div className="text-2xl md:text-3xl font-bold text-foreground tracking-tight" style={{ letterSpacing: '-0.02em' }}>
                         <CountUp target={simAdjustedActiveAgents} duration={1} />
                         <span className="text-sm font-medium text-muted-foreground">
-                          /<CountUp target={data?.agentCount ?? 0} duration={1} />
+                          /<CountUp target={(data?.agentCount as number) || 0} duration={1} />
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground/70 mt-0.5">
-                        {data?.agentCount
-                          ? `${Math.round((simAdjustedActiveAgents / data.agentCount) * 100)}% utilization`
+                        {(data?.agentCount as number) || 0 > 0
+                          ? `${Math.round((simAdjustedActiveAgents / ((data?.agentCount as number) || 1)) * 100)}% utilization`
                           : 'No agents registered'}
                       </p>
                     </div>
@@ -1096,7 +1113,7 @@ export function DashboardOverview() {
                               statusColors[status] ?? 'bg-muted text-muted-foreground'
                             )}
                           >
-                            {status}: {count as number}
+                            {status}: {count}
                           </span>
                         ))}
                       </div>
@@ -1156,8 +1173,8 @@ export function DashboardOverview() {
                         <span className="text-sm font-medium">%</span>
                       </div>
                       <p className="text-xs text-muted-foreground/70 mt-0.5">
-                        {data?.unresolvedSafetyCount
-                          ? `${data.unresolvedSafetyCount} unresolved event${data.unresolvedSafetyCount > 1 ? 's' : ''}`
+                        {(data?.unresolvedSafetyCount as number) || 0 > 0
+                          ? `${(data?.unresolvedSafetyCount as number) || 0} unresolved event${((data?.unresolvedSafetyCount as number) || 0) > 1 ? 's' : ''}`
                           : 'All events resolved'}
                       </p>
                     </div>
@@ -1545,7 +1562,7 @@ export function DashboardOverview() {
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="flex flex-col gap-1 min-w-0">
                             <span className="text-sm font-medium truncate text-foreground">
-                              {event.title}
+                              {(event as any).title}
                             </span>
                             <div className="flex items-center gap-2">
                               <span
@@ -1560,24 +1577,24 @@ export function DashboardOverview() {
                               <span
                                 className={cn(
                                   'text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize',
-                                  statusColors[event.status] ??
+                                  statusColors[(event as any).status] ??
                                     'bg-muted text-muted-foreground'
                                 )}
                               >
-                                {event.status}
+                                {(event as any).status}
                               </span>
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          {event.improvementPercent > 0 && (
+                          {((event as any).improvementPercent as number) || 0 > 0 && (
                             <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                               <TrendingUp className="size-3" />
-                              +{event.improvementPercent}%
+                              +{(event as any).improvementPercent}%
                             </span>
                           )}
                           <span className="text-xs text-muted-foreground/70 whitespace-nowrap">
-                            {timeAgo(event.createdAt)}
+                            {timeAgo((event as any).createdAt as string)}
                           </span>
                         </div>
                       </div>
@@ -1630,7 +1647,7 @@ export function DashboardOverview() {
                     </div>
                     <div className="flex items-end justify-between">
                       <span className="text-xl font-bold text-foreground tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-                        {(data?.avgBenchmarkScore ?? 0).toFixed(1)}
+                        {((data?.avgBenchmarkScore as number) || 0).toFixed(1)}
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
                         <TrendingUp className="size-2.5" />
@@ -1653,7 +1670,7 @@ export function DashboardOverview() {
                     </div>
                     <div className="flex items-end justify-between">
                       <span className="text-xl font-bold text-foreground tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-                        {formatNumber(data?.totalTokensUsed ?? 0)}
+                        {formatNumber((data?.totalTokensUsed as number) || 0)}
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
                         <TrendingDown className="size-2.5" />
@@ -1676,7 +1693,7 @@ export function DashboardOverview() {
                     </div>
                     <div className="flex items-end justify-between">
                       <span className="text-xl font-bold text-foreground tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-                        {formatNumber(data?.totalTasksCompleted ?? 0)}
+                        {formatNumber((data?.totalTasksCompleted as number) || 0)}
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
                         <TrendingUp className="size-2.5" />
@@ -1701,9 +1718,9 @@ export function DashboardOverview() {
                       <span className={cn('text-xl font-bold tracking-tight', safetyScoreColor(simAdjustedSafety))} style={{ letterSpacing: '-0.02em' }}>
                         {simAdjustedSafety}%
                       </span>
-                      {(data?.unresolvedSafetyCount ?? 0) > 0 ? (
+                      {((data?.unresolvedSafetyCount as number) || 0) > 0 ? (
                         <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                          {data?.unresolvedSafetyCount} open
+                          {(data?.unresolvedSafetyCount as number) || 0} open
                         </Badge>
                       ) : (
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">

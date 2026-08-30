@@ -198,13 +198,16 @@ export function BenchmarksPanel() {
   // ------- parse JSON string fields -------
   const parsedBenchmarks = useMemo(
     () =>
-      benchmarks.map((b) => ({
-        ...b,
-        details:
-          typeof (b as Record<string, unknown>).details === 'string'
-            ? (JSON.parse((b as Record<string, unknown>).details as string) as Record<string, unknown>)
-            : (b as Record<string, unknown>).details,
-      })),
+      benchmarks.map((b) => {
+        const benchmark = b as unknown as Record<string, unknown>
+        return {
+          ...benchmark,
+          details:
+            typeof benchmark.details === 'string'
+              ? (JSON.parse(benchmark.details) as Record<string, unknown>)
+              : benchmark.details,
+        }
+      }),
     [benchmarks]
   )
 
@@ -212,15 +215,17 @@ export function BenchmarksPanel() {
   const filtered = useMemo(() => {
     if (category === 'All') return parsedBenchmarks
     const key = CATEGORY_KEYS[category] ?? category.toLowerCase()
-    return parsedBenchmarks.filter((b) => (b as Record<string, unknown>).category === key)
+    return parsedBenchmarks.filter((b) => (b as any).category === key)
   }, [parsedBenchmarks, category])
 
   // ------- avg score -------
   const avgScore = useMemo(() => {
     if (filtered.length === 0) return 0
     return Math.round(
-      filtered.reduce((sum, b) => sum + ((b as Record<string, unknown>).score as number / (b as Record<string, unknown>).maxScore as number) * 100, 0) /
-        filtered.length
+      filtered.reduce((sum, b) => {
+        const benchmark = b as any
+        return sum + ((benchmark.score as number / benchmark.maxScore as number) * 100)
+      }, 0) / filtered.length
     )
   }, [filtered])
 
@@ -229,9 +234,10 @@ export function BenchmarksPanel() {
     if (parsedBenchmarks.length === 0) return { name: 'N/A', score: 0 }
     const catScores: Record<string, { total: number; count: number }> = {}
     for (const b of parsedBenchmarks) {
-      const cat = (b as Record<string, unknown>).category as string
+      const benchmark = b as any
+      const cat = benchmark.category as string
       if (!catScores[cat]) catScores[cat] = { total: 0, count: 0 }
-      catScores[cat].total += ((b as Record<string, unknown>).score as number / (b as Record<string, unknown>).maxScore as number) * 100
+      catScores[cat].total += ((benchmark.score as number / benchmark.maxScore as number) * 100)
       catScores[cat].count++
     }
     let best = { name: 'N/A', score: 0 }
@@ -245,15 +251,19 @@ export function BenchmarksPanel() {
   // ------- chart data -------
   const chartData = useMemo(
     () =>
-      filtered.map((b) => ({
-        name: (b as Record<string, unknown>).name as string,
-        score: Math.round(((b as Record<string, unknown>).score as number / (b as Record<string, unknown>).maxScore as number) * 100),
-        previousScore:
-          (b as Record<string, unknown>).previousScore !== null
-            ? Math.round(((b as Record<string, unknown>).previousScore as number / (b as Record<string, unknown>).maxScore as number) * 100)
-            : 0,
-        fill: scoreColor(((b as Record<string, unknown>).score as number / (b as Record<string, unknown>).maxScore as number) * 100),
-      })),
+      filtered.map((b) => {
+        const benchmark = b as any
+        const scorePct = ((benchmark.score as number / benchmark.maxScore as number) * 100)
+        return {
+          name: benchmark.name as string,
+          score: Math.round(scorePct),
+          previousScore:
+            benchmark.previousScore !== null
+              ? Math.round(((benchmark.previousScore as number / benchmark.maxScore as number) * 100))
+              : 0,
+          fill: scoreColor(scorePct),
+        }
+      }),
     [filtered]
   )
 
@@ -278,7 +288,7 @@ export function BenchmarksPanel() {
         icon={BarChart3}
         iconColor="teal"
         title="Benchmark Suite"
-       description={<>Avg score: <span className="font-medium text-foreground">{avgScore}%</span></>}
+        description={`Avg score: ${avgScore}%`}
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -289,16 +299,19 @@ export function BenchmarksPanel() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => {
-                const data = filtered.map((b) => ({
-                  Name: (b as Record<string, unknown>).name as string,
-                  Category: (b as Record<string, unknown>).category as string,
-                  Version: (b as Record<string, unknown>).version as string,
-                  Score: (b as Record<string, unknown>).score as number,
-                  'Max Score': (b as Record<string, unknown>).maxScore as number,
-                  'Score %': Math.round(((b as Record<string, unknown>).score as number / (b as Record<string, unknown>).maxScore as number) * 100),
-                  'Previous Score': (b as Record<string, unknown>).previousScore !== undefined ? (b as Record<string, unknown>).previousScore as number : null,
-                  'Created At': (b as Record<string, unknown>).createdAt as string,
-                }))
+                const data = filtered.map((b) => {
+                  const benchmark = b as any
+                  return {
+                    Name: benchmark.name as string,
+                    Category: benchmark.category as string,
+                    Version: benchmark.version as string,
+                    Score: benchmark.score as number,
+                    'Max Score': benchmark.maxScore as number,
+                    'Score %': Math.round(((benchmark.score as number / benchmark.maxScore as number) * 100)),
+                    'Previous Score': benchmark.previousScore !== undefined ? benchmark.previousScore as number : null,
+                    'Created At': benchmark.createdAt as string,
+                  }
+                })
                 exportToCSV(data, 'benchmarks')
                 toastSuccess('Export complete', 'Benchmarks exported as CSV.')
               }}>
@@ -498,7 +511,7 @@ export function BenchmarksPanel() {
                             variant="secondary"
                             className="text-[10px] px-1.5"
                           >
-                            v{(bench as Record<string, unknown>).version as string}
+                            v{(bench as any).version as string}
                           </Badge>
                         </div>
                         <div className="mt-2 flex items-center gap-3">
@@ -508,7 +521,7 @@ export function BenchmarksPanel() {
                           <span
                             className={cn('text-sm font-semibold', scoreBgClass(pct).split(' ').slice(1).join(' '))}
                           >
-                            {bench.score}/{bench.maxScore}
+                            {(bench as any).score}/{(bench as any).maxScore}
                           </span>
                         </div>
                       </div>
@@ -530,14 +543,14 @@ export function BenchmarksPanel() {
                             </span>
                           </div>
                         )}
-                        {hasDetails && (
+                        {(bench as any).details && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
                             onClick={() =>
                               setExpandedId((prev) =>
-                                prev === bench.id ? null : bench.id
+                                prev === (bench as any).id ? null : (bench as any).id
                               )
                             }
                           >
@@ -553,7 +566,7 @@ export function BenchmarksPanel() {
 
                     {/* Expanded details */}
                     <AnimatePresence>
-                      {isExpanded && hasDetails && (
+                      {isExpanded && (bench as any).details && (
                         <motion.div
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
@@ -564,7 +577,7 @@ export function BenchmarksPanel() {
                           <Separator className="my-3" />
                           <ScrollArea className="max-h-48">
                             <pre className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-                              {JSON.stringify(bench.details, null, 2)}
+                              {JSON.stringify((bench as any).details, null, 2)}
                             </pre>
                           </ScrollArea>
                         </motion.div>

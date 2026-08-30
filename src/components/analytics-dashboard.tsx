@@ -152,14 +152,14 @@ export function AnalyticsDashboard() {
   // Pie chart tooltip with percentage
   const pieTooltipWithPct = useMemo(() => {
     // Create a wrapper function that captures totalTasksForPie in closure
-    return function CustomPieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { color: string } }> }) {
+    return function CustomPieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }> }) {
       if (active && payload && payload.length) {
         const data = payload[0]
         const pct = totalTasksForPie > 0 ? ((data.value / totalTasksForPie) * 100).toFixed(1) : '0'
         return (
           <div className="bg-card border border-border rounded-md px-3 py-2 shadow-lg text-xs">
             <div className="flex items-center gap-2">
-              <div className="size-2.5 rounded-full" style={{ backgroundColor: data.payload.color }} />
+              <div className="size-2.5 rounded-full" style={{ backgroundColor: data.color }} />
               <span className="font-medium text-foreground">{data.name}</span>
             </div>
             <div className="text-muted-foreground mt-1">
@@ -251,7 +251,7 @@ export function AnalyticsDashboard() {
                       <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
                     ))}
                   </Pie>
-                  <Tooltip content={pieTooltipWithPct} />
+                  <Tooltip content={pieTooltipWithPct as any} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -300,8 +300,9 @@ export function AnalyticsDashboard() {
                       borderRadius: '6px',
                       fontSize: '11px',
                     }}
-                    formatter={(value: number, _name: string, props: { payload: { fullName: string; role: string } }) => {
-                      return [`${value} tasks`, props.payload.fullName]
+                    formatter={(value: number, _name: string, props: any) => {
+                      const payload = props.payload as { fullName: string; role: string }
+                      return [`${value} tasks`, payload.fullName]
                     }}
                   />
                   <Bar dataKey="completed" radius={[4, 4, 0, 0]}>

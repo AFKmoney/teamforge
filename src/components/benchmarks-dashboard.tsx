@@ -103,7 +103,7 @@ function KPICard({
             <span className="text-xl font-bold text-foreground tabular-nums">{value}</span>
             {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
           </div>
-          {trendPct !== undefined && (
+          {trendPct !== undefined && trendDiff !== undefined && (
             <div className={cn(
               'flex items-center gap-0.5 text-[10px] mt-0.5',
               trendDiff > 0 ? 'text-emerald-500' : trendDiff < 0 ? 'text-red-500' : 'text-muted-foreground',

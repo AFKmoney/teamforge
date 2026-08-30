@@ -1,5 +1,7 @@
 import { createServer, IncomingMessage, ServerResponse } from 'http'
+// @ts-ignore - socket.io types not installed
 import { Server, Socket } from 'socket.io'
+// @ts-ignore - bun:sqlite types not available in this environment
 import { Database } from 'bun:sqlite'
 
 // ---------------------------------------------------------------------------

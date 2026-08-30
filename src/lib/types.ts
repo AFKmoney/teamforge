@@ -234,10 +234,12 @@ export const TASK_TYPE_CONFIG: Record<TaskType, { label: string; color: string }
 export interface ChatMessage {
   id: string
   content: string
-  sender: 'user' | 'ai' | 'system'
+  sender?: 'user' | 'ai' | 'system'
   timestamp: string
   sessionId?: string
   metadata?: Record<string, unknown>
+  role?: string
+  reaction?: string
 }
 
 export interface ChatConversation {

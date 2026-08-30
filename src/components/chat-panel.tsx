@@ -56,6 +56,7 @@ import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
 import { toastSuccess } from '@/lib/toast-utils'
 import { PageHeader } from '@/components/page-header'
+import type { ChatMessage, ChatConversation } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
 // Simple regex-based Markdown renderer
@@ -366,7 +367,6 @@ export function ChatPanel() {
     chatMessages,
     addChatMessage,
     chatConversations,
-    setChatConversations,
     currentConversationId,
     setCurrentConversationId,
     createNewConversation,
@@ -375,6 +375,8 @@ export function ChatPanel() {
     updateMessageReaction,
     clearChatHistory,
   } = useAppStore()
+
+  const setChatConversations = useAppStore((state: any) => state.chatConversations)
 
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -612,7 +614,7 @@ export function ChatPanel() {
       opacity: 1,
       y: 0,
       scale: 1,
-      transition: { type: 'spring', stiffness: 300, damping: 24 },
+      transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
     },
     exit: {
       opacity: 0,
@@ -737,7 +739,7 @@ export function ChatPanel() {
                       variant="ghost"
                       size="icon"
                       className="min-h-[44px] min-w-[44px] h-11 w-11"
-                      onClick={() => createNewConversation()}
+                      onClick={() => createNewConversation({ id: '', title: 'New Conversation', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() })}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -933,7 +935,7 @@ export function ChatPanel() {
                                 onClick={() =>
                                   updateMessageReaction(
                                     msg.id,
-                                    msg.reaction === 'thumbs-up' ? null : 'thumbs-up'
+                                    (msg.reaction === 'thumbs-up' ? null : 'thumbs-up') as string
                                   )
                                 }
                                 className={cn(
@@ -951,7 +953,7 @@ export function ChatPanel() {
                                 onClick={() =>
                                   updateMessageReaction(
                                     msg.id,
-                                    msg.reaction === 'thumbs-down' ? null : 'thumbs-down'
+                                    (msg.reaction === 'thumbs-down' ? null : 'thumbs-down') as string
                                   )
                                 }
                                 className={cn(

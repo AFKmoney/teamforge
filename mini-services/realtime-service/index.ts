@@ -1,4 +1,5 @@
 import { createServer } from 'http'
+// @ts-ignore - socket.io types not installed
 import { Server } from 'socket.io'
 
 const httpServer = createServer()
