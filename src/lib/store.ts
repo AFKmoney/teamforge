@@ -162,6 +162,19 @@ interface AppState {
   setIsLoading: (loading: boolean) => void
   simulationSpeed: number
   setSimulationSpeed: (speed: number) => void
+  simulationEnabled: boolean
+  setSimulationEnabled: (enabled: boolean) => void
+  toggleSimulation: () => void
+  lastSimulationUpdate: string
+  setLastSimulationUpdate: (timestamp: string) => void
+  systemLogs: SystemLog[]
+  setSystemLogs: (logs: SystemLog[]) => void
+  experiments: Experiment[]
+  setExperiments: (experiments: Experiment[]) => void
+  startTour: () => void
+  tourActive: boolean
+  tourCompleted: boolean
+  setSettings: (settings: AppSettings) => void
 
   // Benchmarks state
   benchmarks: Benchmark[]
@@ -308,10 +321,6 @@ interface AppState {
   fetchBenchmarks: () => Promise<void>
   fetchAll: (projectId?: string) => Promise<void>
 
-  // Benchmark state
-  benchmarkSnapshots: BenchmarkSnapshot[]
-  setBenchmarkSnapshots: (snapshots: BenchmarkSnapshot[]) => void
-
   // Benchmarks state
   benchmarks: []
   setBenchmarks: (benchmarks: Benchmark[]) => void
@@ -329,6 +338,15 @@ interface AppState {
   setIsLoading: (loading: boolean) => void
   simulationSpeed: 1
   setSimulationSpeed: (speed: number) => void
+  simulationEnabled: true
+  setSimulationEnabled: (enabled: boolean) => void
+  toggleSimulation: () => void
+  lastSimulationUpdate: string
+  setLastSimulationUpdate: (timestamp: string) => void
+  systemLogs: []
+  setSystemLogs: (logs: SystemLog[]) => void
+  experiments: []
+  setExperiments: (experiments: Experiment[]) => void
 
   // Chat state
   chatMessages: []
@@ -365,6 +383,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   settingsOpen: false,
   setSettingsOpen: (open) => set({ settingsOpen: open }),
+  startTour: () => set({ tourActive: true, tourCompleted: false }),
+  tourActive: false,
+  tourCompleted: false,
   fileSearchOpen: false,
   setFileSearchOpen: (open) => set({ fileSearchOpen: open }),
 
@@ -407,6 +428,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   setIsLoading: (loading) => set({ isLoading: loading }),
   simulationSpeed: 1,
   setSimulationSpeed: (speed) => set({ simulationSpeed: speed }),
+  simulationEnabled: true,
+  setSimulationEnabled: (enabled) => set({ simulationEnabled: enabled }),
+  toggleSimulation: () => set((s) => ({ simulationEnabled: !s.simulationEnabled })),
+  lastSimulationUpdate: '',
+  setLastSimulationUpdate: (timestamp) => set({ lastSimulationUpdate: timestamp }),
+  systemLogs: [],
+  setSystemLogs: (logs) => set({ systemLogs: logs }),
+  experiments: [],
+  setExperiments: (experiments) => set({ experiments: experiments }),
 
   // Benchmarks state
   benchmarks: [],
