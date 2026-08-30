@@ -284,7 +284,7 @@ const cardVariants = {
     transition: {
       delay: i * 0.05,
       duration: 0.3,
-      ease: 'easeOut',
+      ease: 'easeOut' as const as const as const,
     },
   }),
   exit: { opacity: 0, y: -10, scale: 0.95, transition: { duration: 0.2 } },
@@ -295,7 +295,7 @@ const listRowVariants = {
   visible: (i: number) => ({
     opacity: 1,
     x: 0,
-    transition: { delay: i * 0.03, duration: 0.2, ease: 'easeOut' },
+    transition: { delay: i * 0.03, duration: 0.2, ease: 'easeOut' as const as const as const },
   }),
   exit: { opacity: 0, x: -10, transition: { duration: 0.15 } },
 }
@@ -303,7 +303,7 @@ const listRowVariants = {
 // Quick action toolbar animation
 const toolbarVariants = {
   hidden: { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: 'easeOut' } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: 'easeOut' as const as const as const } },
 }
 
 // ---------------------------------------------------------------------------
@@ -1123,7 +1123,7 @@ export function AgentsPanel() {
               className="h-full rounded-full bg-gradient-to-r from-green-500 to-emerald-500"
               initial={{ width: 0 }}
               animate={{ width: `${activeRatio * 100}%` }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
+              transition={{ duration: 0.6, ease: 'easeOut' as const as const as const }}
             />
           </div>
           <span className="text-xs font-medium text-foreground whitespace-nowrap">

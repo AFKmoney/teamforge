@@ -708,7 +708,7 @@ export function ActivityPanel() {
       opacity: 1,
       y: 0,
       scale: 1,
-      transition: { type: 'spring', stiffness: 300, damping: 24 },
+      transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
     },
   }
 
@@ -717,7 +717,7 @@ export function ActivityPanel() {
     visible: {
       opacity: 1,
       x: 0,
-      transition: { type: 'spring', stiffness: 300, damping: 24 },
+      transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
     },
   }
 
@@ -727,7 +727,7 @@ export function ActivityPanel() {
       opacity: 1,
       y: 0,
       scale: 1,
-      transition: { type: 'spring', stiffness: 400, damping: 25 },
+      transition: { type: 'spring' as const, stiffness: 400, damping: 25 },
     },
     exit: { opacity: 0, y: -10, scale: 0.95 },
   }
@@ -962,7 +962,7 @@ export function ActivityPanel() {
               <div className="h-[200px] md:h-[300px]">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} animationDuration={chartAnimated ? 1200 : 0}>
+                    <AreaChart data={chartData}>
                       <defs>
                         {metricLines.map((line) => (
                           <linearGradient key={line.gradientId} id={line.gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -989,7 +989,7 @@ export function ActivityPanel() {
                       <Legend
                         content={({ payload }) => (
                           <CustomLegend
-                            payload={payload}
+                            payload={payload as unknown as { value: string; color: string; dataKey: string }[]}
                             onToggle={toggleMetricLine}
                             metricLines={metricLines}
                           />
@@ -1008,8 +1008,6 @@ export function ActivityPanel() {
                             fill={`url(#${line.gradientId})`}
                             dot={false}
                             activeDot={{ r: 5, strokeWidth: 2, stroke: line.color, fill: 'hsl(var(--popover))' }}
-                            animationDuration={1200}
-                            animationEasing="ease-out"
                           />
                         ))}
                     </AreaChart>
@@ -1036,8 +1034,6 @@ export function ActivityPanel() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={eventCountsByType}
-                    animationDuration={chartAnimated ? 1000 : 0}
-                    animationEasing="ease-out"
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
                     <XAxis
@@ -1056,9 +1052,7 @@ export function ActivityPanel() {
                     <Tooltip content={<BarChartTooltip />} />
                     <Bar
                       dataKey="count"
-                      radius={[6, 6, 0, 0]}
-                      animationDuration={1000}
-                    >
+                      radius={[6, 6, 0, 0]}>
                       {eventCountsByType.map((entry, index) => (
                         <Cell key={index} fill={entry.fill} />
                       ))}

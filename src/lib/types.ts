@@ -277,3 +277,102 @@ export interface Benchmark {
   trend?: number
   trendDiff?: number
 }
+
+// ============================================================================
+// System Log Types
+// ============================================================================
+
+export type SystemLogLevel = 'info' | 'warning' | 'error' | 'debug' | 'trace'
+export type SystemLogSource = 'agent' | 'system' | 'api' | 'ui' | 'database' | 'external'
+
+export interface SystemLog {
+  id: string
+  level: SystemLogLevel
+  source: SystemLogSource
+  message: string
+  timestamp: string
+  metadata?: Record<string, unknown>
+}
+
+export type Severity = 'low' | 'medium' | 'high' | 'critical' | 'info'
+
+export interface ConstitutionalRule {
+  id: string
+  name: string
+  rule: string
+  description: string
+  category: string
+  enabled: boolean
+  createdAt: string
+}
+
+export interface SafetyEvent {
+  id: string
+  type: string
+  severity: Severity
+  message: string
+  timestamp: string
+  source?: string
+  metadata?: Record<string, unknown>
+}
+
+export type ExperimentStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+
+export interface Experiment {
+  id: string
+  name: string
+  description?: string
+  status: ExperimentStatus
+  hypothesis?: string
+  variables?: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+  results?: Record<string, unknown>
+  improvementPercent?: number
+}
+
+export interface ActivityLog {
+  id: string
+  type: string
+  action: string
+  message: string
+  details: string
+  severity?: Severity
+  timestamp: string
+  metadata?: Record<string, unknown>
+}
+
+export interface Benchmark {
+  id: string
+  name: string
+  value: number
+  timestamp: string
+  trend?: number
+  trendDiff?: number
+  category?: string
+  version?: string
+  score?: number
+  maxScore?: number
+  previousScore?: number
+}
+
+export interface SystemMetric {
+  id: string
+  name: string
+  value: number
+  timestamp: string
+  metadata?: Record<string, unknown>
+  category?: string
+}
+
+export interface Message {
+  id: string
+  projectId: string
+  agentId: string
+  content: string
+  type: 'chat' | 'action' | 'code_change' | 'review_comment' | 'test_result' | 'deploy_log'
+  metadata: Record<string, unknown>
+  createdAt: string
+  chatSessionId?: string
+  agent?: Agent
+}

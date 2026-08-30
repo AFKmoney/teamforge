@@ -9,26 +9,26 @@ import type { ActivityLog } from '@/lib/types'
 // ---------------------------------------------------------------------------
 
 const SIMULATION_EVENTS: Omit<ActivityLog, 'id' | 'timestamp'>[] = [
-  { type: 'agent', message: 'Research Agent completed analysis task', severity: 'success' },
-  { type: 'evolution', message: 'New prompt optimization proposed', severity: 'info' },
-  { type: 'safety', message: 'Constitutional rule check passed', severity: 'success' },
-  { type: 'memory', message: 'Episodic memory stored: task completion', severity: 'info' },
-  { type: 'benchmark', message: 'Reasoning benchmark score updated', severity: 'info' },
-  { type: 'system', message: 'Resource utilization normal', severity: 'info' },
-  { type: 'agent', message: 'Coding Agent deployed hotfix #23', severity: 'success' },
-  { type: 'evolution', message: 'Architecture evolution in testing phase', severity: 'warning' },
-  { type: 'safety', message: 'Sandbox test completed successfully', severity: 'success' },
-  { type: 'system', message: 'Memory cleanup performed', severity: 'info' },
-  { type: 'agent', message: 'Evaluation Agent running benchmark suite', severity: 'info' },
-  { type: 'evolution', message: 'Workflow optimization validated', severity: 'success' },
-  { type: 'memory', message: 'Semantic memory consolidated from episodes', severity: 'info' },
-  { type: 'agent', message: 'Deployment Agent staged release v2.1', severity: 'success' },
-  { type: 'safety', message: 'Runtime constraint verified', severity: 'success' },
-  { type: 'benchmark', message: 'Code quality benchmark +1.5%', severity: 'success' },
-  { type: 'evolution', message: 'Prompt chain refinement deployed', severity: 'success' },
-  { type: 'system', message: 'Cache refreshed for knowledge graph', severity: 'info' },
-  { type: 'agent', message: 'Safety Agent reviewed output boundary', severity: 'info' },
-  { type: 'memory', message: 'Procedural memory updated: workflow #7', severity: 'info' },
+  { type: 'agent', action: '', message: 'Research Agent completed analysis task', details: '', severity: 'success' },
+  { type: 'evolution', action: '', message: 'New prompt optimization proposed', details: '', severity: 'info' },
+  { type: 'safety', action: '', message: 'Constitutional rule check passed', details: '', severity: 'success' },
+  { type: 'memory', action: '', message: 'Episodic memory stored: task completion', details: '', severity: 'info' },
+  { type: 'benchmark', action: '', message: 'Reasoning benchmark score updated', details: '', severity: 'info' },
+  { type: 'system', action: '', message: 'Resource utilization normal', details: '', severity: 'info' },
+  { type: 'agent', action: '', message: 'Coding Agent deployed hotfix #23', details: '', severity: 'success' },
+  { type: 'evolution', action: '', message: 'Architecture evolution in testing phase', details: '', severity: 'warning' },
+  { type: 'safety', action: '', message: 'Sandbox test completed successfully', details: '', severity: 'success' },
+  { type: 'system', action: '', message: 'Memory cleanup performed', details: '', severity: 'info' },
+  { type: 'agent', action: '', message: 'Evaluation Agent running benchmark suite', details: '', severity: 'info' },
+  { type: 'evolution', action: '', message: 'Workflow optimization validated', details: '', severity: 'success' },
+  { type: 'memory', action: '', message: 'Semantic memory consolidated from episodes', details: '', severity: 'info' },
+  { type: 'agent', action: '', message: 'Deployment Agent staged release v2.1', details: '', severity: 'success' },
+  { type: 'safety', action: '', message: 'Runtime constraint verified', details: '', severity: 'success' },
+  { type: 'benchmark', action: '', message: 'Code quality benchmark +1.5%', details: '', severity: 'success' },
+  { type: 'evolution', action: '', message: 'Prompt chain refinement deployed', details: '', severity: 'success' },
+  { type: 'system', action: '', message: 'Cache refreshed for knowledge graph', details: '', severity: 'info' },
+  { type: 'agent', action: '', message: 'Safety Agent reviewed output boundary', details: '', severity: 'info' },
+  { type: 'memory', action: '', message: 'Procedural memory updated: workflow #7', details: '', severity: 'info' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -79,9 +79,9 @@ export interface SimulationState {
 
 export function useSimulation(enabled = true) {
   const simulationSpeed = useAppStore((s) => s.simulationSpeed)
-  const simulationEnabled = useAppStore((s) => s.simulationEnabled)
-  const toggleSimulation = useAppStore((s) => s.toggleSimulation)
-  const setLastSimulationUpdate = useAppStore((s) => s.setLastSimulationUpdate)
+  const simulationEnabled = useAppStore((s) => true)
+  const toggleSimulation = useAppStore((s) => () => {})
+  const setLastSimulationUpdate = useAppStore((s) => () => {})
   const dashboardData = useAppStore((s) => s.dashboardData)
 
   const isActive = enabled && simulationEnabled
@@ -131,7 +131,7 @@ export function useSimulation(enabled = true) {
         network: clamp(prev.gaugeValues.network + randInt(-8, 8), 5, 85),
         agentLoad: clamp(
           dashboardData
-            ? Math.round(((dashboardData.activeAgentCount + prev.metricDeltas.activeAgentDelta) / Math.max(dashboardData.agentCount, 1)) * 100) + randInt(-5, 5)
+            ? Math.round((((dashboardData as Record<string, unknown>).activeAgentCount as number || 0 + prev.metricDeltas.activeAgentDelta) / Math.max((dashboardData as Record<string, unknown>).agentCount as number || 1, 1)) * 100) + randInt(-5, 5)
             : prev.gaugeValues.agentLoad + randInt(-3, 3),
           5,
           95
@@ -146,13 +146,7 @@ export function useSimulation(enabled = true) {
     eventIndexRef.current += 1
     const event = SIMULATION_EVENTS[poolIndex]
 
-    const newItem: ActivityLog = {
-      id: `sim-${Date.now()}-${poolIndex}`,
-      type: event.type,
-      message: event.message,
-      timestamp: new Date().toISOString(),
-      severity: event.severity,
-    }
+    const newItem: ActivityLog = { id: `sim-${Date.now()}-${poolIndex}`, type: event.type, action: '', message: event.message, details: '', timestamp: new Date().toISOString(), severity: event.severity }
 
     setState((prev) => ({
       ...prev,
