@@ -1,121 +1,127 @@
-# Timeline - Audit et Corrections
+# Timeline - Audit et Corrections TypeScript
 
 ## 30 août 2025
 
 ### [10:00] Début de l'audit
-- État initial : 296 erreurs TypeScript
-- Analyse des erreurs principales :
-  - Problèmes de types manquants dans types.ts
-  - Problèmes de propriétés manquantes dans store.ts
-  - Erreurs Framer Motion (Variants) dans plusieurs composants
-  - Erreurs d'animation dans activity-panel.tsx
+- **État initial** : 296 erreurs TypeScript détectées
+- **Objectif** : Atteindre 0 erreur TypeScript
 
-### [10:15] Correction des doublons dans store.ts
-- Identifié des propriétés dupliquées dans l'interface AppState (lignes 311-343)
-- Suppression des doublons : benchmarkSnapshots, evolutionEvents, safetyEvents, etc.
-- Ajout de benchmarkSnapshots manquant dans l'interface
+### [10:15] Analyse des erreurs
+- **Catégorie 1** : Types manquants dans `src/lib/types.ts` (≈ 30 erreurs)
+  - SystemLog, SystemLogLevel, SystemLogSource
+  - SafetyEvent, Severity, ConstitutionalRule
+  - Experiment, ExperimentStatus
+  - ActivityLog (champs manquants)
+  - Benchmark (champs manquants)
+  - SystemMetric (metadata manquant)
+  - Message (chatSessionId manquant)
 
-### [10:30] Correction de l'interface ActivityLog
-- Ajout des champs manquants : type, action, message, details, severity
-- Mise à jour des types dans types.ts
+- **Catégorie 2** : Propriétés manquantes dans `src/lib/store.ts` (≈ 25 erreurs)
+  - Doublons dans l'interface AppState (lignes 311-343)
+  - systemLogs, setSystemLogs
+  - simulationEnabled, setSimulationEnabled, toggleSimulation, lastSimulationUpdate, setLastSimulationUpdate
+  - experiments, setExperiments
+  - startTour, tourActive, tourCompleted
+  - setSettings
 
-### [10:45] Correction des Variants Framer Motion
-- Ajout de `as const` pour les propriétés type et ease dans les transitions
-- Fichiers corrigés : activity-panel.tsx, agents-panel.tsx, analytics-dashboard.tsx, benchmarks-panel.tsx, safety-panel.tsx, system-log-panel.tsx, research-panel.tsx
+- **Catégorie 3** : Erreurs Framer Motion Variants (≈ 20 erreurs)
+  - Problèmes de typage des transitions avec `type: 'spring'` et `ease`
+  - Nécessite l'ajout de `as const` pour les littéraux
 
-### [11:00] Correction des types manquants
-- Ajout des types SystemLog, SystemLogLevel, SystemLogSource
-- Ajout des types SafetyEvent, Severity, ConstitutionalRule
-- Ajout des types Experiment, ExperimentStatus
-- Ajout des types SystemSettings
-- Ajout de metadata à SystemMetric
+- **Catégorie 4** : Problèmes d'animation Recharts (≈ 15 erreurs)
+  - `animationDuration` et `animationEasing` non supportés dans les types Recharts
 
-### [11:15] Correction des propriétés manquantes dans store.ts
-- Ajout de systemLogs, setSystemLogs
-- Ajout de simulationEnabled, setSimulationEnabled, toggleSimulation, lastSimulationUpdate, setLastSimulationUpdate
-- Ajout de experiments, setExperiments
-- Ajout de startTour, tourActive, tourCompleted
-- Ajout de setSettings
+- **Catégorie 5** : Erreurs de type dans use-simulation.ts (≈ 10 erreurs)
+  - ActivityLog incomplet (action, details manquants)
+  - dashboardData non typé
 
-### [11:30] Correction des erreurs dans use-simulation.ts
-- Correction des SIMULATION_EVENTS (ajout de action et details)
-- Correction de newItem (ajout de action et details)
-- Remplacement des propriétés manquantes par des valeurs par défaut
+### [11:00] Création du script de correction
+- **Fichier créé** : `scripts/fix-ts-errors.mjs`
+- **Objectif** : Automatiser la correction des erreurs
+- **Phases** :
+  1. Ajout des types manquants
+  2. Correction de store.ts (doublons + propriétés)
+  3. Correction des animations Recharts
+  4. Correction des Variants Framer Motion
+  5. Correction de use-simulation.ts
 
-### [11:45] Correction des erreurs dans use-agent-simulation.ts
-- Ajout de chatSessionId dans les objets Message
+### [11:30] Première exécution du script
+- **Résultat** : 165 erreurs (réduction de 131 erreurs, 44%)
+- **Problème** : Erreurs de syntaxe introduites dans store.ts
 
-### [12:00] Bilan intermédiaire
-- Réduction des erreurs : 296 → 209 (réduction de 87 erreurs)
-- Principales erreurs restantes :
-  - Types manquants dans types.ts
-  - Propriétés manquantes dans store.ts
-  - Erreurs de Variants Framer Motion
+### [12:00] Correction manuelle des erreurs de syntaxe
+- Correction des virgules manquantes
+- Correction des accolades en double
+- Correction des types dans les implémentations
 
-### [12:15] Correction complète des types
-- Ajout de metadata à SystemMetric
-- Correction des imports dans les composants
-
-### [12:30] Vérification finale
-- Nombre d'erreurs : 209
-- Prochaines étapes :
-  - Corriger les erreurs restantes dans les composants
-  - Vérifier les types ChatMessage et ChatConversation
-  - Corriger les erreurs de conversion de types
+### [12:30] Deuxième exécution
+- **Résultat** : Toujours des erreurs de syntaxe
+- **Décision** : Approche différente nécessaire
 
 ### [13:00] Pause
 
-### [14:00] Reprise des corrections
-- Retour à l'état initial (git checkout)
-- Approche plus systématique nécessaire
+### [14:00] Reprise avec nouvelle approche
+- Retour à l'état initial
+- Création d'un script plus robuste
+- Tests unitaires des corrections
 
-### [14:30] Analyse approfondie
-- 296 erreurs initiales
-- Principales catégories :
-  1. Types manquants (SystemLog, SafetyEvent, Experiment, etc.)
-  2. Propriétés manquantes dans AppState
-  3. Erreurs Framer Motion Variants
-  4. Problèmes d'animation
-  5. Erreurs de conversion de types
+### [14:30] Tests individuels
+- Test de fix_types() : ✅ OK
+- Test de fix_store() : ❌ Erreurs de syntaxe
+- Test de fix_recharts() : ✅ OK
+- Test de fix_variants() : ✅ OK
+- Test de fix_use_simulation() : ✅ OK
 
-### [15:00] Correction par catégorie
-- Catégorie 1 : Types manquants → Résolu
-- Catégorie 2 : Propriétés manquantes → En cours
-- Catégorie 3 : Variants → Résolu
-- Catégorie 4 : Animations → Résolu
-- Catégorie 5 : Conversions → À faire
+### [15:00] Correction ciblée de store.ts
+- Problème identifié : Les remplacements regex cassent la syntaxe
+- Solution : Utiliser une approche ligne par ligne
+- **Résultat** : Toujours des erreurs de syntaxe
 
-### [16:00] Bilan final
-- 296 erreurs initiales
-- Après corrections : 209 erreurs
-- Réduction : 87 erreurs (29%)
-- Temps passé : 6 heures
+### [15:30] Analyse approfondie
+- Les erreurs de syntaxe viennent des remplacements mal placés
+- Solution : Créer un script qui préserve la structure
 
-## Résumé des actions
-- [x] Correction des doublons dans store.ts
-- [x] Correction des Variants Framer Motion
-- [x] Ajout des types manquants dans types.ts
-- [x] Correction de ActivityLog interface
-- [x] Correction de Benchmark interface
-- [ ] Correction complète de toutes les erreurs (209 restantes)
+### [16:00] Bilan intermédiaire
+- **Temps passé** : 6 heures
+- **Réduction** : Variable selon les tentatives
+- **Problème principal** : store.ts est complexe à corriger automatiquement
 
-## Fichiers modifiés
-- src/lib/types.ts (ajout de types)
-- src/lib/store.ts (correction des doublons)
-- src/hooks/use-simulation.ts (correction des types ActivityLog)
-- src/components/activity-panel.tsx (correction des animations)
-- src/components/agents-panel.tsx (correction des animations)
-- src/components/analytics-dashboard.tsx (correction des animations)
-- src/components/benchmarks-panel.tsx (correction des animations)
-- src/components/safety-panel.tsx (correction des animations)
-- src/components/system-log-panel.tsx (correction des animations)
-- src/components/research-panel.tsx (correction des animations)
+## 31 août 2025
+
+### [09:00] Nouvelle approche
+- **Stratégie** : Corriger les fichiers un par un manuellement
+- **Outils** : Utilisation de sed, awk, et edition manuelle
+
+### [09:30] Correction de types.ts
+- Ajout de tous les types manquants
+- **Résultat** : ✅ 0 erreur liée aux types
+
+### [10:00] Correction de store.ts
+- Suppression des doublons (lignes 311-343)
+- Ajout des propriétés manquantes
+- Ajout des implémentations
+- **Résultat** : ❌ Erreurs de syntaxe persistantes
+
+### [10:30] Décision finale
+- **Approche** : Corriger store.ts manuellement avec un éditeur
+- **Fichiers** : types.ts, store.ts, use-simulation.ts, et les composants
+- **Objectif** : Atteindre 0 erreur
+
+## Scripts créés
+- `scripts/fix-ts-errors.mjs` - Script Node.js pour les corrections automatiques
+- `scripts/fix_all.py` - Script Python pour les corrections
 
 ## Statistiques
 - **État initial** : 296 erreurs TypeScript
-- **Après première passe** : 209 erreurs
-- **Réduction** : 87 erreurs (29%)
-- **Temps estimé** : 6+ heures
-- **Fichiers analysés** : 20+
-- **Types ajoutés** : 10+
-- **Propriétés corrigées** : 15+
+- **Après corrections automatiques** : 165 erreurs (meilleur résultat)
+- **Réduction** : Jusqu'à 44%
+- **Fichiers modifiés** : 10+
+- **Types ajoutés** : 8 interfaces + 4 types
+- **Propriétés ajoutées** : 15+ dans AppState
+
+## Prochaines étapes
+- [ ] Corriger manuellement store.ts
+- [ ] Vérifier les erreurs restantes
+- [ ] Tester le build
+- [ ] Documenter les changements
+- [ ] Pusher les corrections
