@@ -244,3 +244,28 @@ export interface Benchmark {
 - ESLint : 3 erreurs → **0**
 - Build production : **OK**
 - Fichiers modifiés : types.ts, store.ts, use-simulation.ts, use-agent-simulation.ts, notification-bell, settings-panel, safety-panel, memory-panel, research-panel, knowledge-panel, system-log-panel, evolution-panel, dashboard-sidebar, dashboard-overview, instruction-manual, ide-task-card, task-filter-bar
+
+## Itération 3 — Suppression des mocks, vraies routes Prisma — 15 octobre 2025
+
+### Liste des choses faites (horodatées)
+
+- [02:05] Recensement des routes mockées : safety, constitutional-rules, evolution, evolution/[id], research, memory, knowledge, system-log, metrics
+- [02:07] Ajout de 9 modèles Prisma au schéma : `SystemLog`, `SafetyEvent`, `ConstitutionalRule`, `EvolutionEvent`, `Experiment`, `Memory`, `KnowledgeNode`, `KnowledgeEdge` (+ index createdAt/level/source/resolved/status/type)
+- [02:08] `bunx prisma format` + `generate` + `db push` : DB sqlite locale créée avec les nouvelles tables
+- [02:10] Réécriture `/api/safety` : GET trié desc (200 max) + POST réel via `db.safetyEvent.create`
+- [02:10] Réécriture `/api/constitutional-rules` : GET, POST (création), PATCH (activation/désactivation réelle en DB)
+- [02:11] Réécriture `/api/evolution` : GET + POST réels
+- [02:11] Réécriture `/api/evolution/[id]` : PATCH (status, approvedBy, validatedAt, deployedAt) + DELETE — avant : retournait toujours 404
+- [02:12] Réécriture `/api/research` : GET + POST réels (`db.experiment`)
+- [02:12] Réécriture `/api/memory` : GET avec filtre `?type=` + POST réel (`db.memory`)
+- [02:13] Réécriture `/api/knowledge` : GET {nodes, edges} réels + POST création de nœud
+- [02:14] Réécriture `/api/system-log` : suppression des ~30 entrées mock hardcodées → GET paginé/filtré (level, source, search) via `db.systemLog` + POST d'écriture de logs
+- [02:15] Réécriture `/api/metrics` : branchée sur `db.agentMetric` (avant : retournait toujours `[]`)
+- [02:16] Vérification : `bunx tsc --noEmit` → 0 erreur ; `bun run lint` → 0 erreur ; `bun run build` → OK
+- [02:18] Test d'intégration réel (serveur standalone loopback + sqlite) : **toutes les routes répondent 201/200 avec persistance vérifiée en GET** (safety POST 201 → GET count 1, evolution PATCH 200, system-log POST 201 → GET total 1, knowledge node créé, etc.)
+
+### Bilan
+
+- 9 routes API mockées → **100% réelles** (Prisma + SQLite)
+- 8 nouveaux modèles en base avec index
+- Écriture ET lecture vérifiées bout-en-bout sur toutes les routes

@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 export async function GET(request: Request) {
   try {
-    // Memory model does not exist in schema — return empty array
-    return NextResponse.json([])
+    const { searchParams } = new URL(request.url)
+    const type = searchParams.get('type')
+    const memories = await db.memory.findMany({
+      where: type && type !== 'all' ? { type } : undefined,
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    })
+    return NextResponse.json(memories)
   } catch (error) {
     console.error('Memory GET error:', error)
     return NextResponse.json(
@@ -16,31 +23,25 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { agentId, type, category, content, metadata, importance, expiresAt } =
-      body
-
+    const { agentId, type, category, content, metadata, importance, expiresAt } = body
     if (!type || !content) {
       return NextResponse.json(
         { error: 'type and content are required' },
         { status: 400 }
       )
     }
-
-    // Memory model does not exist in schema — return mock response
-    return NextResponse.json(
-      {
-        id: `mock-${Date.now()}`,
+    const memory = await db.memory.create({
+      data: {
         agentId: agentId ?? null,
         type,
         category: category ?? 'general',
         content,
         metadata: JSON.stringify(metadata ?? {}),
         importance: importance ?? 0.5,
-        expiresAt: expiresAt ?? null,
-        createdAt: new Date().toISOString(),
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
       },
-      { status: 201 }
-    )
+    })
+    return NextResponse.json(memory, { status: 201 })
   } catch (error) {
     console.error('Memory POST error:', error)
     return NextResponse.json(

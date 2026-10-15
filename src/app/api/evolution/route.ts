@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 export async function GET() {
   try {
-    // EvolutionEvent model does not exist in schema — return empty array
-    return NextResponse.json([])
+    const events = await db.evolutionEvent.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+    return NextResponse.json(events)
   } catch (error) {
     console.error('Evolution GET error:', error)
     return NextResponse.json(
@@ -29,18 +33,14 @@ export async function POST(request: Request) {
       riskLevel,
       approvedBy,
     } = body
-
     if (!type || !title || !description) {
       return NextResponse.json(
         { error: 'type, title, and description are required' },
         { status: 400 }
       )
     }
-
-    // EvolutionEvent model does not exist in schema — return mock response
-    return NextResponse.json(
-      {
-        id: `mock-${Date.now()}`,
+    const event = await db.evolutionEvent.create({
+      data: {
         agentId: agentId ?? null,
         type,
         title,
@@ -52,11 +52,9 @@ export async function POST(request: Request) {
         improvementPercent: improvementPercent ?? 0,
         riskLevel: riskLevel ?? 'low',
         approvedBy: approvedBy ?? null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       },
-      { status: 201 }
-    )
+    })
+    return NextResponse.json(event, { status: 201 })
   } catch (error) {
     console.error('Evolution POST error:', error)
     return NextResponse.json(

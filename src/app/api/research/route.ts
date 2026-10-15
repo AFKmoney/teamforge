@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 export async function GET() {
   try {
-    // Experiment model does not exist in schema — return empty array
-    return NextResponse.json([])
+    const experiments = await db.experiment.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+    return NextResponse.json(experiments)
   } catch (error) {
     console.error('Research GET error:', error)
     return NextResponse.json(
@@ -16,20 +20,15 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { agentId, title, hypothesis, methodology, status, results, conclusion, score } =
-      body
-
+    const { agentId, title, hypothesis, methodology, status, results, conclusion, score } = body
     if (!title || !hypothesis || !methodology) {
       return NextResponse.json(
         { error: 'title, hypothesis, and methodology are required' },
         { status: 400 }
       )
     }
-
-    // Experiment model does not exist in schema — return mock response
-    return NextResponse.json(
-      {
-        id: `mock-${Date.now()}`,
+    const experiment = await db.experiment.create({
+      data: {
         agentId: agentId ?? null,
         title,
         hypothesis,
@@ -38,10 +37,9 @@ export async function POST(request: Request) {
         results: JSON.stringify(results ?? {}),
         conclusion: conclusion ?? null,
         score: score ?? null,
-        createdAt: new Date().toISOString(),
       },
-      { status: 201 }
-    )
+    })
+    return NextResponse.json(experiment, { status: 201 })
   } catch (error) {
     console.error('Research POST error:', error)
     return NextResponse.json(

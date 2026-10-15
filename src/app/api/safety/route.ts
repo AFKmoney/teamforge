@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 export async function GET() {
   try {
-    // SafetyEvent model does not exist in schema — return empty array
-    return NextResponse.json([])
+    const events = await db.safetyEvent.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+    return NextResponse.json(events)
   } catch (error) {
     console.error('Safety GET error:', error)
     return NextResponse.json(
@@ -16,29 +20,25 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { type, severity, description, agentId, metadata } = body
-
+    const { type, severity, description, agentId, metadata, resolved, resolvedBy } = body
     if (!type || !severity || !description) {
       return NextResponse.json(
         { error: 'type, severity, and description are required' },
         { status: 400 }
       )
     }
-
-    // SafetyEvent model does not exist in schema — return mock response
-    return NextResponse.json(
-      {
-        id: `mock-${Date.now()}`,
+    const event = await db.safetyEvent.create({
+      data: {
         type,
         severity,
         description,
         agentId: agentId ?? null,
         metadata: JSON.stringify(metadata ?? {}),
-        resolved: false,
-        createdAt: new Date().toISOString(),
+        resolved: resolved ?? false,
+        resolvedBy: resolvedBy ?? null,
       },
-      { status: 201 }
-    )
+    })
+    return NextResponse.json(event, { status: 201 })
   } catch (error) {
     console.error('Safety POST error:', error)
     return NextResponse.json(
