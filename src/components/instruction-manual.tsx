@@ -28,9 +28,10 @@ const C = {
   red: '#f38ba8',
   maroon: '#eba0ac',
   yellow: '#f9e2af',
-  green: '#a6e3a1',
   lightgreen: '#69f0ae',
   lavender: '#b4befe',
+  mauve: '#cba6f7',
+  blue: '#89b4fa',
 }
 
 // ── Shortcut Data (reuse from keyboard-shortcuts-overlay) ─────────

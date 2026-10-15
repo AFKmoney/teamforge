@@ -189,8 +189,8 @@ const rowVariants = {
 // JSON Syntax Highlighter
 // ---------------------------------------------------------------------------
 
-function JsonView({ data }: { data: Record<string, unknown> }) {
-  const formatted = JSON.stringify(data, null, 2)
+function JsonView({ data }: { data: Record<string, unknown> | string }) {
+  const formatted = typeof data === 'string' ? (data || '(empty)') : JSON.stringify(data, null, 2)
 
   // Simple syntax highlighting
   const highlighted = formatted
@@ -364,8 +364,8 @@ export function SystemLogPanel() {
       const q = debouncedSearch.toLowerCase()
       logs = logs.filter(
         (log) =>
-          log.action.toLowerCase().includes(q) ||
-          JSON.stringify(log.details).toLowerCase().includes(q) ||
+          (log.action ?? '').toLowerCase().includes(q) ||
+          JSON.stringify(log.details ?? '').toLowerCase().includes(q) ||
           (log.userId && log.userId.toLowerCase().includes(q))
       )
     }
@@ -728,7 +728,7 @@ export function SystemLogPanel() {
                       </span>
                       <CopyButton text={JSON.stringify(log, null, 2)} />
                     </div>
-                    <JsonView data={log.details} />
+                    <JsonView data={log.details ?? ''} />
                   </div>
 
                   {/* User ID */}
@@ -819,7 +819,7 @@ export function SystemLogPanel() {
                           <div className="px-4 pb-3 space-y-2">
                             <div>
                               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Details</span>
-                              <JsonView data={log.details} />
+                              <JsonView data={log.details ?? ''} />
                             </div>
                             {log.userId && (
                               <div>

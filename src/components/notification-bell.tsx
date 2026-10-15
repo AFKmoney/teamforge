@@ -132,7 +132,7 @@ function NotificationItem({
 
 export function NotificationBell() {
   const notifications = useAppStore((s) => s.notifications)
-  const unreadCount = useAppStore((s) => s.unreadNotificationCount)
+  const unreadCount = notifications.filter((n) => !n.read).length
   const markNotificationRead = useAppStore((s) => s.markNotificationRead)
   const markAllNotificationsRead = useAppStore((s) => s.markAllNotificationsRead)
   const clearNotifications = useAppStore((s) => s.clearNotifications)

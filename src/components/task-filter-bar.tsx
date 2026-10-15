@@ -124,7 +124,7 @@ export function TaskFilterBar({
     const headers = ['id', 'title', 'description', 'status', 'priority', 'type', 'assigneeId', 'createdAt', 'updatedAt']
     const rows = tasks.map((t) =>
       headers.map((h) => {
-        const val = (t as Record<string, unknown>)[h]
+        const val = (t as unknown as Record<string, unknown>)[h]
         const str = val === null || val === undefined ? '' : String(val)
         return `"${str.replace(/"/g, '""')}"`
       }).join(',')

@@ -210,3 +210,37 @@ export interface Benchmark {
 ---
 
 *Dernière mise à jour : 30 août 2025 - 09:10 UTC*
+## Itération 2 — Audit complet et correction — 15 octobre 2025
+
+### Liste des choses faites (horodatées)
+
+- [01:35] Installation des dépendances avec bun (1042 packages)
+- [01:36] Audit TypeScript : **299 erreurs** détectées dans src/ via `bunx tsc --noEmit`
+- [01:36] Diagnostic principal : bloc dupliqué corrompu dans l'interface `AppState` de `src/lib/store.ts` (valeurs par défaut collées dans l'interface, 66 erreurs TS2300)
+- [01:38] Suppression du bloc dupliqué dans `AppState` (store.ts) : 88 → 1 erreur dans store.ts
+- [01:39] Ajout des imports manquants `SystemLog`, `Experiment`, `SafetyEvent`, `SystemSettings`, `KnowledgeNode`, `KnowledgeEdge`, `Memory` dans store.ts
+- [01:40] Suppression de l'interface `Message` dupliquée dans types.ts (erreurs TS2687/TS2717)
+- [01:41] Réécriture du type `EvolutionEvent` avec les champs réels (title, description, status, riskLevel, beforeState, afterState, improvementPercent, validatedAt, deployedAt) + types `EvolutionType`, `EvolutionStatus`, `RiskLevel`
+- [01:42] Ajout des types manquants : `MemoryType`, `Memory`, `KnowledgeNode`, `KnowledgeEdge`, `SystemSettings`, `MaxRiskLevel`, `LogVerbosity`, `NotificationSeverity`
+- [01:43] Ajout des propriétés store manquantes : tourStep/nextTourStep/prevTourStep/endTour/completeTour, recentPages/clearRecentPages, sidebarOpen/setSidebarOpen, systemSettings/setSystemSettings, knowledgeNodes/Edges, memories/setMemories, benchmarkSnapshots/setBenchmarkSnapshots
+- [01:44] Ajout du type exporté `Page` dans store.ts et typage de `currentPage` en `Page`
+- [01:45] Correction `use-simulation.ts` : `setLastSimulationUpdate` branché sur le vrai setter du store (était un stub `() => {}`)
+- [01:46] Correction des configs `Record<...>` incomplètes (Severity, MemoryType, ExperimentStatus, SystemLogLevel/Source alignés sur l'usage réel des composants)
+- [01:47] Correction `notification-bell.tsx` : `unreadNotificationCount` calculé localement ; `severity`/`timestamp` ajoutés au type `Notification`
+- [01:48] Rebranchage de `settings-panel.tsx` sur `systemSettings` (l'ancien `setSettings` n'existait plus) + cast `MaxRiskLevel`/`LogVerbosity`
+- [01:49] Correction des variants framer-motion (`Variants` typés) dans evolution-panel, memory-panel, safety-panel
+- [01:50] Correction instruction-manual.tsx : doublon `green` dans l'objet Catppuccin, ajout `mauve`/`blue` manquants
+- [01:51] Correction dashboard-sidebar : comparaison AgentStatus invalide, `visitedAt` sur RecentPage
+- [01:52] Correction guards optionnels (results, description, relation, details, action) dans research-panel, knowledge-panel, system-log-panel, task-filter-bar
+- [01:53] Correction ide-task-card (prop `title` non valide sur icône lucide → aria-label), use-agent-simulation (chatSessionId manquant)
+- [01:54] Suppression des scripts obsolètes `scripts/fix-typescript-errors.js` et `scripts/fix-ts-errors.mjs` (artefacts d'audit, causaient l'échec du lint)
+- [01:55] **Résultat : `bunx tsc --noEmit` → 0 erreur** (contre 299 au départ)
+- [01:56] **`bun run lint` → 0 erreur 0 warning**
+- [01:57] **`bun run build` → SUCCÈS** (Next.js, toutes routes API compilées)
+
+### Bilan
+
+- TypeScript : 299 → **0 erreur**
+- ESLint : 3 erreurs → **0**
+- Build production : **OK**
+- Fichiers modifiés : types.ts, store.ts, use-simulation.ts, use-agent-simulation.ts, notification-bell, settings-panel, safety-panel, memory-panel, research-panel, knowledge-panel, system-log-panel, evolution-panel, dashboard-sidebar, dashboard-overview, instruction-manual, ide-task-card, task-filter-bar

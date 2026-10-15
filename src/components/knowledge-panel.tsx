@@ -71,15 +71,15 @@ interface LayoutNode {
   y: number
   label: string
   type: string
-  description: string
+  description?: string
   data: Record<string, unknown>
 }
 
 interface LayoutEdge {
   source: string
   target: string
-  relation: string
-  weight: number
+  relation?: string
+  weight?: number
 }
 
 function computeForceLayout(
@@ -363,7 +363,7 @@ export function KnowledgePanel() {
         if (
           !n.label.toLowerCase().includes(q) &&
           !n.type.toLowerCase().includes(q) &&
-          !n.description.toLowerCase().includes(q)
+          !(n.description ?? '').toLowerCase().includes(q)
         )
           continue
       }
@@ -720,7 +720,7 @@ export function KnowledgePanel() {
                     const isSameType = source.type === target.type
                     const edgeColor = isSameType
                       ? (NODE_COLORS[source.type] ?? '#9ca3af')
-                      : (EDGE_COLORS[edge.relation] ?? '#9ca3af')
+                      : (edge.relation && EDGE_COLORS[edge.relation]) || '#9ca3af'
                     const path = computeEdgePath(source, target, isSameType)
 
                     // Compute midpoint for flow dot
@@ -1048,7 +1048,7 @@ export function KnowledgePanel() {
                                 <Badge
                                   variant="outline"
                                   className="ml-auto text-[10px] px-1.5 py-0 border-border/50"
-                                  style={{ color: EDGE_COLORS[e.relation] ?? '#64748b' }}
+                                  style={{ color: (e.relation && EDGE_COLORS[e.relation]) || '#64748b' }}
                                 >
                                   {e.relation}
                                 </Badge>

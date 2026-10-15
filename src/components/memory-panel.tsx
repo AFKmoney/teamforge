@@ -55,7 +55,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { exportToCSV, exportToJSON } from '@/lib/export-utils'
 import { parseCSV, parseJSON, validateImportData, readFileAsText } from '@/lib/import-utils'
@@ -146,7 +146,7 @@ function parseMemory(raw: Record<string, unknown>): ParsedMemory {
 // Animation variants
 // ---------------------------------------------------------------------------
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 16, scale: 0.96 },
   visible: (i: number) => ({
     opacity: 1,

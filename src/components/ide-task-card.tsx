@@ -137,7 +137,7 @@ export function IDETaskCard({ task, agents, allTasks, compact = false, selected 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
-              {isBlocked && <ShieldOff className="size-3 text-red-500 shrink-0" title="Blocked by another task" />}
+              {isBlocked && <ShieldOff className="size-3 text-red-500 shrink-0" aria-label="Blocked by another task" />}
               <span className="text-sm font-medium text-foreground leading-snug truncate">{task.title}</span>
             </div>
             <span className="text-xs shrink-0">{priorityConfig?.icon || '⚪'}</span>

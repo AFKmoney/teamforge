@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { useAppStore } from '@/lib/store'
-import type { SystemSettings } from '@/lib/types'
+import type { SystemSettings, MaxRiskLevel, LogVerbosity } from '@/lib/types'
 import { toastSuccess } from '@/lib/toast-utils'
 import { useTheme } from 'next-themes'
 import { PageHeader } from '@/components/page-header'
@@ -41,18 +41,18 @@ import { PageHeader } from '@/components/page-header'
 // ---------------------------------------------------------------------------
 
 export function SettingsPanel() {
-  const { settings, setSettings } = useAppStore()
+  const { systemSettings, setSystemSettings } = useAppStore()
   const simulationEnabled = useAppStore((s) => s.simulationEnabled)
   const simulationSpeed = useAppStore((s) => s.simulationSpeed)
   const lastSimulationUpdate = useAppStore((s) => s.lastSimulationUpdate)
   const toggleSimulation = useAppStore((s) => s.toggleSimulation)
   const setSimulationSpeed = useAppStore((s) => s.setSimulationSpeed)
   const { theme, setTheme } = useTheme()
-  const [localSettings, setLocalSettings] = useState<SystemSettings>(settings)
+  const [localSettings, setLocalSettings] = useState<SystemSettings>(systemSettings)
   const [saved, setSaved] = useState(false)
 
   const handleSave = () => {
-    setSettings(localSettings)
+    setSystemSettings(localSettings)
     setSaved(true)
     toastSuccess('Settings saved', 'Your configuration changes have been applied.')
     setTimeout(() => setSaved(false), 2000)
@@ -70,7 +70,7 @@ export function SettingsPanel() {
       logVerbosity: 'normal',
     }
     setLocalSettings(defaults)
-    setSettings(defaults)
+    setSystemSettings(defaults)
     toastSuccess('Settings reset', 'All settings have been restored to their defaults.')
   }
 
@@ -252,7 +252,7 @@ export function SettingsPanel() {
               </div>
               <span className="text-sm text-muted-foreground">
                 {lastSimulationUpdate
-                  ? lastSimulationUpdate.toLocaleTimeString()
+                  ? new Date(lastSimulationUpdate).toLocaleTimeString()
                   : 'No updates yet'}
               </span>
             </div>
@@ -312,7 +312,7 @@ export function SettingsPanel() {
               </div>
               <Select
                 value={localSettings.maxRiskLevel}
-                onValueChange={(val) => updateSetting('maxRiskLevel', val)}
+                onValueChange={(val) => updateSetting('maxRiskLevel', val as MaxRiskLevel)}
               >
                 <SelectTrigger className="w-full sm:w-32">
                   <SelectValue />
@@ -443,7 +443,7 @@ export function SettingsPanel() {
               </div>
               <Select
                 value={localSettings.logVerbosity}
-                onValueChange={(val) => updateSetting('logVerbosity', val)}
+                onValueChange={(val) => updateSetting('logVerbosity', val as LogVerbosity)}
               >
                 <SelectTrigger className="w-full sm:w-32">
                   <SelectValue />

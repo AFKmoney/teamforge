@@ -37,14 +37,18 @@ export interface AIModel {
   description?: string
 }
 
+export type NotificationSeverity = NotificationType
+
 export interface Notification {
   id: string
   title: string
   message: string
   type: NotificationType
+  severity: NotificationSeverity
   category: NotificationCategory
   read: boolean
   createdAt: string
+  timestamp: string
   actionUrl?: string
 }
 
@@ -250,11 +254,27 @@ export interface ChatConversation {
   updatedAt: string
 }
 
+export type EvolutionType = 'prompt' | 'workflow' | 'architecture' | 'tool'
+export type EvolutionStatus = 'proposed' | 'testing' | 'validated' | 'deployed' | 'rejected'
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
+
 export interface EvolutionEvent {
   id: string
-  type: string
-  data: Record<string, unknown>
-  timestamp: string
+  agentId: string | null
+  type: EvolutionType
+  title: string
+  description: string
+  status: EvolutionStatus
+  beforeState: Record<string, unknown>
+  afterState: Record<string, unknown>
+  metrics: Record<string, unknown>
+  improvementPercent: number
+  riskLevel: RiskLevel
+  approvedBy: string | null
+  createdAt: string
+  validatedAt: string | null
+  deployedAt: string | null
+  agent?: { id: string; name: string; role: string } | null
 }
 
 export interface SystemMetric {
@@ -284,19 +304,22 @@ export interface Benchmark {
 // System Log Types
 // ============================================================================
 
-export type SystemLogLevel = 'info' | 'warning' | 'error' | 'debug' | 'trace'
-export type SystemLogSource = 'agent' | 'system' | 'api' | 'ui' | 'database' | 'external'
+export type SystemLogLevel = 'info' | 'warning' | 'error' | 'critical'
+export type SystemLogSource = 'agent' | 'system' | 'evolution' | 'safety' | 'user'
 
 export interface SystemLog {
   id: string
   level: SystemLogLevel
   source: SystemLogSource
   message: string
+  action?: string
+  details?: string
+  userId?: string
   timestamp: string
   metadata?: Record<string, unknown>
 }
 
-export type Severity = 'low' | 'medium' | 'high' | 'critical' | 'info'
+export type Severity = 'info' | 'success' | 'warning' | 'critical'
 
 export interface ConstitutionalRule {
   id: string
@@ -304,33 +327,96 @@ export interface ConstitutionalRule {
   rule: string
   description: string
   category: string
+  active: boolean
   enabled: boolean
   createdAt: string
+  updatedAt?: string
 }
 
 export interface SafetyEvent {
   id: string
   type: string
   severity: Severity
+  description: string
   message: string
+  agentId: string | null
+  resolved: boolean
+  resolvedBy: string | null
+  createdAt: string
+  updatedAt: string
   timestamp: string
   source?: string
   metadata?: Record<string, unknown>
 }
 
-export type ExperimentStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+export type ExperimentStatus = 'draft' | 'running' | 'completed' | 'failed'
 
 export interface Experiment {
   id: string
   name: string
+  title: string
   description?: string
   status: ExperimentStatus
   hypothesis?: string
+  methodology?: string
+  conclusion?: string | null
+  score?: number | null
   variables?: Record<string, unknown>
   createdAt: string
   updatedAt: string
   results?: Record<string, unknown>
   improvementPercent?: number
+}
+
+export type MemoryType = 'working' | 'episodic' | 'semantic' | 'procedural' | 'evolution'
+
+export interface Memory {
+  id: string
+  agentId: string | null
+  type: MemoryType
+  category: string
+  content: string
+  importance: number
+  accessCount: number
+  metadata: Record<string, unknown>
+  expiresAt?: string | null
+  createdAt: string
+  updatedAt: string
+  agent?: { id: string; name: string } | null
+}
+
+export type MaxRiskLevel = 'low' | 'medium' | 'high'
+export type LogVerbosity = 'quiet' | 'normal' | 'verbose'
+
+export interface SystemSettings {
+  autoEvolution: boolean
+  maxConcurrentAgents: number
+  safetyStrictMode: boolean
+  evolutionIntervalMinutes: number
+  memoryRetentionDays: number
+  maxRiskLevel: MaxRiskLevel
+  enableResearchLab: boolean
+  logVerbosity: LogVerbosity
+}
+
+export interface KnowledgeNode {
+  id: string
+  label: string
+  type: string
+  description?: string
+  data: Record<string, unknown>
+  createdAt?: string
+}
+
+export interface KnowledgeEdge {
+  id: string
+  sourceId: string
+  targetId: string
+  relation?: string
+  strength?: number
+  weight?: number
+  metadata?: Record<string, unknown>
+  createdAt?: string
 }
 
 export interface ActivityLog {
@@ -365,16 +451,4 @@ export interface SystemMetric {
   timestamp: string
   metadata?: Record<string, unknown>
   category?: string
-}
-
-export interface Message {
-  id: string
-  projectId: string
-  agentId: string
-  content: string
-  type: 'chat' | 'action' | 'code_change' | 'review_comment' | 'test_result' | 'deploy_log'
-  metadata: Record<string, unknown>
-  createdAt: string
-  chatSessionId?: string
-  agent?: Agent
 }

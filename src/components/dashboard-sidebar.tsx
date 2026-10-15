@@ -223,7 +223,7 @@ function MiniStatusBar({ value, label, color }: {
 
 function SystemStatusCard() {
   const agents = useAppStore((s) => s.agents)
-  const activeAgents = agents.filter((a) => a.status === 'active' || a.status === 'busy').length
+  const activeAgents = agents.filter((a) => a.status !== 'idle' && a.status !== 'sleeping').length
   const isHealthy = true // mock: always healthy for now
   const lastUpdated = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 

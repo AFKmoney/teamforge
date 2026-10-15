@@ -48,7 +48,7 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from '@/components/ui/collapsible'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
@@ -491,7 +491,7 @@ function DiffViewerDialog({
 // Animation variants
 // ---------------------------------------------------------------------------
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 12, scale: 0.97 },
   visible: (i: number) => ({
     opacity: 1,

@@ -317,7 +317,7 @@ export function ResearchPanel() {
                     ...experiments.map((e) =>
                       getPipelineStage(
                         e.status as ExperimentStatus,
-                        Object.keys(e.results).length > 0,
+                        Object.keys(e.results ?? {}).length > 0,
                         !!e.conclusion
                       )
                     )
@@ -381,7 +381,7 @@ export function ResearchPanel() {
             const cfg = STATUS_CONFIG[exp.status as ExperimentStatus] ?? STATUS_CONFIG.draft
             const Icon = cfg.icon
             const isExpanded = expandedId === exp.id
-            const hasResults = Object.keys(exp.results).length > 0
+            const hasResults = Object.keys(exp.results ?? {}).length > 0
 
             return (
               <motion.div

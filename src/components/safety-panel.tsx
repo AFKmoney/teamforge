@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import {
   Shield,
   ShieldCheck,
@@ -48,6 +48,7 @@ const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string; dot: string
   info: { color: 'text-blue-600', bg: 'bg-blue-50', dot: 'bg-blue-500', icon: Info, darkBg: 'dark:bg-blue-950/40', darkColor: 'dark:text-blue-400' },
   warning: { color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500', icon: AlertTriangle, darkBg: 'dark:bg-amber-950/40', darkColor: 'dark:text-amber-400' },
   critical: { color: 'text-red-600', bg: 'bg-red-50', dot: 'bg-red-500', icon: XCircle, darkBg: 'dark:bg-red-950/40', darkColor: 'dark:text-red-400' },
+  success: { color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500', icon: CheckCircle2, darkBg: 'dark:bg-emerald-950/40', darkColor: 'dark:text-emerald-400' },
 }
 
 // ---------------------------------------------------------------------------
@@ -154,7 +155,7 @@ const containerVariants = {
   },
 }
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 10, scale: 0.97 },
   visible: {
     opacity: 1,
@@ -164,7 +165,7 @@ const cardVariants = {
   },
 }
 
-const timelineVariants = {
+const timelineVariants: Variants = {
   hidden: { opacity: 0, x: -12 },
   visible: (i: number) => ({
     opacity: 1,

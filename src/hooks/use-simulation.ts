@@ -81,7 +81,7 @@ export function useSimulation(enabled = true) {
   const simulationSpeed = useAppStore((s) => s.simulationSpeed)
   const simulationEnabled = useAppStore((s) => true)
   const toggleSimulation = useAppStore((s) => () => {})
-  const setLastSimulationUpdate = useAppStore((s) => () => {})
+  const setLastSimulationUpdate = useAppStore((s) => s.setLastSimulationUpdate)
   const dashboardData = useAppStore((s) => s.dashboardData)
 
   const isActive = enabled && simulationEnabled
@@ -207,25 +207,25 @@ export function useSimulation(enabled = true) {
     gaugeTimerRef.current = setInterval(() => {
       updateGauges()
       setLastUpdate(new Date())
-      setLastSimulationUpdate(new Date())
+      setLastSimulationUpdate(new Date().toISOString())
     }, gaugeInterval)
 
     activityTimerRef.current = setInterval(() => {
       addActivityItem()
       setLastUpdate(new Date())
-      setLastSimulationUpdate(new Date())
+      setLastSimulationUpdate(new Date().toISOString())
     }, activityInterval)
 
     sparklineTimerRef.current = setInterval(() => {
       updateSparklines()
       setLastUpdate(new Date())
-      setLastSimulationUpdate(new Date())
+      setLastSimulationUpdate(new Date().toISOString())
     }, sparklineInterval)
 
     metricTimerRef.current = setInterval(() => {
       updateMetrics()
       setLastUpdate(new Date())
-      setLastSimulationUpdate(new Date())
+      setLastSimulationUpdate(new Date().toISOString())
     }, metricInterval)
 
     return () => {

@@ -118,6 +118,7 @@ export function useAgentSimulation() {
         id: `sim_${agent.id}_${Date.now()}`,
         projectId: currentProject?.id || 'proj_01',
         agentId: agent.id,
+        chatSessionId: null,
         content: randomMsg,
         type: msgType,
         metadata: {},

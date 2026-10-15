@@ -413,7 +413,7 @@ function generateActivityItems(agentCount: number, activeAgentCount: number): Ac
       message: `Warning: Agent CPU usage above threshold (${activeAgentCount}/${agentCount} active)`,
       details: '',
       timestamp: new Date(Date.now() - 1500000).toISOString(),
-      severity: 'medium' as const,
+      severity: 'warning' as const,
     },
     {
       id: 'act-8',

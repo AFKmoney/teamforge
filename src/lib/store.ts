@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Agent, Task, Message, ChatSession, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus, AIProviderType, BenchmarkSnapshot, ChatMessage, ChatConversation, EvolutionEvent, SystemMetric, ActivityLog, Benchmark } from '@/lib/types'
+import type { Agent, Task, Message, ChatSession, ProjectFile, BuildLog, AgentActivity, IDEPanel, IDEBottomTab, Project, Notification, GitCommit, GitBranch, GitFileStatus, AIProviderType, BenchmarkSnapshot, ChatMessage, ChatConversation, EvolutionEvent, SystemMetric, SafetyEvent, ActivityLog, Benchmark, SystemLog, Experiment, SystemSettings, KnowledgeNode, KnowledgeEdge, Memory } from '@/lib/types'
 import { AI_SETTINGS_KEY, DEFAULT_AI_SETTINGS, type AISettings } from '@/lib/ai-providers'
 
 /**
@@ -113,6 +113,13 @@ function saveYoloMode(mode: boolean) {
 
 export type AppSettings = typeof DEFAULT_SETTINGS
 
+export type Page = 'dashboard' | 'activity' | 'agents' | 'evolution' | 'memory' | 'knowledge' | 'topology' | 'insights' | 'research' | 'benchmarks' | 'safety' | 'chat' | 'system-log' | 'settings'
+
+export interface RecentPage {
+  page: Page
+  visitedAt: string
+}
+
 interface AppState {
   // Current project
   currentProject: Project | null
@@ -154,10 +161,10 @@ interface AppState {
   setDashboardData: (data: Record<string, unknown>) => void
   evolutionEvents: EvolutionEvent[]
   setEvolutionEvents: (events: EvolutionEvent[]) => void
-  safetyEvents: SystemMetric[]
-  setSafetyEvents: (events: SystemMetric[]) => void
-  currentPage: string
-  setCurrentPage: (page: string) => void
+  safetyEvents: SafetyEvent[]
+  setSafetyEvents: (events: SafetyEvent[]) => void
+  currentPage: Page
+  setCurrentPage: (page: Page) => void
   isLoading: boolean
   setIsLoading: (loading: boolean) => void
   simulationSpeed: number
@@ -174,7 +181,31 @@ interface AppState {
   startTour: () => void
   tourActive: boolean
   tourCompleted: boolean
-  setSettings: (settings: AppSettings) => void
+  tourStep: number
+  nextTourStep: () => void
+  prevTourStep: () => void
+  endTour: () => void
+  completeTour: () => void
+
+  // Navigation extras
+  recentPages: RecentPage[]
+  clearRecentPages: () => void
+  sidebarOpen: boolean
+  setSidebarOpen: (open: boolean) => void
+
+  // System settings (autoEvolution, safety, research lab)
+  systemSettings: SystemSettings
+  setSystemSettings: (settings: SystemSettings) => void
+
+  // Knowledge graph
+  knowledgeNodes: KnowledgeNode[]
+  setKnowledgeNodes: (nodes: KnowledgeNode[]) => void
+  knowledgeEdges: KnowledgeEdge[]
+  setKnowledgeEdges: (edges: KnowledgeEdge[]) => void
+
+  // Memories
+  memories: Memory[]
+  setMemories: (memories: Memory[]) => void
 
   // Benchmarks state
   benchmarks: Benchmark[]
@@ -318,47 +349,13 @@ interface AppState {
   fetchFiles: () => Promise<void>
   fetchBuildLogs: () => Promise<void>
   fetchActivities: () => Promise<void>
-  fetchBenchmarks: () => Promise<void>
   fetchAll: (projectId?: string) => Promise<void>
 
-  // Benchmarks state
-  benchmarks: []
-  setBenchmarks: (benchmarks: Benchmark[]) => void
+  // Benchmark snapshots (time-series from /api/benchmarks)
+  benchmarkSnapshots: BenchmarkSnapshot[]
+  setBenchmarkSnapshots: (snapshots: BenchmarkSnapshot[]) => void
 
-  // Dashboard state
-  dashboardData: {}
-  setDashboardData: (data: Record<string, unknown>) => void
-  evolutionEvents: []
-  setEvolutionEvents: (events: EvolutionEvent[]) => void
-  safetyEvents: []
-  setSafetyEvents: (events: SystemMetric[]) => void
-  currentPage: 'overview'
-  setCurrentPage: (page: string) => void
-  isLoading: false
-  setIsLoading: (loading: boolean) => void
-  simulationSpeed: 1
-  setSimulationSpeed: (speed: number) => void
-  simulationEnabled: true
-  setSimulationEnabled: (enabled: boolean) => void
-  toggleSimulation: () => void
-  lastSimulationUpdate: string
-  setLastSimulationUpdate: (timestamp: string) => void
-  systemLogs: []
-  setSystemLogs: (logs: SystemLog[]) => void
-  experiments: []
-  setExperiments: (experiments: Experiment[]) => void
-
-  // Chat state
-  chatMessages: []
-  chatConversations: []
-  currentConversationId: null
-  setCurrentConversationId: (id: string | null) => void
-  createNewConversation: (conversation: ChatConversation) => void
-  switchConversation: (id: string) => void
-  deleteConversation: (id: string) => void
-  updateMessageReaction: (messageId: string, reaction: string) => void
-  clearChatHistory: () => void
-  addChatMessage: (message: ChatMessage) => void
+  fetchBenchmarks: (range?: string) => Promise<void>
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -383,9 +380,39 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   settingsOpen: false,
   setSettingsOpen: (open) => set({ settingsOpen: open }),
-  startTour: () => set({ tourActive: true, tourCompleted: false }),
+  startTour: () => set({ tourActive: true, tourCompleted: false, tourStep: 0 }),
   tourActive: false,
   tourCompleted: false,
+  tourStep: 0,
+  nextTourStep: () => set((s) => ({ tourStep: s.tourStep + 1 })),
+  prevTourStep: () => set((s) => ({ tourStep: Math.max(0, s.tourStep - 1) })),
+  endTour: () => set({ tourActive: false, tourStep: 0 }),
+  completeTour: () => set({ tourActive: false, tourCompleted: true, tourStep: 0 }),
+
+  recentPages: [],
+  clearRecentPages: () => set({ recentPages: [] }),
+  sidebarOpen: false,
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  systemSettings: {
+    autoEvolution: true,
+    maxConcurrentAgents: 10,
+    safetyStrictMode: true,
+    evolutionIntervalMinutes: 30,
+    memoryRetentionDays: 90,
+    maxRiskLevel: 'medium',
+    enableResearchLab: true,
+    logVerbosity: 'normal',
+  },
+  setSystemSettings: (settings) => set({ systemSettings: settings }),
+
+  knowledgeNodes: [],
+  setKnowledgeNodes: (nodes) => set({ knowledgeNodes: nodes }),
+  knowledgeEdges: [],
+  setKnowledgeEdges: (edges) => set({ knowledgeEdges: edges }),
+
+  memories: [],
+  setMemories: (memories) => set({ memories }),
   fileSearchOpen: false,
   setFileSearchOpen: (open) => set({ fileSearchOpen: open }),
 
@@ -422,7 +449,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setEvolutionEvents: (events) => set({ evolutionEvents: events }),
   safetyEvents: [],
   setSafetyEvents: (events) => set({ safetyEvents: events }),
-  currentPage: 'overview',
+  currentPage: 'dashboard',
   setCurrentPage: (page) => set({ currentPage: page }),
   isLoading: false,
   setIsLoading: (loading) => set({ isLoading: loading }),
