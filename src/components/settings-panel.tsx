@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { useAppStore } from '@/lib/store'
+import { logEvent } from '@/lib/system-logger'
 import type { SystemSettings, MaxRiskLevel, LogVerbosity } from '@/lib/types'
 import { toastSuccess } from '@/lib/toast-utils'
 import { useTheme } from 'next-themes'
@@ -55,6 +56,11 @@ export function SettingsPanel() {
     setSystemSettings(localSettings)
     setSaved(true)
     toastSuccess('Settings saved', 'Your configuration changes have been applied.')
+    logEvent({
+      source: 'user',
+      action: 'User updated system settings',
+      details: { ...localSettings },
+    })
     setTimeout(() => setSaved(false), 2000)
   }
 
@@ -72,6 +78,10 @@ export function SettingsPanel() {
     setLocalSettings(defaults)
     setSystemSettings(defaults)
     toastSuccess('Settings reset', 'All settings have been restored to their defaults.')
+    logEvent({
+      source: 'user',
+      action: 'User reset system settings to defaults',
+    })
   }
 
   const updateSetting = <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {

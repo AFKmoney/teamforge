@@ -269,3 +269,21 @@ export interface Benchmark {
 - 9 routes API mockées → **100% réelles** (Prisma + SQLite)
 - 8 nouveaux modèles en base avec index
 - Écriture ET lecture vérifiées bout-en-bout sur toutes les routes
+
+## Itération 4 — Instrumentation de l'app (vrais logs système) — 15 octobre 2025
+
+### Liste des choses faites (horodatées)
+
+- [02:30] Constat : le panneau System Log restait vide car RIEN dans l'app n'écrivait de logs — création du helper `src/lib/system-logger.ts` (`logEvent`, fire-and-forget, jamais throw)
+- [02:32] Branchement du terminal (`ide-bottom-panel.tsx`) : chaque commande exécutée loggée (commande, exitCode, timeout) en `source: user`, niveau info/warning selon exitCode, + log erreur si HTTP échoue
+- [02:34] Branchement des settings (`settings-panel.tsx`) : sauvegarde et reset des settings loggés avec le diff complet des valeurs
+- [02:36] Branchement du YOLO mode (`store.ts`) : bascule ON/OFF crée un vrai `SafetyEvent` (type `yolo_mode`, severity warning si activé / success si désactivé) — traçabilité sécurité
+- [02:38] Branchement de la création de memories (`memory-panel.tsx`) : type, catégorie, longueur du contenu loggés
+- [02:40] Vérification compatibilité : `system-log-panel.tsx` lit déjà `{logs, total}` — compatible avec la nouvelle route
+- [02:42] Qualité : `tsc --noEmit` 0 erreur, `lint` 0 erreur, `build` OK
+- [02:44] Test d'intégration : POST log → GET filtré (`level=warning&search=Terminal`) retrouve l'entrée, pagination OK, SafetyEvent yolo persisté et visible en GET
+
+### Bilan
+
+- L'app écrit maintenant de vrais logs système et événements de sécurité aux points clés (terminal, settings, YOLO, memories)
+- Le panneau System Log affichera de l'activité réelle dès la première utilisation

@@ -658,6 +658,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   setYoloMode: (mode) => {
     saveYoloMode(mode)
     set({ yoloMode: mode })
+    try {
+      void fetch('/api/safety', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'yolo_mode',
+          severity: mode ? 'warning' : 'success',
+          description: mode
+            ? 'YOLO mode enabled — agents execute without confirmation'
+            : 'YOLO mode disabled — agent actions require confirmation',
+        }),
+      }).catch(() => {})
+    } catch {
+      // ignore
+    }
   },
   // Hydrate YOLO mode from localStorage after client mount
   hydrateYoloMode: () => {

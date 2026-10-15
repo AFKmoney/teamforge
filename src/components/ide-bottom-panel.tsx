@@ -1,6 +1,7 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
+import { logEvent } from '@/lib/system-logger'
 import { TASK_STATUS_CONFIG, TASK_PRIORITY_CONFIG, TASK_TYPE_CONFIG, AGENT_ROLE_CONFIG, type IDEBottomTab, type Task, type BuildLog, type TaskStatus, type TaskPriority, type TaskType, type AgentActivity, type AgentRole, type GitCommit } from '@/lib/types'
 import { IDETaskCard } from '@/components/ide-task-card'
 import { TaskFilterBar, applyTaskFilters, applyTaskSort, type TaskFilters, type TaskSort } from '@/components/task-filter-bar'
@@ -347,6 +348,12 @@ function TerminalView() {
         if (data.timedOut) {
           addLine('error', '⏱️ Command timed out after 30 seconds')
         }
+        logEvent({
+          level: data.exitCode === 0 ? 'info' : 'warning',
+          source: 'user',
+          action: `Terminal command executed: ${trimmed}`,
+          details: { command: trimmed, exitCode: data.exitCode, timedOut: data.timedOut },
+        })
         if (!data.stdout && !data.stderr && !data.timedOut) {
           addLine('output', '(no output)')
         }
@@ -368,6 +375,11 @@ function TerminalView() {
         }
       } else {
         addLine('error', `Failed to execute command (HTTP ${res.status})`)
+        logEvent({
+          level: 'error',
+          source: 'user',
+          action: `Terminal command failed (HTTP ${res.status}): ${trimmed}`,
+        })
       }
     } catch (err) {
       addLine('error', `Execution error: ${err instanceof Error ? err.message : 'Unknown error'}`)

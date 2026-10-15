@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import type { Memory, MemoryType } from '@/lib/types'
 import { useAppStore } from '@/lib/store'
+import { logEvent } from '@/lib/system-logger'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -363,6 +364,11 @@ export function MemoryPanel() {
       if (res.ok) {
         setAddOpen(false)
         setFormType('working')
+        logEvent({
+          source: 'agent',
+          action: `Memory created (${formType})`,
+          details: { type: formType, category: formCategory || 'general', contentLength: formContent.length },
+        })
         setFormCategory('')
         setFormContent('')
         setFormImportance([0.5])
