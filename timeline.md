@@ -328,3 +328,12 @@ export interface Benchmark {
 - ✅ Recherche SQLite `contains` : case-insensitive ASCII confirmée par test
 - ✅ Limites API : `limit` cappé à 500 côté serveur
 - 🔧 3 fixes de robustesse appliqués pendant la review (codes HTTP corrects, validation d'entrée)
+
+## Itération 7 — recentPages + merge sur main — 15 octobre 2025
+
+### Liste des choses faites (horodatées)
+
+- [03:55] Branchement du remplissage de `recentPages` dans `setCurrentPage` (store.ts) : chaque navigation enregistre la page (horodatée), dédupliquée, max 5 entrées — la section "Recent" de la sidebar affichera enfin du contenu
+- [03:56] Vérification côté sidebar : `RecentPagesSection` consomme déjà bien `recentPages` (filtre page courante, top 3) — aucun changement UI nécessaire
+- [03:57] Qualité finale : `tsc` 0 erreur, `lint` 0, `build` OK
+- [03:58] Commit, push, passage de la PR en ready-for-review puis merge sur main

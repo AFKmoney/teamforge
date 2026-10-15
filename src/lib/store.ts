@@ -450,7 +450,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   safetyEvents: [],
   setSafetyEvents: (events) => set({ safetyEvents: events }),
   currentPage: 'dashboard',
-  setCurrentPage: (page) => set({ currentPage: page }),
+  setCurrentPage: (page) => set((s) => ({
+    currentPage: page,
+    recentPages: [
+      { page, visitedAt: new Date().toISOString() },
+      ...s.recentPages.filter((r) => r.page !== page),
+    ].slice(0, 5),
+  })),
   isLoading: false,
   setIsLoading: (loading) => set({ isLoading: loading }),
   simulationSpeed: 1,
