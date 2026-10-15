@@ -44,11 +44,11 @@ import { PageHeader } from '@/components/page-header'
 // Severity config
 // ---------------------------------------------------------------------------
 
-const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string; dot: string; icon: React.ElementType; darkBg: string; darkColor: string }> = {
-  info: { color: 'text-blue-600', bg: 'bg-blue-50', dot: 'bg-blue-500', icon: Info, darkBg: 'dark:bg-blue-950/40', darkColor: 'dark:text-blue-400' },
-  warning: { color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500', icon: AlertTriangle, darkBg: 'dark:bg-amber-950/40', darkColor: 'dark:text-amber-400' },
-  critical: { color: 'text-red-600', bg: 'bg-red-50', dot: 'bg-red-500', icon: XCircle, darkBg: 'dark:bg-red-950/40', darkColor: 'dark:text-red-400' },
-  success: { color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500', icon: CheckCircle2, darkBg: 'dark:bg-emerald-950/40', darkColor: 'dark:text-emerald-400' },
+const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string; dot: string; icon: React.ElementType; darkColor: string }> = {
+  info: { color: 'text-blue-600', bg: 'bg-blue-500/10', dot: 'bg-blue-500', icon: Info, darkColor: 'dark:text-blue-400' },
+  warning: { color: 'text-amber-600', bg: 'bg-amber-500/10', dot: 'bg-amber-500', icon: AlertTriangle, darkColor: 'dark:text-amber-400' },
+  critical: { color: 'text-red-600', bg: 'bg-red-500/10', dot: 'bg-red-500', icon: XCircle, darkColor: 'dark:text-red-400' },
+  success: { color: 'text-emerald-600', bg: 'bg-emerald-500/10', dot: 'bg-emerald-500', icon: CheckCircle2, darkColor: 'dark:text-emerald-400' },
 }
 
 // ---------------------------------------------------------------------------
@@ -549,7 +549,7 @@ export function SafetyPanel() {
                         <span
                           className={cn(
                             'h-[22px] w-[22px] rounded-full border-2 border-background flex items-center justify-center',
-                            sevCfg.bg, sevCfg.darkBg
+                            sevCfg.bg
                           )}
                         >
                           <SevIcon className={cn('h-2.5 w-2.5', sevCfg.color, sevCfg.darkColor)} />
@@ -573,7 +573,7 @@ export function SafetyPanel() {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge
                                   variant="secondary"
-                                  className={cn('text-[10px]', sevCfg.bg, sevCfg.color, sevCfg.darkBg, sevCfg.darkColor)}
+                                  className={cn('text-[10px]', sevCfg.bg, sevCfg.color, sevCfg.darkColor)}
                                 >
                                   {event.type}
                                 </Badge>

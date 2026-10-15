@@ -287,3 +287,23 @@ export interface Benchmark {
 
 - L'app écrit maintenant de vrais logs système et événements de sécurité aux points clés (terminal, settings, YOLO, memories)
 - Le panneau System Log affichera de l'activité réelle dès la première utilisation
+
+## Itération 5 — Polish UI (dark mode, skeletons, animations) — 15 octobre 2025
+
+### Liste des choses faites (horodatées)
+
+- [03:00] Audit des styles clairs codés en dur : la grande majorité des composants utilise déjà le pattern translucide `bg-X-500/10` compatible deux thèmes ; 3 fichiers fautifs identifiés (safety-panel, benchmarks-panel, research-panel)
+- [03:02] `safety-panel.tsx` : remplacement de `bg-X-50` + `darkBg` séparé par le pattern standard `bg-X-500/10` — suppression du champ `darkBg` redondant (config + 2 usages)
+- [03:03] `benchmarks-panel.tsx` : harmonisation `bg-X-50 dark:bg-X-950/40` → `bg-X-500/10` (4 score-cards)
+- [03:03] `research-panel.tsx` : idem (3 configs de statut)
+- [03:05] `benchmarks-dashboard.tsx` : spinner isolé remplacé par une grille de skeletons (4 cards + zone graphique) cohérente avec le reste de l'app
+- [03:07] `system-log-panel.tsx` : ajout d'un état de chargement initial avec skeleton (header + filtres + 6 rangées) — avant, le panneau affichait une table vide pendant le fetch
+- [03:09] Vérification animations : durées dominantes 0.2–0.35s partout, outliers 0.5–0.8s tous intentionnels (compteurs animés, stagger d'apparition) avec `easeOut` uniforme — pas de changement nécessaire
+- [03:10] Vérification empty states : déjà cohérents (icône + libellé + hint), rien à refaire
+- [03:12] Qualité : `tsc --noEmit` 0 erreur, `lint` 0 erreur, `build` OK (thème par défaut = dark, tokens shadcn)
+
+### Bilan
+
+- Plus aucun fond clair opaque codé en dur : tout le code couleur passe par le pattern translucide unique `bg-X-500/10`
+- Chargements uniformes en skeletons (benchmarks + system-log ajoutés aux panels déjà équipés)
+- 3 fichiers harmonisés, 0 régression type/lint/build

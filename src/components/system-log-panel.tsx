@@ -30,6 +30,7 @@ import { exportToCSV, exportToJSON } from '@/lib/export-utils'
 import type { SystemLog, SystemLogLevel, SystemLogSource } from '@/lib/types'
 
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -313,6 +314,9 @@ export function SystemLogPanel() {
   const setSystemLogs = useAppStore((s) => s.setSystemLogs)
   const simulationEnabled = useAppStore((s) => s.simulationEnabled)
 
+  // Loading
+  const [initialLoading, setInitialLoading] = useState(true)
+
   // Filters
   const [activeLevel, setActiveLevel] = useState<SystemLogLevel | 'all'>('all')
   const [activeSource, setActiveSource] = useState<SystemLogSource | 'all'>('all')
@@ -349,9 +353,11 @@ export function SystemLogPanel() {
         if (data.logs) {
           setSystemLogs(data.logs)
         }
+        setInitialLoading(false)
       })
       .catch(() => {
         // silently fail
+        setInitialLoading(false)
       })
   }, [activeLevel, activeSource, debouncedSearch, setSystemLogs])
 
@@ -444,6 +450,20 @@ export function SystemLogPanel() {
   const goToPage = useCallback((page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)))
   }, [totalPages])
+
+  if (initialLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-12 w-full" />
+        <div className="space-y-2">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">

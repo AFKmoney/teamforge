@@ -3,6 +3,7 @@
 import { useAppStore } from '@/lib/store'
 import { type BenchmarkSnapshot, type AgentMetricBreakdown, AGENT_ROLE_CONFIG } from '@/lib/types'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -288,8 +289,13 @@ export function BenchmarksDashboard() {
         </div>
 
         {loading && !data && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="size-5 text-emerald-500 animate-spin" />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+            <Skeleton className="h-64 w-full" />
           </div>
         )}
 
