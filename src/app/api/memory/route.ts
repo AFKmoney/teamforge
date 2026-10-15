@@ -20,25 +20,39 @@ export async function GET(request: Request) {
   }
 }
 
+const VALID_MEMORY_TYPES = ['working', 'episodic', 'semantic', 'procedural', 'evolution']
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { agentId, type, category, content, metadata, importance, expiresAt } = body
+    const body = await request.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+    const { agentId, type, category, content, metadata, importance, expiresAt } = body as Record<string, unknown>
     if (!type || !content) {
       return NextResponse.json(
         { error: 'type and content are required' },
         { status: 400 }
       )
     }
+    if (typeof type !== 'string' || !VALID_MEMORY_TYPES.includes(type)) {
+      return NextResponse.json(
+        { error: `type must be one of: ${VALID_MEMORY_TYPES.join(', ')}` },
+        { status: 400 }
+      )
+    }
+    if (typeof content !== 'string') {
+      return NextResponse.json({ error: 'content must be a string' }, { status: 400 })
+    }
     const memory = await db.memory.create({
       data: {
-        agentId: agentId ?? null,
+        agentId: typeof agentId === 'string' ? agentId : null,
         type,
-        category: category ?? 'general',
+        category: typeof category === 'string' ? category : 'general',
         content,
         metadata: JSON.stringify(metadata ?? {}),
-        importance: importance ?? 0.5,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        importance: typeof importance === 'number' ? importance : 0.5,
+        expiresAt: typeof expiresAt === 'string' ? new Date(expiresAt) : null,
       },
     })
     return NextResponse.json(memory, { status: 201 })

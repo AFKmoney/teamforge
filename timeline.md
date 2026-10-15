@@ -307,3 +307,24 @@ export interface Benchmark {
 - Plus aucun fond clair opaque codé en dur : tout le code couleur passe par le pattern translucide unique `bg-X-500/10`
 - Chargements uniformes en skeletons (benchmarks + system-log ajoutés aux panels déjà équipés)
 - 3 fichiers harmonisés, 0 régression type/lint/build
+
+## Itération 6 — Review de la PR + fixes de robustesse — 15 octobre 2025
+
+### Liste des choses faites (horodatées)
+
+- [03:30] Review complète du diff `origin/main..HEAD` : 34 fichiers, +861/−1358, 7 commits
+- [03:32] Vérifié : store.ts (bloc dupliqué bien supprimé, types SafetyEvent/Page corrects), types.ts (pas de régression), 'system' bien présent dans MessageType (usages ide-chat-panel valides)
+- [03:34] Test de robustesse des routes API en conditions d'erreur : 3 problèmes détectés
+- [03:35] **Fix 1** : `/api/evolution/[id]` PATCH/DELETE avec ID inexistant → retournait 500, maintenant **404** (détection erreur Prisma P2025)
+- [03:36] **Fix 2** : `/api/memory` POST avec body JSON invalide → retournait 500 (crash `request.json()`), maintenant **400** "Invalid JSON body"
+- [03:37] **Fix 3** : `/api/memory` POST acceptait n'importe quel `type` (ex: 'invalid_type' → 201), maintenant **400** si hors de working/episodic/semantic/procedural/evolution + validation des types des champs (content, category, importance, expiresAt, agentId)
+- [03:38] Re-vérification complète : `tsc` 0 erreur, `lint` 0, `build` OK
+- [03:39] Tests d'erreur rejoués : 404/404/400/400/201 — tous conformes
+- [03:40] Commit + push, review postée sur la PR
+
+### Bilan review
+
+- ✅ 299 erreurs TS → 0, mocks → 9 routes Prisma réelles, instrumentation logs, polish UI : tout est vérifié et cohérent
+- ✅ Recherche SQLite `contains` : case-insensitive ASCII confirmée par test
+- ✅ Limites API : `limit` cappé à 500 côté serveur
+- 🔧 3 fixes de robustesse appliqués pendant la review (codes HTTP corrects, validation d'entrée)

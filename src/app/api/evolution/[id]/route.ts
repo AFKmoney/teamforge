@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
+function isNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'P2025'
+  )
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -22,6 +31,9 @@ export async function PATCH(
     })
     return NextResponse.json(updated)
   } catch (error) {
+    if (isNotFoundError(error)) {
+      return NextResponse.json({ error: 'Evolution event not found' }, { status: 404 })
+    }
     console.error('Evolution PATCH error:', error)
     return NextResponse.json(
       { error: 'Failed to update evolution event' },
@@ -39,6 +51,9 @@ export async function DELETE(
     await db.evolutionEvent.delete({ where: { id } })
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (isNotFoundError(error)) {
+      return NextResponse.json({ error: 'Evolution event not found' }, { status: 404 })
+    }
     console.error('Evolution DELETE error:', error)
     return NextResponse.json(
       { error: 'Failed to delete evolution event' },
